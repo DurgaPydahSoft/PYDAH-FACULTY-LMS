@@ -1,3 +1,10 @@
+:root {
+  --vh: 1vh;
+}
+.min-h-screen {
+  min-height: calc(var(--vh, 1vh) * 100) !important;
+}
+
 @tailwind base;
 
 @tailwind components;

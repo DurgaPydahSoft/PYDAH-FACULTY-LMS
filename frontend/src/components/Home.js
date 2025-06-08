@@ -171,8 +171,8 @@ const LandingPage = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen min-w-screen flex items-center justify-center pt-16 sm:pt-24 px-2 sm:px-4 bg-primary/20">
-        <div className="container  grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-32 items-center relative z-20 w-full ">
+      <section className="relative min-h-screen min-w-full flex items-center justify-center pt-16 sm:pt-24 px-2 sm:px-4 bg-primary/20">
+        <div className="container grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-32 items-center relative z-20 ">
           {/* Hero Content */}
           <div className="text-center lg:text-left animate__animated animate__fadeInUp px-2 sm:px-0 w-full">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-accent/20 text-accent font-medium text-sm mb-6">
