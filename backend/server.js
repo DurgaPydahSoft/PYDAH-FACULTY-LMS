@@ -37,7 +37,7 @@ const corsOptions = {
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:5000',
-      'https://leave-management-pied.vercel.app'
+      'https://pydah-faculty-lms.vercel.app/'
     ];
     
     // Log the origin for debugging
