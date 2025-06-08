@@ -35,9 +35,10 @@ app.use((req, res, next) => {
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
+      'https://pydah-faculty-lms.vercel.app',
       'http://localhost:3000',
-      'http://localhost:5000',
-      'https://pydah-faculty-lms.vercel.app/'
+      'http://localhost:5000'
+      
     ];
     
     // Log the origin for debugging
