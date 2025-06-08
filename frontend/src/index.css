@@ -1,0 +1,39 @@
+@tailwind base;
+
+@tailwind components;
+
+@tailwind utilities;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+  
+ html, body {
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden; /* Prevents horizontal scrolling issues */
+  background-color: #f1f1f1;
+  scroll-behavior: smooth; 
+  overflow-y: scroll;
+    scrollbar-gutter: stable;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  }
+  
+/* Chrome/Safari specific fix for viewport height */
+@supports (-webkit-touch-callout: none) {
+  .min-h-screen {
+    min-height: -webkit-fill-available !important;
+  }
+}
