@@ -24,12 +24,12 @@ connectDB();
 
 const app = express();
 
-// Debug logging middleware
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-  console.log('Request Headers:', req.headers);
-  next();
-});
+// // Debug logging middleware
+// app.use((req, res, next) => {
+//   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+//   console.log('Request Headers:', req.headers);
+//   next();
+// });
 
 // CORS configuration
 const corsOptions = {
@@ -90,18 +90,18 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date() });
 });
 
-// Debug middleware to log all registered routes
-app._router.stack.forEach(function(r){
-  if (r.route && r.route.path){
-    console.log('Registered route:', r.route.stack[0].method.toUpperCase(), r.route.path);
-  } else if (r.name === 'router') {
-    r.handle.stack.forEach(function(layer) {
-      if (layer.route) {
-        console.log('Registered route:', layer.route.stack[0].method.toUpperCase(), r.regexp, layer.route.path);
-      }
-    });
-  }
-});
+// // Debug middleware to log all registered routes
+// app._router.stack.forEach(function(r){
+//   if (r.route && r.route.path){
+//     console.log('Registered route:', r.route.stack[0].method.toUpperCase(), r.route.path);
+//   } else if (r.name === 'router') {
+//     r.handle.stack.forEach(function(layer) {
+//       if (layer.route) {
+//         console.log('Registered route:', layer.route.stack[0].method.toUpperCase(), r.regexp, layer.route.path);
+//       }
+//     });
+//   }
+// });
 
 // Error handling middleware
 app.use((err, req, res, next) => {

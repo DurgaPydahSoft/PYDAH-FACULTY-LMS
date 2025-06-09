@@ -1,6 +1,7 @@
 const { Employee, LeaveRequest } = require('../models');
 const CCLWorkRequest = require('../models/CCLWorkRequest');
 const asyncHandler = require('express-async-handler');
+const { sendLeaveApplicationEmails } = require('../utils/emailService');
 
 // Get Employee by ID
 const getEmployeeById = async (req, res) => {
@@ -85,6 +86,7 @@ const addLeaveRequest = async (req, res) => {
       startDate,
       endDate,
       numberOfDays,
+      reason,
       alternateSchedule
     });
 
@@ -117,31 +119,8 @@ const addLeaveRequest = async (req, res) => {
       });
     }
 
-    // Create new leave request
-    // Generate leaveRequestId (global per leaveType, year, across all departments)
-    const currentYear = new Date().getFullYear();
-    const department = employee.department;
-    // Find the highest sequence number for this type/year across all employees (ignore department)
-    const allEmployees = await Employee.find({}, { leaveRequests: 1 });
-    let maxSeq = 0;
-    allEmployees.forEach(emp => {
-      (emp.leaveRequests || []).forEach(lr => {
-        if (
-          lr.leaveType === leaveType &&
-          lr.startDate && lr.startDate.startsWith(currentYear.toString()) &&
-          lr.leaveRequestId &&
-          lr.leaveRequestId.startsWith(`${leaveType}${currentYear}`)
-        ) {
-          const seq = parseInt(lr.leaveRequestId.slice(-4));
-          if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
-        }
-      });
-    });
-    const nextSeq = (maxSeq + 1).toString().padStart(4, '0');
-    const leaveRequestId = `${leaveType}${currentYear}${department}${nextSeq}`;
-
+    // Create new leave request (do not set leaveRequestId, let schema handle it)
     const newLeaveRequest = {
-      leaveRequestId,
       leaveType,
       isHalfDay: isHalfDay || false,
       session: isHalfDay ? session : undefined,
@@ -177,6 +156,14 @@ const addLeaveRequest = async (req, res) => {
 
     // Get the saved leave request with the generated ID
     const savedLeaveRequest = employee.leaveRequests[employee.leaveRequests.length - 1];
+
+    // Send email notification to employee only
+    try {
+      await sendLeaveApplicationEmails(savedLeaveRequest, employee);
+    } catch (emailError) {
+      console.error('Error sending email notification:', emailError);
+      // Don't fail the request if email fails
+    }
 
     res.status(201).json({
       msg: 'Leave request submitted successfully',

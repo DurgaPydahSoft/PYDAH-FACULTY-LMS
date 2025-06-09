@@ -4,6 +4,7 @@ const { HOD, Employee, User, LeaveRequest } = require('../models');
 const CCLWorkRequest = require('../models/CCLWorkRequest');
 const { validateEmail } = require('../utils/validators');
 const asyncHandler = require('express-async-handler');
+const { sendPrincipalNotification, sendEmployeeRejectionNotification } = require('../utils/emailService');
 
 // Register HOD
 const registerHod = async (req, res) => {
@@ -440,7 +441,18 @@ const updateLeaveRequest = async (req, res) => {
       leaveRequest.hodApprovalDate = new Date();
     }
 
-          await employee.save();
+    await employee.save();
+
+    // Send notification emails after updating the leave request
+    try {
+      if (action === 'forward') {
+        await sendPrincipalNotification(leaveRequest, employee);
+      } else if (action === 'reject') {
+        await sendEmployeeRejectionNotification(leaveRequest, employee);
+      }
+    } catch (notifyError) {
+      console.error('Error sending notification email:', notifyError);
+    }
 
     res.json({
       msg: `Leave request ${action === 'forward' ? 'forwarded to Principal' : 'rejected'}`,

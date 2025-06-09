@@ -95,8 +95,11 @@ const PrincipalLogin = () => {
       <div className="max-w-md w-full bg-secondary rounded-neumorphic shadow-outerRaised p-8">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-primary">
-            {campus.charAt(0).toUpperCase() + campus.slice(1)} Principal Login
+            {campus.charAt(0).toUpperCase() + campus.slice(1)} 
           </h2>
+          <h3 className="text-3xl font-bold text-primary">
+            Principal Login
+          </h3>
           <p className="text-gray-600 mt-2">
             Access your campus dashboard
           </p>

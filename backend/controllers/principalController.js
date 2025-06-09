@@ -14,6 +14,7 @@ const { getBranchesForCampus } = require('../config/branchOptions');
 const bcrypt = require('bcryptjs');
 const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
+const { sendEmployeePrincipalRejectionNotification, sendEmployeePrincipalApprovalNotification } = require('../utils/emailService');
 
 // Principal login
 exports.login = async (req, res) => {
@@ -519,13 +520,7 @@ exports.getDashboard = async (req, res) => {
     }
 
     // Get campus document for branches
-    const campusDoc = await Campus.findOne({ 
-      $or: [
-        { name: normalizedCampus },
-        { type: campusType },
-        { principalId: principal._id }
-      ]
-    });
+    const campusDoc = await Campus.findOne({ principalId: principal._id });
     const allBranches = campusDoc ? campusDoc.branches : [];
     // Departments with HODs are branches with a hodId assigned
     const departmentsWithHODs = allBranches.filter(branch => branch.hodId);
@@ -961,6 +956,9 @@ exports.updateLeaveRequest = async (req, res) => {
         newBalance: leaveRequest.leaveType === 'CCL' ? employee.cclBalance : employee.leaveBalance
       });
 
+      // Send approval notification to employee
+      await sendEmployeePrincipalApprovalNotification(leaveRequest, employee);
+
     } else if (action === 'reject') {
       // Check if already rejected
       if (previousStatus === 'Rejected') {
@@ -1019,6 +1017,9 @@ exports.updateLeaveRequest = async (req, res) => {
         employeeName: employee.name,
         newBalance: leaveRequest.leaveType === 'CCL' ? employee.cclBalance : employee.leaveBalance
       });
+
+      // Send rejection notification to employee
+      await sendEmployeePrincipalRejectionNotification(leaveRequest, employee);
     }
 
     res.json({ 

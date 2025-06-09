@@ -919,13 +919,8 @@ const PrincipalDashboard = () => {
                     <p className="text-red-500">Error loading data</p>
                   ) : (
                     <>
-                      
-                      <div className="mt-2 pt-2 border-t border-gray-100 w-full">
-                        <div className="flex flex-col items-center">
-                          <p className="text-2xl font-bold">{dashboardStats?.totalBranches || 0}</p>
-                          <span className="text-sm text-gray-500">Total Branches</span>
-                        </div>
-                      </div>
+                      <p className="text-3xl font-bold">{dashboardStats?.totalBranches || 0}</p>
+                      <span className="text-sm text-gray-500">Total Branches</span>
                       <div className="flex flex-wrap gap-1 mt-2 justify-center">
                         {dashboardStats?.departments?.slice(0, 3).map(dep => (
                           <span key={dep.code || dep._id} className="inline-block bg-gray-100 text-gray-700 rounded-full px-2 py-1 text-xs font-medium">
