@@ -2,6 +2,7 @@ const { Employee, LeaveRequest } = require('../models');
 const CCLWorkRequest = require('../models/CCLWorkRequest');
 const asyncHandler = require('express-async-handler');
 const { sendLeaveApplicationEmails } = require('../utils/emailService');
+const mongoose = require('mongoose');
 
 // Get Employee by ID
 const getEmployeeById = async (req, res) => {
@@ -119,8 +120,27 @@ const addLeaveRequest = async (req, res) => {
       });
     }
 
-    // Create new leave request (do not set leaveRequestId, let schema handle it)
+    // Generate leaveRequestId globally
+    const LeaveRequest = require('../models/schemas/leaveRequestSchema');
+    const currentYear = new Date().getFullYear();
+    const department = employee.department;
+    const latestRequest = await mongoose.model('Employee').aggregate([
+      { $unwind: '$leaveRequests' },
+      { $match: { 'leaveRequests.leaveType': leaveType, 'leaveRequests.leaveRequestId': { $regex: `^${leaveType}${currentYear}${department}` } } },
+      { $sort: { 'leaveRequests.leaveRequestId': -1 } },
+      { $limit: 1 },
+      { $project: { leaveRequestId: '$leaveRequests.leaveRequestId' } }
+    ]);
+    let sequenceNumber = 1;
+    if (latestRequest.length > 0) {
+      const lastSequence = parseInt(latestRequest[0].leaveRequestId.slice(-4));
+      if (!isNaN(lastSequence)) sequenceNumber = lastSequence + 1;
+    }
+    const leaveRequestId = `${leaveType}${currentYear}${department}${sequenceNumber.toString().padStart(4, '0')}`;
+
+    // Create new leave request with generated ID
     const newLeaveRequest = {
+      leaveRequestId,
       leaveType,
       isHalfDay: isHalfDay || false,
       session: isHalfDay ? session : undefined,
