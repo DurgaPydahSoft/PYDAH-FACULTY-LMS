@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require("express");
 const connectDB = require("./config/db");
-const authRoutes = require("./routes/authRoutes");
+// const authRoutes = require("./routes/authRoutes");
 const employeeRoutes = require("./routes/employeeRoutes");
 const hodRoutes = require("./routes/hodRoutes"); // Import HOD routes
 const superAdminRoutes = require("./routes/superAdminRoutes"); // Import Super Admin routes
@@ -42,7 +42,7 @@ const corsOptions = {
     ];
     
     // Log the origin for debugging
-    console.log('CORS Request Origin:', origin);
+    // console.log('CORS Request Origin:', origin);
     
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
@@ -63,22 +63,22 @@ const corsOptions = {
   maxAge: 86400 // 24 hours
 };
 
-// Add CORS debugging middleware
-app.use((req, res, next) => {
-  console.log('CORS Debug:', {
-    origin: req.headers.origin,
-    method: req.method,
-    path: req.path,
-    headers: req.headers
-  });
-  next();
-});
+// // Add CORS debugging middleware
+// app.use((req, res, next) => {
+//   console.log('CORS Debug:', {
+//     origin: req.headers.origin,
+//     method: req.method,
+//     path: req.path,
+//     headers: req.headers
+//   });
+//   next();
+// });
 
 app.use(cors(corsOptions));
 app.use(express.json());
 
 // Routes
-app.use("/api/auth", authRoutes);
+// app.use("/api/auth", authRoutes);
 app.use("/api/employee", employeeRoutes);
 app.use("/api/hod", hodRoutes);
 app.use("/api/super-admin", superAdminRoutes);

@@ -92,9 +92,10 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
     if (!startDate) return '';
     const start = new Date(startDate);
     const maxEnd = new Date(start);
-    // If employee has special permission, allow up to 20 days
+    // If employee has special permission, allow up to specialLeaveMaxDays
     if (employee?.specialPermission) {
-      maxEnd.setDate(start.getDate() + 19); // 20 days total (start + 19)
+      const maxDays = employee?.specialLeaveMaxDays ?? 20;
+      maxEnd.setDate(start.getDate() + (maxDays - 1)); // maxDays total (start + maxDays - 1)
     } else {
       maxEnd.setDate(start.getDate() + 1); // 2 days total (start + 1)
     }
@@ -144,7 +145,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
       const startDate = formData.startDate;
       const maxEnd = getMaxEndDate(startDate);
       if (value < startDate || value > maxEnd) {
-        const maxDays = employee?.specialPermission ? 20 : 2;
+        const maxDays = employee?.specialPermission ? (employee?.specialLeaveMaxDays ?? 20) : 2;
         toast.error(`End date must be within ${maxDays} days of start date`);
         return;
       }
@@ -600,7 +601,11 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                         <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        End date can be at most {employee?.specialPermission ? '20' : '2'} days after start date.
+                        End date can be at most {employee?.specialPermission ? (employee?.specialLeaveMaxDays ?? 20) : '2'} days after start date.
+                        {/* Debug: Show current specialLeaveMaxDays value */}
+                        {employee?.specialPermission && (
+                          <span className="ml-2 text-blue-500">[Special Max Days: {employee?.specialLeaveMaxDays}]</span>
+                        )}
                       </p>
                     )}
                   </div>

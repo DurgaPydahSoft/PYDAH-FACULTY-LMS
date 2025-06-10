@@ -73,6 +73,13 @@ const employeeSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  specialLeaveMaxDays: {
+    type: Number,
+    default: 20,
+    min: 1,
+    max: 60,
+    required: function() { return this.specialPermission; }
+  },
   role: {
     type: String,
     enum: [
@@ -355,8 +362,9 @@ employeeSchema.pre('save', async function(next) {
     }
 
     // Validate maximum leave duration
-    if (latestLeaveRequest.numberOfDays > 20) {
-      throw new Error('Leave duration cannot exceed 20 days');
+    const maxDays = this.specialPermission ? (this.specialLeaveMaxDays || 20) : 2;
+    if (latestLeaveRequest.numberOfDays > maxDays) {
+      throw new Error(`Leave duration cannot exceed ${maxDays} days`);
     }
 
     // Validate leave balance

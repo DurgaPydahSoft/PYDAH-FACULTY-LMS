@@ -4,7 +4,7 @@ const { HOD, Employee, User, LeaveRequest } = require('../models');
 const CCLWorkRequest = require('../models/CCLWorkRequest');
 const { validateEmail } = require('../utils/validators');
 const asyncHandler = require('express-async-handler');
-const { sendPrincipalNotification, sendEmployeeRejectionNotification } = require('../utils/emailService');
+const { sendPrincipalNotification, sendLeaveRejectionEmail } = require('../utils/emailService');
 
 // Register HOD
 const registerHod = async (req, res) => {
@@ -401,66 +401,88 @@ const getDepartmentLeaves = async (req, res) => {
 // Update leave request
 const updateLeaveRequest = async (req, res) => {
   try {
-    const { action, remarks } = req.body;
+    const { status, remarks } = req.body;
     const { employeeId, leaveRequestId } = req.params;
-    
-    if (!employeeId || !leaveRequestId || !action || !['forward', 'reject'].includes(action)) {
-      return res.status(400).json({ msg: 'Please provide valid employeeId, leaveRequestId and action (forward/reject)' });
+    const hodId = req.user.id;
+
+    // Validate required parameters
+    if (!status || !['Rejected', 'Approved'].includes(status)) {
+      console.log('Invalid or missing status in request body:', req.body);
+      return res.status(400).json({ msg: 'Valid status (Rejected/Approved) is required' });
     }
+
+    console.log('Updating leave request:', {
+      leaveRequestId,
+      employeeId,
+      status,
+      remarks,
+      hodId
+    });
 
     // Find the employee with the leave request
     const employee = await Employee.findOne({
       _id: employeeId,
-      'leaveRequests._id': leaveRequestId
+      'leaveRequests._id': leaveRequestId,
+      department: req.user.branchCode,
+      campus: req.user.campus.toLowerCase()
     });
 
     if (!employee) {
+      console.log('Employee or leave request not found:', {
+        employeeId,
+        leaveRequestId,
+        department: req.user.branchCode,
+        campus: req.user.campus
+      });
       return res.status(404).json({ msg: 'Employee or leave request not found' });
     }
 
-    // Verify HOD has authority over this department
-    if (employee.department !== req.user.branchCode || 
-        employee.campus !== req.user.campus) {
-      return res.status(403).json({ msg: 'Not authorized to update this leave request' });
-    }
-
-    // Find the specific leave request
+    // Get the specific leave request
     const leaveRequest = employee.leaveRequests.id(leaveRequestId);
     if (!leaveRequest) {
+      console.log('Leave request not found in employee document:', {
+        leaveRequestId,
+        employeeId: employee._id
+      });
       return res.status(404).json({ msg: 'Leave request not found' });
     }
 
-    // Update the leave request based on action
-    if (action === 'forward') {
-      leaveRequest.status = 'Forwarded by HOD';
-      leaveRequest.hodRemarks = remarks || 'Forwarded to Principal';
-      leaveRequest.hodApprovalDate = new Date();
-    } else if (action === 'reject') {
-      leaveRequest.status = 'Rejected';
-      leaveRequest.hodRemarks = remarks || 'Rejected by HOD';
-      leaveRequest.hodApprovalDate = new Date();
+    const hod = await HOD.findById(hodId);
+    if (!hod) {
+      console.log('HOD not found:', hodId);
+      return res.status(404).json({ msg: 'HOD not found' });
     }
 
+    // Update leave request status
+    leaveRequest.hodStatus = status;
+    leaveRequest.hodRemarks = remarks;
+    leaveRequest.hodApprovalDate = new Date();
+
+    if (status === 'Rejected') {
+      leaveRequest.status = 'Rejected';
+      await sendLeaveRejectionEmail(leaveRequest, employee, hod);
+    } else if (status === 'Approved') {
+      leaveRequest.status = 'Forwarded by HOD';
+      await sendPrincipalNotification(leaveRequest, employee, hod);
+    }
+
+    // Save the employee document to persist the leave request changes
     await employee.save();
 
-    // Send notification emails after updating the leave request
-    try {
-      if (action === 'forward') {
-        await sendPrincipalNotification(leaveRequest, employee);
-      } else if (action === 'reject') {
-        await sendEmployeeRejectionNotification(leaveRequest, employee);
-      }
-    } catch (notifyError) {
-      console.error('Error sending notification email:', notifyError);
-    }
+    console.log('Leave request updated successfully:', {
+      leaveRequestId,
+      status,
+      employeeId: employee._id,
+      hodId
+    });
 
-    res.json({
-      msg: `Leave request ${action === 'forward' ? 'forwarded to Principal' : 'rejected'}`,
+    res.json({ 
+      msg: 'Leave request updated successfully',
       leaveRequest
     });
   } catch (error) {
-    console.error('Update Leave Request Error:', error);
-    res.status(500).json({ msg: error.message || 'Server error' });
+    console.error('Error updating leave request:', error);
+    res.status(500).json({ msg: 'Internal server error' });
   }
 };
 

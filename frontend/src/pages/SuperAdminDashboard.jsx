@@ -4,15 +4,10 @@ import axios from 'axios';
 import config from '../config';
 import { toast } from 'react-toastify';
 import Loading from '../components/Loading';
+import { FaUserTie, FaUserShield, FaUniversity, FaChalkboardTeacher, FaUsers, FaPlusCircle } from 'react-icons/fa';
+import { MdEmail, MdPassword, MdLocationOn } from 'react-icons/md';
 
 const API_BASE_URL = config.API_BASE_URL;
-
-const PREDEFINED_CAMPUSES = [
-  { name: 'engineering', displayName: 'PYDAH Engineering College' },
-  { name: 'degree', displayName: 'PYDAH Degree College' },
-  { name: 'pharmacy', displayName: 'PYDAH College of Pharmacy' },
-  { name: 'diploma', displayName: 'PYDAH Polytechnic College' }
-];
 
 // SVG icons
 const EditIcon = () => (
@@ -53,6 +48,12 @@ const SuperAdminDashboard = () => {
   const [editHRData, setEditHRData] = useState({ _id: '', name: '', email: '' });
   const [showResetHRPasswordModal, setShowResetHRPasswordModal] = useState(false);
   const [resetHRPasswordData, setResetHRPasswordData] = useState({ hrId: null, newPassword: '' });
+  const [showCreateCampusModal, setShowCreateCampusModal] = useState(false);
+  const [campusFormData, setCampusFormData] = useState({
+    name: '',
+    displayName: '',
+    type: ''
+  });
   
   const navigate = useNavigate();
 
@@ -114,42 +115,24 @@ const SuperAdminDashboard = () => {
     try {
       const token = localStorage.getItem('token');
       
-      // First create the campus if it doesn't exist
-      const selectedCampus = PREDEFINED_CAMPUSES.find(c => c.name === formData.campusName);
+      // Check if campus exists
+      const selectedCampus = campuses.find(c => c.name === formData.campusName);
       if (!selectedCampus) {
         throw new Error('Invalid campus selected');
       }
 
-      let campusId;
-      const existingCampus = campuses.find(c => c.name === formData.campusName);
-      
-      if (!existingCampus) {
-        const campusResponse = await axios.post(
-          `${API_BASE_URL}/super-admin/campuses`,
-          {
-            name: selectedCampus.name,
-            displayName: selectedCampus.displayName
-          },
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
-        );
-        campusId = campusResponse.data.campus._id;
-      } else {
-        if (existingCampus.principalId) {
-          throw new Error('This campus already has a principal assigned');
-        }
-        campusId = existingCampus._id;
+      if (selectedCampus.principalId) {
+        throw new Error('This campus already has a principal assigned');
       }
 
-      // Then create the principal
+      // Create the principal
       const principalResponse = await axios.post(
         `${API_BASE_URL}/super-admin/principals`,
         {
           name: formData.name,
           email: formData.email,
           password: formData.password,
-          campusId: campusId
+          campusId: selectedCampus._id
         },
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -176,29 +159,10 @@ const SuperAdminDashboard = () => {
     try {
       const token = localStorage.getItem('token');
       
-      // First create the campus if it doesn't exist
-      const selectedCampus = PREDEFINED_CAMPUSES.find(c => c.name === hrFormData.campusName);
+      // Check if campus exists
+      const selectedCampus = campuses.find(c => c.name === hrFormData.campusName);
       if (!selectedCampus) {
         throw new Error('Invalid campus selected');
-      }
-
-      let campusId;
-      const existingCampus = campuses.find(c => c.name === hrFormData.campusName);
-      
-      if (!existingCampus) {
-        const campusResponse = await axios.post(
-          `${API_BASE_URL}/super-admin/campuses`,
-          {
-            name: selectedCampus.name,
-            displayName: selectedCampus.displayName
-          },
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
-        );
-        campusId = campusResponse.data.campus._id;
-      } else {
-        campusId = existingCampus._id;
       }
 
       // Create HR
@@ -208,7 +172,7 @@ const SuperAdminDashboard = () => {
           name: hrFormData.name,
           email: hrFormData.email,
           password: hrFormData.password,
-          campusId: campusId
+          campusId: selectedCampus._id
         },
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -353,6 +317,33 @@ const SuperAdminDashboard = () => {
     }
   };
 
+  const handleCreateCampus = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${API_BASE_URL}/super-admin/campuses`,
+        campusFormData,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      setShowCreateCampusModal(false);
+      setCampusFormData({ name: '', displayName: '', type: '' });
+      await fetchCampuses();
+      toast.success('Campus created successfully');
+    } catch (error) {
+      console.error('Error creating campus:', error);
+      setError(error.response?.data?.msg || error.message || 'Failed to create campus');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return <Loading />;
   }
@@ -383,6 +374,12 @@ const SuperAdminDashboard = () => {
         <div className="bg-secondary rounded-neumorphic shadow-outerRaised p-4 sm:p-6 mb-4 sm:mb-6">
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full">
             <button
+              onClick={() => setShowCreateCampusModal(true)}
+              className="bg-blue-500 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-neumorphic hover:shadow-innerSoft transition-all duration-300 w-full sm:w-auto"
+            >
+              Create New Campus
+            </button>
+            <button
               onClick={() => setShowCreateModal(true)}
               className="bg-primary text-white px-4 sm:px-6 py-2 sm:py-3 rounded-neumorphic hover:shadow-innerSoft transition-all duration-300 w-full sm:w-auto"
             >
@@ -401,77 +398,69 @@ const SuperAdminDashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Campuses & Principals Section */}
           <div className="bg-secondary rounded-neumorphic shadow-outerRaised p-4 sm:p-6 mb-4 sm:mb-6 lg:mb-0">
-            <h2 className="text-lg sm:text-xl font-bold text-primary mb-3 sm:mb-4">Campuses & Principals</h2>
+            <h2 className="text-lg sm:text-xl font-bold text-primary mb-3 sm:mb-4 flex items-center gap-2">
+              <FaUniversity className="inline text-primary" /> Campuses & Principals
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-              {PREDEFINED_CAMPUSES.map((predefinedCampus) => {
-                const campus = campuses.find(c => c.name === predefinedCampus.name) || predefinedCampus;
-                const principal = campus.principalId;
-                
-                return (
-                  <div
-                    key={campus.name}
-                    className="bg-white p-4 sm:p-6 rounded-lg shadow-innerSoft border border-gray-100 flex flex-col justify-between"
-                  >
-                    <h3 className="text-base sm:text-lg font-semibold text-primary mb-3 sm:mb-4">
-                      {predefinedCampus.displayName}
-                    </h3>
-                    
-                    {principal ? (
-                      <div className="space-y-2 sm:space-y-3">
-                        <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:items-center">
-                          <span className="text-gray-600 text-xs sm:text-sm">Principal:</span>
-                          <span className="font-medium text-xs sm:text-sm">{principal.name}</span>
-                        </div>
-                        <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:items-center">
-                          <span className="text-gray-600 text-xs sm:text-sm">Email:</span>
-                          <span className="font-medium text-xs sm:text-sm break-all">{principal.email}</span>
-                        </div>
-                        <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:items-center">
-                          <span className="text-gray-600 text-xs sm:text-sm">Last Login:</span>
-                          <span className="font-medium text-xs sm:text-sm">
-                            {principal.lastLogin
-                              ? new Date(principal.lastLogin).toLocaleString()
-                              : 'Never'}
-                          </span>
-                        </div>
-                        {/* <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:items-center">
-                          <span className="text-gray-600 text-xs sm:text-sm">Status:</span>
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold
-                            ${principal.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                            {principal.isActive ? 'Active' : 'Inactive'}
-                          </span>
-                        </div> */}
-                        <div className="flex flex-row gap-2 mt-3 sm:mt-4 justify-end">
-                          <button
-                            onClick={() => handleEditPrincipal(principal)}
-                            className="p-2 rounded-full bg-green-100 hover:bg-blue-200 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400"
-                            aria-label="Edit Principal"
-                            title="Edit Principal"
-                          >
-                            <EditIcon />
-                          </button>
-                          <button
-                            onClick={() => handleResetPassword(principal._id)}
-                            className="flex-1 bg-primary text-white px-3 py-2 rounded-md text-xs sm:text-sm font-medium  transition-colors"
-                            aria-label="Reset Password"
-                            title="Reset Password"
-                          >
-                            Reset Password
-                          </button>
-                        </div>
+              {campuses.map((campus) => (
+                <div
+                  key={campus._id}
+                  className="bg-white p-4 sm:p-6 rounded-lg shadow-innerSoft border border-gray-100 flex flex-col justify-between"
+                >
+                  <h3 className="text-base sm:text-lg font-semibold text-primary mb-3 sm:mb-4">
+                    {campus.displayName}
+                  </h3>
+                  
+                  {campus.principalId ? (
+                    <div className="space-y-2 sm:space-y-3">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:items-center">
+                        <span className="text-gray-600 text-xs sm:text-sm">Principal:</span>
+                        <span className="font-medium text-xs sm:text-sm">{campus.principalId.name}</span>
                       </div>
-                    ) : (
-                      <p className="text-gray-600 italic text-xs sm:text-base">No principal assigned</p>
-                    )}
-                  </div>
-                );
-              })}
+                      <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:items-center">
+                        <span className="text-gray-600 text-xs sm:text-sm">Email:</span>
+                        <span className="font-medium text-xs sm:text-sm break-all">{campus.principalId.email}</span>
+                      </div>
+                      <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:items-center">
+                        <span className="text-gray-600 text-xs sm:text-sm">Last Login:</span>
+                        <span className="font-medium text-xs sm:text-sm">
+                          {campus.principalId.lastLogin
+                            ? new Date(campus.principalId.lastLogin).toLocaleString()
+                            : 'Never'}
+                        </span>
+                      </div>
+                      <div className="flex flex-row gap-2 mt-3 sm:mt-4 justify-end">
+                        <button
+                          onClick={() => handleEditPrincipal(campus.principalId)}
+                          className="p-2 rounded-full bg-green-100 hover:bg-blue-200 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          aria-label="Edit Principal"
+                          title="Edit Principal"
+                        >
+                          <EditIcon />
+                        </button>
+                        <button
+                          onClick={() => handleResetPassword(campus.principalId._id)}
+                          className="flex-1 bg-primary text-white px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors"
+                          aria-label="Reset Password"
+                          title="Reset Password"
+                        >
+                          Reset Password
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-gray-600 italic text-xs sm:text-base">No principal assigned</p>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 
           {/* HR Management Section */}
           <div className="bg-secondary rounded-neumorphic shadow-outerRaised p-4 sm:p-6">
-            <h2 className="text-lg sm:text-xl font-bold text-primary mb-3 sm:mb-4">HR Management</h2>
+            <h2 className="text-lg sm:text-xl font-bold text-primary mb-3 sm:mb-4 flex items-center gap-2">
+              <FaUsers className="inline text-primary" /> HR Management
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               {hrs.map((hr) => (
                 <div
@@ -498,13 +487,6 @@ const SuperAdminDashboard = () => {
                           : 'Never'}
                       </span>
                     </div>
-                    {/* <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:items-center">
-                      <span className="text-gray-600 text-xs sm:text-sm">Status:</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold
-                        ${hr.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {hr.status}
-                      </span>
-                    </div> */}
                     <div className="flex flex-row gap-2 mt-3 sm:mt-4 justify-end">
                       <button
                         onClick={() => handleEditHR(hr)}
@@ -584,11 +566,10 @@ const SuperAdminDashboard = () => {
                   required
                 >
                   <option value="">Select a campus</option>
-                  {PREDEFINED_CAMPUSES.map((campus) => {
-                    const existingCampus = campuses.find(c => c.name === campus.name);
-                    if (!existingCampus || !existingCampus.principalId) {
+                  {campuses.map((campus) => {
+                    if (!campus.principalId) {
                       return (
-                        <option key={campus.name} value={campus.name}>
+                        <option key={campus._id} value={campus.name}>
                           {campus.displayName}
                         </option>
                       );
@@ -632,7 +613,9 @@ const SuperAdminDashboard = () => {
             </div>
             <form onSubmit={handleCreateHR} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                  <FaUserTie className="inline text-primary" /> Name
+                </label>
                 <input
                   type="text"
                   value={hrFormData.name}
@@ -642,7 +625,9 @@ const SuperAdminDashboard = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                  <MdEmail className="inline text-primary" /> Email
+                </label>
                 <input
                   type="email"
                   value={hrFormData.email}
@@ -652,7 +637,9 @@ const SuperAdminDashboard = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                  <MdPassword className="inline text-primary" /> Password
+                </label>
                 <input
                   type="password"
                   value={hrFormData.password}
@@ -662,7 +649,9 @@ const SuperAdminDashboard = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Campus</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                  <FaUniversity className="inline text-primary" /> Campus
+                </label>
                 <select
                   value={hrFormData.campusName}
                   onChange={(e) => setHrFormData({...hrFormData, campusName: e.target.value})}
@@ -670,11 +659,14 @@ const SuperAdminDashboard = () => {
                   required
                 >
                   <option value="">Select a campus</option>
-                  {PREDEFINED_CAMPUSES.map((campus) => (
-                    <option key={campus.name} value={campus.name}>
-                      {campus.displayName}
-                    </option>
-                  ))}
+                  {campuses
+                    .slice() // copy array to avoid mutating state
+                    .sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''))
+                    .map((campus) => (
+                      <option key={campus._id} value={campus.name}>
+                        {campus.displayName}
+                      </option>
+                    ))}
                 </select>
               </div>
               <div className="flex justify-end space-x-3 mt-6">
@@ -886,6 +878,67 @@ const SuperAdminDashboard = () => {
                   className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark"
                 >
                   Reset Password
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Campus Modal */}
+      {showCreateCampusModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-xl font-bold text-primary">Create New Campus</h2>
+              <button
+                onClick={() => setShowCreateCampusModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleCreateCampus} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                  <FaUniversity className="inline text-primary" /> Campus Name (System)
+                </label>
+                <input
+                  type="text"
+                  value={campusFormData.name}
+                  onChange={(e) => setCampusFormData({...campusFormData, name: e.target.value.toLowerCase()})}
+                  className="w-full p-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary"
+                  placeholder="e.g., engineering, pharmacy"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">Use lowercase, no spaces (e.g., engineering, pharmacy)</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                  <FaUniversity className="inline text-primary" /> Display Name
+                </label>
+                <input
+                  type="text"
+                  value={campusFormData.displayName}
+                  onChange={(e) => setCampusFormData({...campusFormData, displayName: e.target.value})}
+                  className="w-full p-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary"
+                  placeholder="e.g., PYDAH Engineering College"
+                  required
+                />
+              </div>
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateCampusModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark"
+                >
+                  Create Campus
                 </button>
               </div>
             </form>

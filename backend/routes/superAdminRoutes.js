@@ -6,6 +6,9 @@ const SuperAdminController = require('../controllers/superAdminController');
 // Auth routes
 router.post('/login', SuperAdminController.login);
 
+// Public routes
+router.get('/campuses/active', SuperAdminController.getActiveCampuses);
+
 // Protected routes
 router.use(authSuperAdmin); // Apply auth middleware to all routes below
 

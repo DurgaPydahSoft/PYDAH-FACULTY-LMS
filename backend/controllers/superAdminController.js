@@ -56,17 +56,11 @@ exports.login = async (req, res) => {
 // Create Campus
 exports.createCampus = async (req, res) => {
   try {
-    const { name, displayName } = req.body;
+    const { name, displayName, type } = req.body;
 
-    // Validate input
+    // Validate required input
     if (!name || !displayName) {
-      return res.status(400).json({ msg: 'Please provide all required fields' });
-    }
-
-    // Validate campus name is one of the predefined ones
-    const validCampuses = ['engineering', 'degree', 'pharmacy', 'diploma'];
-    if (!validCampuses.includes(name)) {
-      return res.status(400).json({ msg: 'Invalid campus name' });
+      return res.status(400).json({ msg: 'Please provide name and display name' });
     }
 
     // Check if campus already exists
@@ -75,21 +69,13 @@ exports.createCampus = async (req, res) => {
       return res.status(400).json({ msg: 'Campus already exists' });
     }
 
-    // Map campus names to types
-    const campusTypeMap = {
-      engineering: 'Engineering',
-      degree: 'Degree',
-      pharmacy: 'Pharmacy',
-      diploma: 'Diploma'
-    };
-
     // Create a temporary principal for initial campus creation
     const tempPrincipal = new Principal({
       name: 'Temporary Principal',
       email: `temp.${name}@pydah.edu.in`,
       password: 'temporary123',
       campus: {
-        type: campusTypeMap[name],
+        type: type || 'Engineering', // Provide a default type for the principal
         name: name,
         location: 'Visakhapatnam'
       },
@@ -98,12 +84,11 @@ exports.createCampus = async (req, res) => {
 
     await tempPrincipal.save();
 
-    // Create new campus with all required fields
+    // Create new campus with required fields
     const campus = new Campus({
       name,
       displayName,
-      type: campusTypeMap[name],
-      location: 'Visakhapatnam',
+      type: type || undefined, // Only include type if provided
       principalId: tempPrincipal._id,
       principalModel: 'Principal',
       isActive: true,
@@ -114,7 +99,14 @@ exports.createCampus = async (req, res) => {
 
     res.status(201).json({
       msg: 'Campus created successfully',
-      campus
+      campus: {
+        id: campus._id,
+        name: campus.name,
+        displayName: campus.displayName,
+        type: campus.type,
+        isActive: campus.isActive,
+        principalId: campus.principalId
+      }
     });
   } catch (error) {
     console.error('Create Campus Error:', error);
@@ -145,6 +137,26 @@ exports.getAllCampuses = async (req, res) => {
     res.json(formattedCampuses);
   } catch (error) {
     console.error('Get Campuses Error:', error);
+    res.status(500).json({ msg: error.message || 'Server error' });
+  }
+};
+
+// Get Active Campuses
+exports.getActiveCampuses = async (req, res) => {
+  try {
+    const campuses = await Campus.find({ isActive: true })
+      .select('name displayName type location')
+      .sort({ name: 1 });
+
+    // If displayName is not set, use name as displayName
+    const formattedCampuses = campuses.map(campus => ({
+      ...campus.toObject(),
+      displayName: campus.displayName || campus.name.charAt(0).toUpperCase() + campus.name.slice(1)
+    }));
+
+    res.json(formattedCampuses);
+  } catch (error) {
+    console.error('Get Active Campuses Error:', error);
     res.status(500).json({ msg: error.message || 'Server error' });
   }
 };

@@ -20,6 +20,14 @@ const axiosInstance = axios.create({
 // Request interceptor
 axiosInstance.interceptors.request.use(
   (config) => {
+    // Get token from localStorage
+    const token = localStorage.getItem('token');
+    
+    // If token exists, add it to headers
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
     // Log request details in development
     console.log('API Request:', {
       url: config.url,
@@ -49,6 +57,14 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   (error) => {
+    // Handle 401 Unauthorized errors
+    if (error.response?.status === 401) {
+      // Clear local storage and redirect to login
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/';
+    }
+
     if (error.code === 'ERR_NETWORK') {
       console.error('Network Error - Check if backend is running:', {
         url: error.config?.url,

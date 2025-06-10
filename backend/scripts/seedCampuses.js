@@ -47,13 +47,16 @@ const seedCampuses = async () => {
     for (const campus of campuses) {
       const exists = existingCampuses.some(c => c.name === campus.name);
       if (!exists) {
-        const newCampus = new Campus({
+        // Only include fields that exist in the schema
+        const newCampusData = {
           name: campus.name,
           displayName: campus.displayName,
-          type: campus.type,
-          location: campus.location,
           isActive: true
-        });
+        };
+        if (campus.type) newCampusData.type = campus.type;
+        if (campus.location) newCampusData.location = campus.location;
+
+        const newCampus = new Campus(newCampusData);
         await newCampus.save();
         console.log(`Created campus: ${campus.displayName}`);
       } else {

@@ -3,16 +3,20 @@ const mongoose = require('mongoose');
 const campusSchema = new mongoose.Schema({
   name: {
     type: String,
+    required: true,
+    unique: true
+  },
+  displayName: {
+    type: String,
     required: true
   },
   type: {
-    type: String,
-    enum: ['Engineering', 'Diploma', 'Pharmacy', 'Degree'],
-    required: true
+    type: String
   },
   location: {
     type: String,
-    required: true
+    required: true,
+    default: 'Visakhapatnam'
   },
   principalId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -48,5 +52,8 @@ const campusSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// Add index for faster queries
+campusSchema.index({ name: 1, type: 1 });
 
 module.exports = campusSchema; 

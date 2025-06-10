@@ -102,7 +102,14 @@ exports.authPrincipal = async (req, res, next) => {
         return res.status(401).json({ msg: 'Invalid campus for this principal' });
       }
     } else {
-      if (principal.campus.type !== campusType) {
+      // For Principal model, check both name and type
+      const principalCampus = principal.campus.name || principal.campus.type;
+      if (principalCampus.toLowerCase() !== campusType.toLowerCase()) {
+        console.log('Campus mismatch:', {
+          tokenCampus: campusType,
+          principalCampus: principalCampus,
+          principalCampusObj: principal.campus
+        });
         return res.status(401).json({ msg: 'Invalid campus for this principal' });
       }
     }
@@ -122,7 +129,7 @@ exports.authPrincipal = async (req, res, next) => {
         ...principal.toObject(),
         campus: {
           type: campusType,
-          name: `${campusType} Campus`,
+          name: campusType,
           location: 'Default Location'
         }
       };

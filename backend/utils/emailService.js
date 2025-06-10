@@ -2,6 +2,16 @@ const SibApiV3Sdk = require('sib-api-v3-sdk');
 const defaultClient = SibApiV3Sdk.ApiClient.instance;
 const mongoose = require('mongoose');
 const HOD = mongoose.models.HOD || mongoose.model('HOD');
+const { getEmployeeCredentialsTemplate } = require('./templates/employeeCredentials');
+const { getLeaveApplicationTemplate } = require('./templates/leaveApplication');
+const { getHodReceivingLeaveRequestTemplate } = require('./templates/hodReceivingLeaveRequest');
+const { getHodForwardOrPrincipalReceiveTemplate } = require('./templates/hodForwardOrPrincipalReceive');
+const { getEmployeeLeaveRejectedAtHodTemplate } = require('./templates/employeeLeaveRejectedAtHod');
+const { getEmployeeLeaveRejectedAtPrincipalTemplate } = require('./templates/employeeLeaveRejectedAtPrincipal');
+const { getEmployeeLeaveApprovedAtPrincipalTemplate } = require('./templates/employeeLeaveApprovedAtPrincipal');
+const Employee = require('../models/schemas/employeeSchema');
+const Hod = require('../models/schemas/hodSchema');
+const Principal = require('../models/schemas/principalSchema');
 
 // Configure API key authorization
 const apiKey = defaultClient.authentications['api-key'];
@@ -139,32 +149,14 @@ const sendLeaveApplicationEmails = async (leaveRequest, employee) => {
     };
 
     // Send email to employee using template
-    const templateId = process.env.BREVO_LEAVE_APPLICATION_TEMPLATE_ID;
-    if (templateId) {
-      try {
-        console.log('Attempting to send email using template:', {
-          templateId,
-          params: templateParams
-        });
+    const employeeHtmlContent = getLeaveApplicationTemplate(templateParams);
+    await sendEmail({
+      to: employee.email,
+      subject: 'Leave Application Submitted',
+      htmlContent: employeeHtmlContent
+    });
 
-        await sendEmail({
-          to: employee.email,
-          subject: 'Leave Application Submitted',
-          templateId: templateId,
-          params: templateParams
-        });
-
-        console.log('Email sent successfully using template');
-      } catch (templateError) {
-        console.error('Failed to send email using template:', {
-          error: templateError.message,
-          templateId
-        });
-        throw templateError;
-      }
-    } else {
-      throw new Error('No template ID configured for Brevo email sending.');
-    }
+    console.log('Email sent successfully to employee');
 
     // --- HOD Notification ---
     try {
@@ -185,17 +177,13 @@ const sendLeaveApplicationEmails = async (leaveRequest, employee) => {
         console.warn('HOD found but has no email:', hod._id);
         return;
       }
-      const hodTemplateId = process.env.BREVO_HOD_NOTIFICATION_TEMPLATE_ID;
-      if (!hodTemplateId) {
-        console.warn('No BREVO_HOD_NOTIFICATION_TEMPLATE_ID set in .env');
-        return;
-      }
-      // You can customize params for HOD if needed, or reuse templateParams
+
+      // Send HOD specific template
+      const hodHtmlContent = getHodReceivingLeaveRequestTemplate(templateParams);
       await sendEmail({
         to: hod.email,
         subject: 'New Leave Application Submitted',
-        templateId: hodTemplateId,
-        params: templateParams
+        htmlContent: hodHtmlContent
       });
       console.log('HOD notification email sent to:', hod.email);
     } catch (hodError) {
@@ -215,76 +203,38 @@ const sendLeaveApplicationEmails = async (leaveRequest, employee) => {
 };
 
 // Send email to principal when leave is forwarded
-const sendPrincipalNotification = async (leaveRequest, employee) => {
+const sendPrincipalNotification = async (leaveRequest, employee, hod) => {
   try {
-    const Campus = mongoose.models.Campus || mongoose.model('Campus');
-    const Principal = mongoose.models.Principal || mongoose.model('Principal');
-    const HOD = mongoose.models.HOD || mongoose.model('HOD');
-    
-    // Find campus and principal
-    const campus = await Campus.findOne({ name: employee.campus });
-    if (!campus || !campus.principalId) {
-      console.warn('No campus or principal found for:', employee.campus);
-      return;
-    }
-    const principal = await Principal.findById(campus.principalId);
-    if (!principal || !principal.email) {
-      console.warn('No principal email found for campus:', employee.campus);
-      return;
+    const principalEmail = process.env.PRINCIPAL_EMAIL;
+    if (!principalEmail) {
+      throw new Error('PRINCIPAL_EMAIL environment variable is not set');
     }
 
-    // Find HOD details
-    const hod = await HOD.findOne({
-      'department.code': employee.department,
-      'department.campusType': employee.campus.charAt(0).toUpperCase() + employee.campus.slice(1),
-      status: 'active'
-    });
-
-    if (!hod) {
-      console.warn('No HOD found for department/campus:', {
-        department: employee.department,
-        campus: employee.campus
-      });
-      return;
-    }
-
-    const templateId = process.env.BREVO_PRINCIPAL_NOTIFICATION_TEMPLATE_ID;
-    if (!templateId) {
-      console.warn('No BREVO_PRINCIPAL_NOTIFICATION_TEMPLATE_ID set');
-      return;
-    }
-
-    const frontendUrl = process.env.FRONTEND_URL;
     const templateParams = {
       employeeName: employee.name,
+      department: employee.department,
+      leaveRequestId: leaveRequest.leaveRequestId,
       leaveType: leaveRequest.leaveType,
       startDate: new Date(leaveRequest.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
       endDate: new Date(leaveRequest.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
       numberOfDays: formatNumberOfDays(leaveRequest.numberOfDays),
       reason: leaveRequest.reason,
-      status: 'Forwarded by HOD',
-      applicationDate: new Date().toLocaleDateString(),
-      leaveRequestId: leaveRequest.leaveRequestId,
-      department: employee.department,
-      campus: employee.campus,
-      viewRequestUrl: frontendUrl ? `${frontendUrl}/principal-login` : 'https://pydah-faculty-lms.vercel.app/',
-      year: new Date().getFullYear(),
-      // Add HOD details
       hodName: hod.name,
-      hodDepartment: hod.department.code || employee.department,
-      hodRemarks: leaveRequest.hodRemarks || 'Forwarded to Principal',
-      hodApprovalDate: leaveRequest.hodApprovalDate ? new Date(leaveRequest.hodApprovalDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      hodRemarks: leaveRequest.hodRemarks || 'No remarks provided',
+      year: new Date().getFullYear()
     };
 
+    const htmlContent = getHodForwardOrPrincipalReceiveTemplate(templateParams);
     await sendEmail({
-      to: principal.email,
-      subject: 'Leave Request Forwarded to Principal',
-      templateId,
-      params: templateParams
+      to: principalEmail,
+      subject: 'Leave Request Forwarded for Approval',
+      htmlContent
     });
-    console.log('Principal notification email sent to:', principal.email);
+
+    console.log('Principal notification email sent successfully');
   } catch (error) {
-    console.error('Error sending principal notification email:', error);
+    console.error('Error sending principal notification:', error);
+    throw error;
   }
 };
 
@@ -342,96 +292,107 @@ const sendEmployeeRejectionNotification = async (leaveRequest, employee) => {
 // Send email to employee when leave is rejected by Principal
 const sendEmployeePrincipalRejectionNotification = async (leaveRequest, employee) => {
   try {
-    const templateId = process.env.BREVO_EMPLOYEE_LEAVE_REJECTED_AT_PRINCIPAL_TEMPLATE_ID;
-    if (!templateId) {
-      console.warn('No BREVO_EMPLOYEE_LEAVE_REJECTED_AT_PRINCIPAL_TEMPLATE_ID set');
-      return;
-    }
-
-    // Find Principal details
-    const Campus = mongoose.models.Campus || mongoose.model('Campus');
-    const Principal = mongoose.models.Principal || mongoose.model('Principal');
-    const campus = await Campus.findOne({ name: employee.campus });
-    const principal = campus && campus.principalId ? await Principal.findById(campus.principalId) : null;
-
-    const frontendUrl = process.env.FRONTEND_URL;
-    const templateParams = {
+    const htmlContent = getEmployeeLeaveRejectedAtPrincipalTemplate({
       employeeName: employee.name,
-      leaveType: leaveRequest.leaveType,
-      startDate: new Date(leaveRequest.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-      endDate: new Date(leaveRequest.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-      numberOfDays: formatNumberOfDays(leaveRequest.numberOfDays),
-      reason: leaveRequest.reason,
-      status: 'Rejected',
-      applicationDate: new Date().toLocaleDateString(),
+      principalRemarks: leaveRequest.principalRemarks,
       leaveRequestId: leaveRequest.leaveRequestId,
-      department: employee.department,
-      campus: employee.campus,
-      viewRequestUrl: frontendUrl ? `${frontendUrl}/employee-login` : 'https://pydah-faculty-lms.vercel.app/employee-login',
-      year: new Date().getFullYear(),
-      // Add Principal details
-      principalName: principal ? principal.name : 'Principal',
-      principalRemarks: leaveRequest.principalRemarks || 'Rejected by Principal',
-      principalApprovalDate: leaveRequest.principalApprovalDate ? new Date(leaveRequest.principalApprovalDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      leaveType: leaveRequest.leaveType,
+      startDate: leaveRequest.startDate,
+      endDate: leaveRequest.endDate,
+      numberOfDays: leaveRequest.numberOfDays,
+      year: new Date().getFullYear()
+    });
+
+    const emailData = {
+      to: [{ email: employee.email }],
+      subject: 'Leave Request Rejected by Principal',
+      htmlContent
     };
 
-    await sendEmail({
-      to: employee.email,
-      subject: 'Leave Request Rejected by Principal',
-      templateId,
-      params: templateParams
-    });
-    console.log('Employee principal rejection notification email sent to:', employee.email);
+    const result = await sendEmail(emailData);
+    console.log('Leave rejection email sent successfully to employee');
+    return result;
   } catch (error) {
-    console.error('Error sending employee principal rejection notification email:', error);
+    console.error('Error sending leave rejection email:', error);
+    throw error;
   }
 };
 
 // Send email to employee when leave is approved by Principal
 const sendEmployeePrincipalApprovalNotification = async (leaveRequest, employee) => {
   try {
-    const templateId = process.env.BREVO_EMPLOYEE_LEAVE_APPROVAL_AT_PRINCIPAL_TEMPLATE_ID;
-    if (!templateId) {
-      console.warn('No BREVO_EMPLOYEE_LEAVE_APPROVAL_AT_PRINCIPAL_TEMPLATE_ID set');
-      return;
-    }
-
-    // Find Principal details
-    const Campus = mongoose.models.Campus || mongoose.model('Campus');
-    const Principal = mongoose.models.Principal || mongoose.model('Principal');
-    const campus = await Campus.findOne({ name: employee.campus });
-    const principal = campus && campus.principalId ? await Principal.findById(campus.principalId) : null;
-
-    const frontendUrl = process.env.FRONTEND_URL;
-    const templateParams = {
+    const htmlContent = getEmployeeLeaveApprovedAtPrincipalTemplate({
       employeeName: employee.name,
-      leaveType: leaveRequest.leaveType,
-      startDate: new Date(leaveRequest.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-      endDate: new Date(leaveRequest.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-      numberOfDays: formatNumberOfDays(leaveRequest.numberOfDays),
-      reason: leaveRequest.reason,
-      status: 'Approved',
-      applicationDate: new Date().toLocaleDateString(),
+      principalRemarks: leaveRequest.principalRemarks,
       leaveRequestId: leaveRequest.leaveRequestId,
-      department: employee.department,
-      campus: employee.campus,
-      viewRequestUrl: frontendUrl ? `${frontendUrl}/employee-login` : 'https://pydah-faculty-lms.vercel.app/employee-login',
-      year: new Date().getFullYear(),
-      // Add Principal details
-      principalName: principal ? principal.name : 'Principal',
-      principalRemarks: leaveRequest.principalRemarks || 'Approved by Principal',
-      principalApprovalDate: leaveRequest.principalApprovalDate ? new Date(leaveRequest.principalApprovalDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      leaveType: leaveRequest.leaveType,
+      startDate: leaveRequest.startDate,
+      endDate: leaveRequest.endDate,
+      numberOfDays: leaveRequest.numberOfDays,
+      year: new Date().getFullYear()
+    });
+
+    const emailData = {
+      to: [{ email: employee.email }],
+      subject: 'Leave Request Approved by Principal',
+      htmlContent
     };
+
+    const result = await sendEmail(emailData);
+    console.log('Leave approval email sent successfully to employee');
+    return result;
+  } catch (error) {
+    console.error('Error sending leave approval email:', error);
+    throw error;
+  }
+};
+
+// Send email to employee with their credentials
+const sendEmployeeCredentials = async (employee, password) => {
+  try {
+    const frontendUrl = process.env.FRONTEND_URL;
+    const loginUrl = frontendUrl ? `${frontendUrl}/employee-login` : 'https://pydah-faculty-lms.vercel.app/employee-login';
+    
+    const htmlContent = getEmployeeCredentialsTemplate(employee, password, loginUrl);
 
     await sendEmail({
       to: employee.email,
-      subject: 'Leave Request Approved by Principal',
-      templateId,
-      params: templateParams
+      subject: 'Your PYDAH Faculty LMS Credentials',
+      htmlContent
     });
-    console.log('Employee principal approval notification email sent to:', employee.email);
+    
+    console.log('Employee credentials email sent to:', employee.email);
   } catch (error) {
-    console.error('Error sending employee principal approval notification email:', error);
+    console.error('Error sending employee credentials email:', error);
+  }
+};
+
+const sendLeaveRejectionEmail = async (leaveRequest, employee, hod) => {
+  try {
+    const htmlContent = getEmployeeLeaveRejectedAtHodTemplate({
+      employeeName: employee.name,
+      hodName: hod.name,
+      hodRemarks: leaveRequest.hodRemarks,
+      leaveRequestId: leaveRequest.leaveRequestId,
+      leaveType: leaveRequest.leaveType,
+      startDate: leaveRequest.startDate,
+      endDate: leaveRequest.endDate,
+      numberOfDays: leaveRequest.numberOfDays,
+      year: new Date().getFullYear()
+    });
+
+    const emailData = {
+      to: [{ email: employee.email }],
+      subject: 'Leave Request Rejected',
+      htmlContent
+    };
+
+    const result = await sendEmail(emailData);
+    console.log('Leave rejection email sent successfully to employee');
+    return result;
+  } catch (error) {
+    console.error('Error sending leave rejection email:', error);
+    throw error;
   }
 };
 
@@ -441,5 +402,7 @@ module.exports = {
   sendPrincipalNotification,
   sendEmployeeRejectionNotification,
   sendEmployeePrincipalRejectionNotification,
-  sendEmployeePrincipalApprovalNotification
+  sendEmployeePrincipalApprovalNotification,
+  sendEmployeeCredentials,
+  sendLeaveRejectionEmail
 }; 

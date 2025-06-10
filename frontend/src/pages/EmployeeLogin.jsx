@@ -195,7 +195,8 @@ const EmployeeLogin = () => {
           </button>
         </form>
 
-        <div className="mt-3 sm:mt-6 text-center">
+        
+        {/* <div className="mt-3 sm:mt-6 text-center">
           <p className="text-xs sm:text-base text-gray-600">
             Don't have an account?{' '}
             <span
@@ -205,7 +206,7 @@ const EmployeeLogin = () => {
               Register here
             </span>
           </p>
-        </div>
+        </div> */}
 
         <button
           onClick={() => navigate('/')}

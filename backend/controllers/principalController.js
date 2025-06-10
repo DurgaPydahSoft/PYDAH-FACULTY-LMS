@@ -21,97 +21,73 @@ exports.login = async (req, res) => {
   try {
     const { email, password, campus } = req.body;
 
+    // Validate input
     if (!email || !password || !campus) {
-      return res.status(400).json({ msg: 'Please provide all required fields' });
+      return res.status(400).json({ msg: 'Please provide email, password, and campus' });
     }
 
-    // First try to find in User model (for principals created by super admin)
-    let principal = await User.findOne({ 
-      email: email.toLowerCase(),
-      role: 'principal'
-    });
-
-    // If not found in User model, try Principal model
+    // Find principal by email
+    const principal = await Principal.findOne({ email: email.toLowerCase() });
     if (!principal) {
-      principal = await Principal.findOne({ email: email.toLowerCase() });
-      if (!principal) {
-        return res.status(401).json({ msg: 'Invalid credentials' });
-      }
-
-      if (principal.status !== 'active') {
-        return res.status(401).json({ msg: 'Account is inactive' });
-      }
-    } else {
-      if (!principal.isActive) {
-        return res.status(401).json({ msg: 'Account is inactive' });
-      }
+      return res.status(401).json({ msg: 'Invalid credentials' });
     }
 
+    // Find campus
+    const campusData = await Campus.findOne({ 
+      name: campus.toLowerCase(), 
+      isActive: true 
+    });
+    if (!campusData) {
+      return res.status(401).json({ msg: 'Invalid campus' });
+    }
+
+    // Verify principal belongs to this campus
+    if (campusData.principalId && campusData.principalId.toString() !== principal._id.toString()) {
+      return res.status(401).json({ msg: 'You are not authorized to access this campus' });
+    }
+
+    // Check if principal is active (case-insensitive)
+    if (principal.status.toLowerCase() !== 'active') {
+      return res.status(401).json({ msg: 'Your account is not active. Please contact the administrator.' });
+    }
+
+    // Verify password
     const isMatch = await principal.comparePassword(password);
     if (!isMatch) {
       return res.status(401).json({ msg: 'Invalid credentials' });
     }
 
-    // Update lastLogin
-    principal.lastLogin = Date.now();
+    // Update last login
+    principal.lastLogin = new Date();
     await principal.save();
 
-    // Get campus type with proper capitalization
-    const campusType = campus.charAt(0).toUpperCase() + campus.slice(1);
-
-    // Validate that the principal belongs to the requested campus
-    if (principal.schema.obj.campus.type === String) {
-      // User model - campus is a string
-      if (principal.campus.toLowerCase() !== campus.toLowerCase()) {
-        return res.status(401).json({ msg: 'Invalid campus for this principal' });
-      }
-    } else {
-      // Principal model - campus is an object
-      if (principal.campus.type !== campusType) {
-        return res.status(401).json({ msg: 'Invalid campus for this principal' });
-      }
-    }
-
-    // Create token with campus type
+    // Create token
     const token = jwt.sign(
       { 
-        id: principal._id, 
+        id: principal._id,
         role: 'principal',
-        campus: campusType,
-        modelType: principal.schema.obj.campus.type === String ? 'User' : 'Principal'
+        campus: campusData.name
       },
       process.env.JWT_SECRET,
-      { expiresIn: '1d' }
+      { expiresIn: '24h' }
     );
 
-    // Prepare response based on model type
-    const userResponse = {
-      id: principal._id,
+    // Return user data without sensitive information
+    const userData = {
+      _id: principal._id,
       name: principal.name,
       email: principal.email,
-      role: 'principal',
-      lastLogin: principal.lastLogin
+      campus: campusData.name,
+      campusDisplayName: campusData.displayName || campusData.name.charAt(0).toUpperCase() + campusData.name.slice(1),
+      role: 'principal'
     };
-
-    // Add campus data based on model type
-    if (principal.schema.obj.campus.type === String) {
-      // User model - campus is a string
-      userResponse.campus = campusType.toLowerCase();
-    } else {
-      // Principal model - campus is an object
-      userResponse.campus = {
-        type: campusType,
-        name: `${campusType} Campus`,
-        location: principal.campus?.location || 'Default Location'
-      };
-    }
 
     res.json({
       token,
-      user: userResponse
+      user: userData
     });
   } catch (error) {
-    console.error('Principal Login Error:', error);
+    console.error('Login error:', error);
     res.status(500).json({ msg: 'Server error' });
   }
 };
@@ -740,8 +716,8 @@ exports.updateLeaveRequest = async (req, res) => {
         
         // Try to find in Employee model
         const employeeWithLeave = await Employee.findOne({
-      'leaveRequests._id': leaveId
-    });
+          'leaveRequests._id': leaveId
+        });
         
         if (employeeWithLeave) {
           // Get the leave request from the employee document
@@ -773,7 +749,7 @@ exports.updateLeaveRequest = async (req, res) => {
         });
       }
 
-    if (!employee) {
+      if (!employee) {
         console.log('Employee not found for leave request:', {
           leaveId,
           employeeId: leaveRequest.employeeId || 'Not found',
@@ -787,7 +763,7 @@ exports.updateLeaveRequest = async (req, res) => {
             employeeModel: 'Employee'
           }
         });
-    }
+      }
     } catch (error) {
       console.error('Error finding leave request or employee:', {
         leaveId,
@@ -855,7 +831,7 @@ exports.updateLeaveRequest = async (req, res) => {
           principalCampus: normalizedPrincipalCampus
         }
       });
-        }
+    }
 
     // Store previous status for balance adjustment
     const previousStatus = leaveRequest.status;
@@ -1622,12 +1598,21 @@ exports.getCampusEmployees = async (req, res) => {
     });
 
     const employees = await Employee.find(query)
-      .select('name email employeeId department status phoneNumber designation role branchCode specialPermission profilePicture')
+      .select('name email employeeId department status phoneNumber designation role branchCode specialPermission profilePicture specialLeaveMaxDays specialMaxDays')
       .sort({ name: 1 });
 
     console.log(`Found ${employees.length} employees for campus: ${campusType}`);
 
-    res.json(employees);
+    // Map specialLeaveMaxDays for frontend compatibility
+    const employeesWithLeaveMax = employees.map(emp => {
+      const obj = emp.toObject();
+      obj.specialLeaveMaxDays = obj.specialLeaveMaxDays !== undefined
+        ? obj.specialLeaveMaxDays
+        : obj.specialMaxDays;
+      return obj;
+    });
+
+    res.json(employeesWithLeaveMax);
   } catch (error) {
     console.error('Get Campus Employees Error:', error);
     res.status(500).json({ msg: error.message || 'Server error' });
@@ -1876,6 +1861,9 @@ exports.createBranch = async (req, res) => {
       code: code.toUpperCase(),
       isActive: true
     });
+    if (!campus.displayName) {
+      campus.displayName = campus.name.charAt(0).toUpperCase() + campus.name.slice(1);
+    }
     await campus.save();
     res.status(201).json({ msg: 'Branch created successfully', branches: campus.branches });
   } catch (error) {
@@ -1916,6 +1904,9 @@ exports.editBranch = async (req, res) => {
     if (name) branch.name = name;
     if (code) branch.code = code.toUpperCase();
     if (typeof isActive === 'boolean') branch.isActive = isActive;
+    if (!campus.displayName) {
+      campus.displayName = campus.name.charAt(0).toUpperCase() + campus.name.slice(1);
+    }
     await campus.save();
     res.json({ msg: 'Branch updated successfully', branch });
   } catch (error) {
@@ -1949,6 +1940,9 @@ exports.deleteBranch = async (req, res) => {
     const branchCode = deletedBranch.code;
     const campusName = campusDoc.name;
     campusDoc.branches.splice(branchIndex, 1);
+    if (!campusDoc.displayName) {
+      campusDoc.displayName = campusDoc.name.charAt(0).toUpperCase() + campusDoc.name.slice(1);
+    }
     await campusDoc.save();
 
     // Cascade delete HODs and Employees
@@ -1978,7 +1972,12 @@ exports.updateEmployeeDetails = async (req, res) => {
     const employeeId = req.params.id;
     const updates = req.body;
 
-    // Find employee
+    console.log('Updating employee:', {
+      employeeId,
+      updates
+    });
+
+    // Find employee first to verify campus match
     const employee = await Employee.findById(employeeId);
     if (!employee) {
       return res.status(404).json({ msg: 'Employee not found' });
@@ -2000,28 +1999,69 @@ exports.updateEmployeeDetails = async (req, res) => {
       return res.status(403).json({ msg: 'Not authorized to update this employee' });
     }
 
-    // Allowed fields to update
-    const allowedFields = ['name', 'email', 'phoneNumber', 'status', 'specialPermission'];
+    // Prepare update object with only allowed fields
+    const allowedFields = ['name', 'email', 'phoneNumber', 'status', 'specialPermission', 'specialLeaveMaxDays'];
+    const updateObj = {};
+    
     allowedFields.forEach(field => {
       if (updates[field] !== undefined) {
-        employee[field] = updates[field];
+        updateObj[field] = updates[field];
       }
     });
-    // Department/branchCode
-    if (updates.department) {
-      employee.branchCode = updates.department;
-      employee.department = updates.department; // Ensure department is a string for HOD dashboard compatibility
-      // Optionally update department object if your schema uses it
-      if (employee.department && typeof employee.department === 'object') {
-        employee.department.code = updates.department;
-      }
+
+    // Map specialLeaveMaxDays to specialMaxDays for schema compatibility
+    if (updates.specialLeaveMaxDays !== undefined) {
+      updateObj.specialMaxDays = updates.specialLeaveMaxDays;
     }
 
-    await employee.save();
-    res.json(employee);
+    // Handle department/branchCode update
+    if (updates.department) {
+      updateObj.branchCode = updates.department;
+      updateObj.department = updates.department;
+    }
+
+    console.log('Update object:', updateObj);
+
+    // Use findOneAndUpdate for atomic update
+    const updatedEmployee = await Employee.findOneAndUpdate(
+      { _id: employeeId },
+      { $set: updateObj },
+      { 
+        new: true,
+        runValidators: true
+      }
+    ).select('-password');
+
+    if (!updatedEmployee) {
+      return res.status(404).json({ msg: 'Employee not found after update' });
+    }
+
+    // For frontend compatibility, always send specialLeaveMaxDays
+    if (updatedEmployee.specialMaxDays !== undefined) {
+      updatedEmployee.specialLeaveMaxDays = updatedEmployee.specialMaxDays;
+    }
+
+    console.log('Employee updated successfully:', {
+      employeeId: updatedEmployee._id,
+      name: updatedEmployee.name,
+      specialPermission: updatedEmployee.specialPermission,
+      specialLeaveMaxDays: updatedEmployee.specialLeaveMaxDays
+    });
+
+    res.json({
+      msg: 'Employee updated successfully',
+      employee: updatedEmployee
+    });
   } catch (error) {
-    console.error('Principal update employee error:', error);
-    res.status(500).json({ msg: error.message || 'Server error' });
+    console.error('Principal update employee error:', {
+      error: error.message,
+      stack: error.stack,
+      employeeId: req.params.id
+    });
+    res.status(500).json({ 
+      msg: error.message || 'Server error',
+      details: error.message
+    });
   }
 };
 

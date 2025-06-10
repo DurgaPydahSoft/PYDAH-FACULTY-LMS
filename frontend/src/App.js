@@ -15,29 +15,11 @@ import EmployeeDashboard from "./pages/EmployeeDashboard";
 import HodLogin from "./pages/HodLogin";
 import HodDashboard from "./pages/HodDashboard";
 
-
-
 // Import HR components
 import HRLogin from './pages/HR/HRLogin';
 import HRDashboard from './pages/HR/HRDashboard';
 import RegisterEmployee from './pages/HR/RegisterEmployee';
 import ManageEmployees from './pages/HR/ManageEmployees';
-
-// Protected Route Component
-const ProtectedRoute = ({ children, allowedRoles }) => {
-  const token = localStorage.getItem("token");
-  const userRole = localStorage.getItem("role");
-
-  if (!token) {
-    return <Navigate to="/" replace />;
-  }
-
-  if (allowedRoles && !allowedRoles.includes(userRole)) {
-    return <Navigate to="/" replace />;
-  }
-
-  return children;
-};
 
 // Campus Principal Login Component
 const CampusPrincipalLogin = () => {
@@ -48,12 +30,6 @@ const CampusPrincipalLogin = () => {
 // Campus Principal Dashboard Component
 const CampusPrincipalDashboard = () => {
   const { campus } = useParams();
-  const userCampus = localStorage.getItem("campus");
-
-  if (campus !== userCampus) {
-    return <Navigate to="/" replace />;
-  }
-
   return <PrincipalDashboard />;
 };
 
@@ -80,83 +56,26 @@ const App = () => {
             <Route path="/" element={<LandingPage />} />
             <Route path="/home" element={<Home />} />
             <Route path="/super-admin-login" element={<SuperAdminLogin />} />
+            <Route path="/super-admin-dashboard" element={<SuperAdminDashboard />} />
             
-            {/* Campus Principal Login Routes */}
+            {/* Campus Principal Routes */}
             <Route path="/:campus/principal-login" element={<CampusPrincipalLogin />} />
+            <Route path="/:campus/principal-dashboard" element={<CampusPrincipalDashboard />} />
 
             {/* Employee Routes */}
             <Route path="/employee-login" element={<EmployeeLogin />} />
             <Route path="/employee-register" element={<EmployeeRegister />} />
+            <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
             
             {/* HOD Routes */}
             <Route path="/hod-login" element={<HodLogin />} />
+            <Route path="/hod-dashboard" element={<HodDashboard />} />
 
             {/* HR Routes */}
             <Route path="/hr/login" element={<HRLogin />} />
-            <Route
-              path="/hr/dashboard"
-              element={
-                <ProtectedRoute allowedRoles={["hr"]}>
-                  <HRDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/hr/register-employee"
-              element={
-                <ProtectedRoute allowedRoles={["hr"]}>
-                  <RegisterEmployee />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/hr/manage-employees"
-              element={
-                <ProtectedRoute allowedRoles={["hr"]}>
-                  <ManageEmployees />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Protected Routes */}
-            <Route
-              path="/super-admin-dashboard"
-              element={
-                <ProtectedRoute allowedRoles={["superadmin"]}>
-                  <SuperAdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Campus Principal Dashboard */}
-            <Route 
-              path="/:campus/principal-dashboard"
-              element={
-                <ProtectedRoute allowedRoles={["principal"]}>
-                  <CampusPrincipalDashboard />
-                </ProtectedRoute>
-              } 
-            />
-
-            {/* Employee Dashboard */}
-            <Route 
-              path="/employee-dashboard"
-              element={
-                <ProtectedRoute allowedRoles={["employee"]}>
-                  <EmployeeDashboard />
-                </ProtectedRoute>
-              } 
-            />
-
-            {/* HOD Dashboard */}
-            <Route 
-              path="/hod-dashboard" 
-              element={
-                <ProtectedRoute allowedRoles={["hod"]}>
-                  <HodDashboard />
-                </ProtectedRoute>
-              } 
-            />
+            <Route path="/hr/dashboard" element={<HRDashboard />} />
+            <Route path="/hr/register-employee" element={<RegisterEmployee />} />
+            <Route path="/hr/manage-employees" element={<ManageEmployees />} />
 
             {/* Fallback Route */}
             <Route path="*" element={<Navigate to="/" replace />} />

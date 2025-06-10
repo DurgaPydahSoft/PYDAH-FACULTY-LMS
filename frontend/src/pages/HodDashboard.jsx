@@ -179,10 +179,13 @@ const HodDashboard = () => {
       setLoading(true);
       if (!selectedLeave) return;
   
+      // Map the frontend status to backend status
+      const backendStatus = status === "Forwarded" ? "Approved" : "Rejected";
+  
       const response = await axios.put(
         `${API_BASE_URL}/hod/leaves/${selectedLeave.employeeId}/${selectedLeave._id}`,
         {
-          action: status === "Forwarded" ? "forward" : "reject",
+          status: backendStatus,
           remarks: remarks || (status === "Forwarded" ? "Forwarded to Principal" : "Rejected by HOD")
         },
         {
@@ -201,6 +204,7 @@ const HodDashboard = () => {
               ? { 
                   ...leave, 
                   status: status === "Forwarded" ? "Forwarded by HOD" : "Rejected",
+                  hodStatus: backendStatus,
                   hodRemarks: remarks || (status === "Forwarded" ? "Forwarded to Principal" : "Rejected by HOD"),
                   hodApprovalDate: new Date().toISOString()
                 } 

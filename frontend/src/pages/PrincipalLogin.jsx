@@ -1,164 +1,223 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { validateEmail, validateCampus } from '../utils/validators';
-import config from '../config';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import axiosInstance from '../utils/axiosConfig';
-import Loading from '../components/Loading';
-
-const API_BASE_URL = config.API_BASE_URL;
+import { API_BASE_URL } from '../config';
 
 const PrincipalLogin = () => {
-  const { campus } = useParams();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
-    password: ''
+    password: '',
+    campus: ''
   });
+  const [campuses, setCampuses] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
+  const [campusLoading, setCampusLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
 
   useEffect(() => {
-    if (!validateCampus(campus)) {
-      navigate('/');
-    }
-  }, [campus, navigate]);
+    const fetchCampuses = async () => {
+      try {
+        console.log('Fetching campuses from:', `${API_BASE_URL}/super-admin/campuses/active`);
+        const response = await axiosInstance.get('/super-admin/campuses/active');
+        console.log('Campus API Response:', response.data);
+        
+        if (response.data && Array.isArray(response.data)) {
+          // Filter out any invalid entries and sort
+          const validCampuses = response.data.filter(campus => 
+            campus && campus.name && campus.displayName
+          ).map(campus => ({
+            ...campus,
+            displayName: campus.displayName || campus.name.charAt(0).toUpperCase() + campus.name.slice(1)
+          }));
+          
+          console.log('Valid campuses:', validCampuses);
+          
+          if (validCampuses.length > 0) {
+            const sortedCampuses = validCampuses.sort((a, b) => 
+              a.displayName.localeCompare(b.displayName)
+            );
+            console.log('Sorted campuses:', sortedCampuses);
+            setCampuses(sortedCampuses);
+          } else {
+            console.warn('No valid campuses found in response');
+            setCampuses([]);
+          }
+        } else {
+          console.error('Invalid response format:', response.data);
+          toast.error('Failed to load campuses. Invalid response format.');
+          setCampuses([]);
+        }
+      } catch (error) {
+        console.error('Error fetching campuses:', error);
+        console.error('Error details:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        });
+        toast.error(error.response?.data?.msg || 'Failed to load campuses. Please try again later.');
+        setCampuses([]);
+      } finally {
+        setCampusLoading(false);
+      }
+    };
+
+    fetchCampuses();
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
-    setError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
-
-    // Validate email only
-    if (!validateEmail(formData.email)) {
-      setError('Please enter a valid email address');
-      setLoading(false);
-      return;
-    }
+    setError(null);
 
     try {
-      // Capitalize campus type
-      const campusType = campus.charAt(0).toUpperCase() + campus.slice(1);
-      
-      console.log('Attempting principal login with:', {
-        ...formData,
-        campus: campusType,
-        url: `${API_BASE_URL}/principal/login`
+      // Ensure campus is lowercase for consistency
+      const campusToUse = formData.campus.toLowerCase();
+      console.log('Login attempt:', {
+        email: formData.email.toLowerCase(),
+        campus: campusToUse,
       });
 
       const response = await axiosInstance.post('/principal/login', {
-        ...formData,
-        campus: campusType
+        email: formData.email.toLowerCase(),
+        password: formData.password,
+        campus: campusToUse,
       });
 
       console.log('Login response:', response.data);
 
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('role', 'principal');
-        localStorage.setItem('campus', campus);
-        navigate(`/${campus}/principal-dashboard`);
-      } else {
-        setError('Invalid response from server');
-      }
-    } catch (error) {
-      console.error('Login error:', error.response || error);
-      if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        setError(error.response.data?.msg || 'Login failed');
-      } else if (error.request) {
-        // The request was made but no response was received
-        setError('No response from server. Please check your connection.');
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        setError('Error setting up request: ' + error.message);
-      }
+      // Store token and user data
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+
+      // Set default authorization header
+      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+
+      // Navigate to dashboard with lowercase campus
+      const dashboardPath = `/${response.data.user.campus.toLowerCase()}/principal-dashboard`;
+      console.log('Navigating to:', dashboardPath);
+      navigate(dashboardPath, { replace: true });
+    } catch (err) {
+      console.error('Login error:', err.response?.data || err.message);
+      setError(err.response?.data?.msg || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
-    return <Loading />;
-  }
-
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="max-w-md w-full bg-secondary rounded-neumorphic shadow-outerRaised p-8">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-primary">
-            {campus.charAt(0).toUpperCase() + campus.slice(1)} 
-          </h2>
-          <h3 className="text-3xl font-bold text-primary">
+    <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-lg">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-primary">
             Principal Login
-          </h3>
-          <p className="text-gray-600 mt-2">
-            Access your campus dashboard
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Please select your campus and enter your credentials
           </p>
         </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="rounded-md shadow-sm space-y-4">
+            {/* Campus Selection */}
+            <div>
+              <label htmlFor="campus" className="block text-sm font-medium text-gray-700">
+                Select Campus
+              </label>
+              <select
+                id="campus"
+                name="campus"
+                required
+                value={formData.campus}
+                onChange={handleChange}
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary rounded-md"
+                disabled={campusLoading}
+              >
+                <option value="">Select a campus</option>
+                {campuses.map((campus) => (
+                  <option key={campus._id} value={campus.name}>
+                    {campus.displayName}
+                  </option>
+                ))}
+              </select>
+              {campusLoading && (
+                <p className="mt-2 text-sm text-gray-500">Loading campuses...</p>
+              )}
+              {!campusLoading && campuses.length === 0 && (
+                <p className="mt-2 text-sm text-red-500">No active campuses found</p>
+              )}
+            </div>
 
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4">
-            {error}
+            {/* Email Input */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={formData.email}
+                onChange={handleChange}
+                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+                placeholder="Enter your email"
+              />
+            </div>
+
+            {/* Password Input */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={formData.password}
+                onChange={handleChange}
+                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
+                placeholder="Enter your password"
+              />
+            </div>
           </div>
-        )}
 
-        <form onSubmit={handleSubmit}>
-          <div className="mb-6">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className="w-full p-3 rounded-neumorphic shadow-innerSoft bg-background
-                       focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Enter your email"
-              required
-            />
+          {error && (
+            <div className="text-red-500 text-sm text-center">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <button
+              type="submit"
+              disabled={loading || campusLoading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Signing in...' : 'Sign in'}
+            </button>
           </div>
-
-          <div className="mb-6">
-            <label className="block text-gray-700 text-sm font-bold mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className="w-full p-3 rounded-neumorphic shadow-innerSoft bg-background
-                       focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Enter your password"
-              required
-            />
+          <div className="mt-4 flex justify-center">
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="text-primary hover:underline text-sm"
+            >
+              ← Back to Home
+            </button>
           </div>
-
-          <button
-            type="submit"
-            className="w-full bg-primary text-white py-3 rounded-neumorphic
-                     hover:shadow-innerSoft transition-all duration-300"
-          >
-            Login
-          </button>
         </form>
-
-        <button
-          onClick={() => navigate('/')}
-          className="mt-4 w-full text-primary hover:text-blue-800 text-center"
-        >
-          Back to Home
-        </button>
       </div>
     </div>
   );

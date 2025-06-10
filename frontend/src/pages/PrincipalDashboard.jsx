@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useNavigate, useParams } from 'react-router-dom';
+import axiosInstance from '../utils/axiosConfig';
 import { validateEmail } from '../utils/validators';
 import { toast } from 'react-toastify';
 import HodPasswordResetModal from '../components/HodPasswordResetModal';
@@ -138,7 +138,13 @@ const PrincipalDashboard = () => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const [branches, setBranches] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState({
+    branches: true,
+    hods: true,
+    employees: true,
+    leaves: true,
+    cclWorkRequests: true
+  });
   const [error, setError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -193,7 +199,8 @@ const PrincipalDashboard = () => {
     phoneNumber: '',
     department: '',
     status: 'active',
-    specialPermission: false
+    specialPermission: false,
+    specialLeaveMaxDays: 20
   });
   const [leaveFilters, setLeaveFilters] = useState({
     startDate: '',
@@ -213,215 +220,148 @@ const PrincipalDashboard = () => {
   const [leavePage, setLeavePage] = useState(1);
   const LEAVES_PER_PAGE = 15;
 
+  const { campus } = useParams();
   const navigate = useNavigate();
-  const campus = localStorage.getItem('campus');
   const token = localStorage.getItem('token');
 
-  // Top-level filtered CCL list for rendering and export
-  const filteredCCL = cclWorkRequests.filter(ccl => {
-    // Filter by date range
-    if (cclFilters.startDate || cclFilters.endDate) {
-      const cclDate = new Date(ccl.date);
-      const filterStart = cclFilters.startDate ? new Date(cclFilters.startDate) : null;
-      const filterEnd = cclFilters.endDate ? new Date(cclFilters.endDate) : null;
-      if (filterStart && filterEnd) {
-        if (!(cclDate >= filterStart && cclDate <= filterEnd)) return false;
-      } else if (filterStart) {
-        if (!(cclDate >= filterStart)) return false;
-      } else if (filterEnd) {
-        if (!(cclDate <= filterEnd)) return false;
-      }
-    }
-    // Filter by department
-    if (cclFilters.department && ccl.employeeDepartment !== cclFilters.department) {
-      return false;
-    }
-    // Filter by status
-    if (cclFilters.status !== 'All' && ccl.status !== cclFilters.status) {
-      return false;
-    }
-    // Always exclude pending requests
-    if (ccl.status === 'Pending') {
-      return false;
-    }
-    return true;
-  });
-
-  // Add the handler functions
-  const handleRecentLeaveClick = (leaveId) => {
-    setActiveSection('leaves');
-    setTimeout(() => {
-      const el = document.getElementById(`leave-${leaveId}`);
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 300);
-  };
-
-  const handleRecentCCLClick = (workId) => {
-    setActiveSection('ccl-work');
-    setTimeout(() => {
-      const el = document.getElementById(`ccl-${workId}`);
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 300);
-  };
-
-  // Handle redirection
   useEffect(() => {
-    if (shouldRedirect) {
+    const user = JSON.parse(localStorage.getItem('user'));
+    const token = localStorage.getItem('token');
+
+    if (!user || !token) {
+      console.error('No user data or token found');
       navigate('/');
-    }
-  }, [shouldRedirect, navigate]);
-
-  // Check authentication on mount
-  useEffect(() => {
-    if (!campus || !token) {
-      setShouldRedirect(true);
       return;
     }
-    fetchBranches();
-    fetchHods();
-    fetchEmployees();
-    fetchForwardedLeaves();
-    fetchCCLWorkRequests();
-  }, [campus, token]);
+
+    // Validate campus from URL matches user's campus
+    const urlCampus = campus.toLowerCase();
+    const userCampus = user.campus.toLowerCase();
+    
+    console.log('Campus validation:', {
+      urlCampus,
+      userCampus,
+      matches: urlCampus === userCampus
+    });
+
+    if (urlCampus !== userCampus) {
+      console.error('Campus mismatch:', { urlCampus, userCampus });
+      navigate('/');
+      return;
+    }
+
+    // Set authorization header for all requests
+    axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+    // Fetch initial data
+    const fetchData = async () => {
+      try {
+        await Promise.all([
+          fetchBranches(),
+          fetchHods(),
+          fetchEmployees(),
+          fetchForwardedLeaves(),
+          fetchCCLWorkRequests()
+        ]);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      }
+    };
+
+    fetchData();
+  }, [campus, navigate]); // Only depend on campus and navigate
 
   const fetchBranches = async () => {
     try {
-      const response = await axios.get(
-        `${API_BASE_URL}/principal/branches`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
-      setBranches(Array.isArray(response.data.branches) ? response.data.branches : []);
+      setLoading(prev => ({ ...prev, branches: true }));
+      const response = await axiosInstance.get('/principal/branches');
+      console.log('Branches response:', {
+        data: response.data,
+        hasBranches: !!response.data.branches,
+        isArray: Array.isArray(response.data),
+        length: response.data.branches?.length || (Array.isArray(response.data) ? response.data.length : 0)
+      });
+      
+      if (response.data.branches) {
+        setBranches(response.data.branches);
+        console.log('Updated branches from branches property:', response.data.branches.length);
+      } else if (Array.isArray(response.data)) {
+        setBranches(response.data);
+        console.log('Updated branches from array:', response.data.length);
+      } else {
+        console.error('Unexpected branches response format:', response.data);
+        setBranches([]);
+      }
     } catch (error) {
+      console.error('Error fetching branches:', error.response?.data || error.message);
+      toast.error('Failed to fetch branches');
       setBranches([]);
-      setError(error.response?.data?.msg || 'Failed to fetch branches');
     } finally {
-      setLoading(false);
+      setLoading(prev => ({ ...prev, branches: false }));
     }
   };
 
   const fetchHods = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/principal/hods`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      setHods(response.data);
-    } catch (error) {
-      console.error('Error fetching HODs:', error);
-      const errorMsg = error.response?.data?.msg || 'Failed to fetch HODs';
-      setError(errorMsg);
-      toast.error(errorMsg);
-
-      if (error.response?.status === 401) {
-        localStorage.clear();
-        setShouldRedirect(true);
+      setLoading(prev => ({ ...prev, hods: true }));
+      const response = await axiosInstance.get('/principal/hods');
+      console.log('HODs response:', response.data);
+      if (Array.isArray(response.data)) {
+        setHods(response.data);
       }
+    } catch (error) {
+      console.error('Error fetching HODs:', error.response?.data || error.message);
+      toast.error('Failed to fetch HODs');
+    } finally {
+      setLoading(prev => ({ ...prev, hods: false }));
     }
   };
 
   const fetchEmployees = async () => {
     try {
-      const token = localStorage.getItem('token');
-      // Build query params for filters
-      const params = new URLSearchParams();
-      if (employeeFilters.search) params.append('search', employeeFilters.search);
-      if (employeeFilters.department) params.append('department', employeeFilters.department); // branchCode
-      if (employeeFilters.status) params.append('status', employeeFilters.status);
-      const response = await fetch(`${API_BASE_URL}/principal/employees?${params.toString()}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) {
-        throw new Error('Failed to fetch employees');
+      setLoading(prev => ({ ...prev, employees: true }));
+      const response = await axiosInstance.get('/principal/employees');
+      console.log('Employees response:', response.data);
+      if (Array.isArray(response.data)) {
+        setEmployees(response.data);
       }
-      const data = await response.json();
-      // Ensure specialPermission is properly set for each employee
-      const employeesWithPermission = data.map(emp => ({
-        ...emp,
-        specialPermission: emp.specialPermission || false
-      }));
-      setEmployees(employeesWithPermission);
     } catch (error) {
-      console.error('Error fetching employees:', error);
+      console.error('Error fetching employees:', error.response?.data || error.message);
       toast.error('Failed to fetch employees');
+    } finally {
+      setLoading(prev => ({ ...prev, employees: false }));
     }
   };
-
-  // Refetch employees when filters change
-  useEffect(() => {
-    if (campus && token) {
-      fetchEmployees();
-    }
-  }, [employeeFilters, campus, token]);
 
   const fetchForwardedLeaves = async () => {
     try {
-      // Build query params for filters
-      const params = new URLSearchParams();
-      if (leaveFilters.startDate) params.append('startDate', leaveFilters.startDate);
-      if (leaveFilters.endDate) params.append('endDate', leaveFilters.endDate);
-      if (leaveFilters.department) params.append('department', leaveFilters.department); // branchCode
-      if (leaveFilters.leaveType) params.append('leaveType', leaveFilters.leaveType);
-      const response = await axios.get(`${API_BASE_URL}/principal/campus-leaves?${params.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      console.log('Fetched forwarded leaves:', response.data);
+      setLoading(prev => ({ ...prev, leaves: true }));
+      const response = await axiosInstance.get('/principal/campus-leaves');
+      console.log('Leaves response:', response.data);
       if (Array.isArray(response.data)) {
         setForwardedLeaves(response.data);
-      } else {
-        console.error('Invalid data format received:', response.data);
-        setError('Invalid data format received from server');
       }
     } catch (error) {
-      console.error('Error fetching forwarded leaves:', error);
-      setError('Failed to fetch forwarded leave requests');
+      console.error('Error fetching leaves:', error.response?.data || error.message);
+      toast.error('Failed to fetch leave requests');
+    } finally {
+      setLoading(prev => ({ ...prev, leaves: false }));
     }
   };
 
-  // Refetch leaves when filters change
-  useEffect(() => {
-    if (campus && token) {
-      fetchForwardedLeaves();
-    }
-  }, [leaveFilters, campus, token]);
-
   const fetchCCLWorkRequests = async () => {
     try {
-      console.log('Fetching CCL work requests...');
-      const response = await axios.get(`${API_BASE_URL}/principal/ccl-work-requests`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      
-      console.log('CCL work requests response:', response.data);
-      
+      setLoading(prev => ({ ...prev, cclWorkRequests: true }));
+      const response = await axiosInstance.get('/principal/ccl-work-requests');
+      console.log('CCL Work Requests response:', response.data);
       if (response.data.success && Array.isArray(response.data.data)) {
-        // Filter out pending requests
-        const filteredRequests = response.data.data.filter(request => request.status !== 'Pending');
-        setCclWorkRequests(filteredRequests);
-      } else if (Array.isArray(response.data)) {
-        // Handle case where response is just an array
-        const filteredRequests = response.data.filter(request => request.status !== 'Pending');
-        setCclWorkRequests(filteredRequests);
-      } else {
-        console.error('Invalid response format:', response.data);
-        setCclWorkRequests([]);
-        toast.error('Failed to fetch CCL work requests: Invalid response format');
+        setCclWorkRequests(response.data.data);
       }
     } catch (error) {
-      console.error('Error fetching CCL work requests:', {
-        error: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
-      setCclWorkRequests([]);
-      toast.error(error.response?.data?.message || 'Failed to fetch CCL work requests');
+      console.error('Error fetching CCL work requests:', error.response?.data || error.message);
+      toast.error('Failed to fetch CCL work requests');
+    } finally {
+      setLoading(prev => ({ ...prev, cclWorkRequests: false }));
     }
   };
 
@@ -437,8 +377,8 @@ const PrincipalDashboard = () => {
         campus
       });
 
-      const response = await axios.put(
-        `${API_BASE_URL}/principal/leave-request/${selectedLeave._id}`,
+      const response = await axiosInstance.put(
+        `/principal/leave-request/${selectedLeave._id}`,
         {
           action: action.toLowerCase() === "approved" ? "approve" : "reject",
           remarks: remarks || `${action.toLowerCase()} by Principal`
@@ -504,8 +444,8 @@ const PrincipalDashboard = () => {
         throw new Error('Invalid branch selected');
       }
 
-      await axios.post(
-        `${API_BASE_URL}/principal/hods`,
+      await axiosInstance.post(
+        `/principal/hods`,
         {
           name: formData.name,
           email: formData.email,
@@ -587,8 +527,8 @@ const PrincipalDashboard = () => {
           campusType: campus.charAt(0).toUpperCase() + campus.slice(1)
         };
       }
-      const response = await axios.put(
-        `${API_BASE_URL}/principal/hods/${selectedHod._id}?model=${selectedHod.model}`,
+      const response = await axiosInstance.put(
+        `/principal/hods/${selectedHod._id}?model=${selectedHod.model}`,
         updatePayload,
         {
           headers: {
@@ -654,8 +594,8 @@ const PrincipalDashboard = () => {
         campus
       });
 
-      const response = await axios.put(
-        `${API_BASE_URL}/principal/leave-request/${selectedRequestId}`,
+      const response = await axiosInstance.put(
+        `/principal/leave-request/${selectedRequestId}`,
         {
           action: selectedAction,
           remarks: remarks || `${selectedAction === 'approve' ? 'Approved' : 'Rejected'} by Principal`
@@ -721,8 +661,8 @@ const PrincipalDashboard = () => {
         remarks: cclRemarks || `${status} by Principal`
       });
 
-      const response = await axios.put(
-        `${API_BASE_URL}/principal/ccl-work-requests/${selectedCCLWork._id}`,
+      const response = await axiosInstance.put(
+        `/principal/ccl-work-requests/${selectedCCLWork._id}`,
         {
           status,
           remarks: cclRemarks || `${status} by Principal`
@@ -766,8 +706,8 @@ const PrincipalDashboard = () => {
   const handleCreateBranch = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post(
-        `${API_BASE_URL}/principal/branches`,
+      const response = await axiosInstance.post(
+        `/principal/branches`,
         newBranch,
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -789,8 +729,8 @@ const PrincipalDashboard = () => {
   const handleEditBranchSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(
-        `${API_BASE_URL}/principal/branches/${editBranchData._id}`,
+      await axiosInstance.put(
+        `/principal/branches/${editBranchData._id}`,
         { name: editBranchData.name, code: editBranchData.code },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -811,8 +751,8 @@ const PrincipalDashboard = () => {
   const handleDeleteBranchConfirm = async () => {
     if (!deleteBranchId) return;
     try {
-      await axios.delete(
-        `${API_BASE_URL}/principal/branches/${deleteBranchId}`,
+      await axiosInstance.delete(
+        `/principal/branches/${deleteBranchId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       toast.success('Branch deleted successfully');
@@ -824,8 +764,14 @@ const PrincipalDashboard = () => {
     }
   };
 
-  const handleEditEmployeeClick = (employee) => {
-    console.log('Editing employee:', employee); // Debug log
+  const handleEditEmployeeClick = (employeeOrId) => {
+    // Accept either an employee object or an ID
+    const id = typeof employeeOrId === 'string' ? employeeOrId : employeeOrId._id;
+    const employee = employees.find(emp => emp._id === id);
+    if (!employee) {
+      toast.error('Employee not found in the latest list.');
+      return;
+    }
     setEditingEmployee(employee);
     setEditEmployeeForm({
       name: employee.name,
@@ -833,7 +779,12 @@ const PrincipalDashboard = () => {
       phoneNumber: employee.phoneNumber,
       department: employee.department,
       status: employee.status,
-      specialPermission: Boolean(employee.specialPermission) // Ensure boolean value
+      specialPermission: Boolean(employee.specialPermission),
+      specialLeaveMaxDays: employee.specialLeaveMaxDays !== undefined
+        ? employee.specialLeaveMaxDays
+        : (employee.specialMaxDays !== undefined
+          ? employee.specialMaxDays
+          : 20)
     });
   };
 
@@ -841,19 +792,31 @@ const PrincipalDashboard = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
+      // Ensure specialPermission is a boolean and specialLeaveMaxDays is a number
+      const payload = {
+        ...editEmployeeForm,
+        specialPermission: Boolean(editEmployeeForm.specialPermission),
+        specialLeaveMaxDays: editEmployeeForm.specialPermission ? Number(editEmployeeForm.specialLeaveMaxDays) : undefined
+      };
+
+      console.log('Submitting employee update:', payload);
+
       const response = await fetch(`${API_BASE_URL}/principal/employees/${editingEmployee._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(editEmployeeForm)
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.msg || 'Failed to update employee');
       }
+
+      const updatedEmployee = await response.json();
+      console.log('Employee update response:', updatedEmployee);
 
       toast.success('Employee updated successfully');
       await fetchEmployees(); // Refresh the employees list with the latest data
@@ -898,7 +861,7 @@ const PrincipalDashboard = () => {
                 <div className="bg-white rounded-xl shadow p-6 flex flex-col items-center gap-2">
                   <FaClipboardList className="text-yellow-500 text-3xl mb-2" />
                   <h3 className="text-lg font-semibold text-primary mb-1">Pending Leaves</h3>
-                  {loading ? (
+                  {loading.leaves ? (
                     <div className="animate-pulse h-8 w-16 bg-gray-200 rounded"></div>
                   ) : error ? (
                     <p className="text-red-500">Error loading data</p>
@@ -913,26 +876,26 @@ const PrincipalDashboard = () => {
                 <div className="bg-white rounded-xl shadow p-6 flex flex-col items-center gap-2">
                   <FaBuilding className="text-purple-600 text-3xl mb-2" />
                   <h3 className="text-lg font-semibold text-primary mb-1">Departments</h3>
-                  {loading ? (
+                  {loading.branches ? (
                     <div className="animate-pulse h-8 w-16 bg-gray-200 rounded"></div>
                   ) : error ? (
                     <p className="text-red-500">Error loading data</p>
                   ) : (
                     <>
-                      <p className="text-3xl font-bold">{dashboardStats?.totalBranches || 0}</p>
+                      <p className="text-3xl font-bold">{branches.length}</p>
                       <span className="text-sm text-gray-500">Total Branches</span>
-                      <div className="flex flex-wrap gap-1 mt-2 justify-center">
-                        {dashboardStats?.departments?.slice(0, 3).map(dep => (
+                      {/* <div className="flex flex-wrap gap-1 mt-2 justify-center">
+                        {branches.slice(0, 3).map(dep => (
                           <span key={dep.code || dep._id} className="inline-block bg-gray-100 text-gray-700 rounded-full px-2 py-1 text-xs font-medium">
                             {dep.code || dep.name}: HOD Assigned
                           </span>
                         ))}
-                        {dashboardStats?.departments?.length > 3 && (
+                        {branches.length > 3 && (
                           <span className="inline-block bg-gray-200 text-gray-600 rounded-full px-2 py-1 text-xs font-medium">
-                            +{dashboardStats.departments.length - 3} more
+                            +{branches.length - 3} more
                           </span>
                         )}
-                      </div>
+                      </div> */}
                     </>
                   )}
                 </div>
@@ -1924,7 +1887,7 @@ const PrincipalDashboard = () => {
   const fetchDashboardStats = async () => {
     try {
       console.log('Fetching dashboard stats...');
-      const response = await axios.get(`${API_BASE_URL}/principal/dashboard`, {
+      const response = await axiosInstance.get('/principal/dashboard', {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`
         }
@@ -2299,13 +2262,38 @@ const PrincipalDashboard = () => {
     printWindow.print();
   };
 
+  // Add this handler:
+  const handleRecentLeaveClick = (leaveId) => {
+    const leave = forwardedLeaves.find(l => l._id === leaveId);
+    if (leave) {
+      setSelectedLeave(leave);
+      setShowLeaveDetailsModal(true);
+    }
+  };
+
+  const handleRecentCCLClick = (cclId) => {
+    const ccl = cclWorkRequests.find(w => w._id === cclId);
+    if (ccl) {
+      setSelectedCCLWork(ccl);
+      setShowCCLRemarksModal(true);
+    }
+  };
+
   if (shouldRedirect) {
     return null;
   }
 
-  if (loading) {
+  if (loading.branches || loading.hods || loading.employees || loading.leaves || loading.cclWorkRequests) {
     return <Loading />;
   }
+
+  // ... before using filteredCCL in renderContent ...
+  const filteredCCL = cclWorkRequests.filter(work => {
+    if (cclFilters.status && cclFilters.status !== 'All') {
+      return work.status === cclFilters.status;
+    }
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -2679,30 +2667,40 @@ const PrincipalDashboard = () => {
                   <option value="inactive">Inactive</option>
                 </select>
               </div>
-              <div className="flex items-center justify-between py-2">
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-gray-700">Special Leave Permission</span>
-                  <span className="text-xs text-gray-500">
-                    Allows employee to apply for leaves up to 20 days
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setEditEmployeeForm(prev => ({ 
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="specialPermission"
+                  checked={editEmployeeForm.specialPermission}
+                  onChange={(e) => setEditEmployeeForm(prev => ({ 
                     ...prev, 
-                    specialPermission: !prev.specialPermission 
+                    specialPermission: e.target.checked,
+                    specialLeaveMaxDays: e.target.checked ? (prev.specialLeaveMaxDays || 20) : undefined
                   }))}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                    editEmployeeForm.specialPermission ? 'bg-blue-600' : 'bg-gray-200'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      editEmployeeForm.specialPermission ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="specialPermission" className="ml-2 block text-sm text-gray-900">
+                  Special Leave Permission
+                </label>
               </div>
+
+              {editEmployeeForm.specialPermission && (
+                <div className="flex items-center mt-2">
+                  <label className="block text-sm font-medium text-gray-700 mr-2">Max Days:</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={60}
+                    value={editEmployeeForm.specialLeaveMaxDays || ''}
+                    onChange={e => setEditEmployeeForm(prev => ({ 
+                      ...prev, 
+                      specialLeaveMaxDays: Number(e.target.value)
+                    }))}
+                    className="w-20 p-1 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    required={editEmployeeForm.specialPermission}
+                  />
+                </div>
+              )}
               <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
                 <button
                   type="button"

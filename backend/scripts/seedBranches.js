@@ -3,7 +3,7 @@ const { Campus } = require('../models');
 require('dotenv').config();
 
 const BRANCH_CODES = {
-  Engineering: ['CSE', 'ECE', 'MECH', 'AGRI', 'CIVIL', 'CSE_AI','HBS'],
+  Engineering: ['CSE', 'ECE', 'MECH', 'AGRI', 'CIVIL', 'CSE_AI', 'HBS'],
   Diploma: ['DCSE', 'DECE', 'DAIML', 'DME', 'DAP', 'D_FISHERIES', 'D_ANIMAL_HUSBANDRY'],
   Pharmacy: ['B_PHARMACY', 'PHARM_D', 'PHARM_PB_D', 'PHARMACEUTICAL_ANALYSIS', 'PHARMACEUTICS', 'PHARMA_QUALITY_ASSURANCE'],
   Degree: ['AGRICULTURE', 'HORTICULTURE', 'FOOD_TECHNOLOGY', 'FISHERIES', 'FOOD_SCIENCE_NUTRITION']
@@ -47,11 +47,18 @@ const seedBranches = async () => {
 
     const campuses = await Campus.find();
     for (const campus of campuses) {
-      const campusType = campus.type; // 'Engineering', 'Degree', etc.
+      const campusType = campus.type;
+      if (!campusType) {
+        console.warn(`Campus "${campus.displayName || campus.name}" has no type. Skipping branch seeding.`);
+        continue;
+      }
       const branchCodes = BRANCH_CODES[campusType];
       if (!branchCodes) {
         console.log(`No branch codes defined for campus type: ${campusType}`);
         continue;
+      }
+      if (!Array.isArray(campus.branches)) {
+        campus.branches = [];
       }
       let added = 0;
       for (const code of branchCodes) {

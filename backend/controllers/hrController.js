@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { validateEmail } = require('../utils/validators');
 const bcrypt = require('bcryptjs');
 const asyncHandler = require('express-async-handler');
+const { sendEmployeeCredentials } = require('../utils/emailService');
 
 // HR login
 exports.login = async (req, res) => {
@@ -545,6 +546,8 @@ exports.bulkRegisterEmployees = async (req, res) => {
 
       try {
         await employee.save();
+        // Send credentials email
+        await sendEmployeeCredentials(employee, password);
         result.success = true;
       } catch (err) {
         result.success = false;
