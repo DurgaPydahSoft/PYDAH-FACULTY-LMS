@@ -197,6 +197,15 @@ exports.registerEmployee = async (req, res) => {
 
     await employee.save();
 
+    // Send credentials email to the employee
+    try {
+      await sendEmployeeCredentials(employee, password);
+      console.log('Employee credentials email sent to:', employee.email);
+    } catch (emailError) {
+      console.error('Error sending employee credentials email:', emailError);
+      // Don't fail the registration if email fails
+    }
+
     res.status(201).json({
       msg: 'Employee registered successfully',
       employee: {
@@ -256,7 +265,7 @@ exports.getCampusEmployees = async (req, res) => {
     }
 
     const employees = await Employee.find(query)
-      .select('name email employeeId department status phoneNumber designation role branchCode leaveBalance leaveBalanceByExperience')
+      .select('name email employeeId department status phoneNumber designation role branchCode leaveBalance leaveBalanceByExperience profilePicture')
       .sort({ name: 1 });
 
     res.json(employees);
@@ -327,7 +336,7 @@ exports.updateEmployee = async (req, res) => {
 
     // Fetch the updated employee to ensure we have the latest data
     const updatedEmployee = await Employee.findById(id)
-      .select('name email employeeId department status phoneNumber role roleDisplayName branchCode leaveBalance');
+      .select('name email employeeId department status phoneNumber role roleDisplayName branchCode leaveBalance profilePicture');
 
     // Log the update for debugging
     console.log('Employee updated:', {
@@ -560,5 +569,82 @@ exports.bulkRegisterEmployees = async (req, res) => {
   } catch (error) {
     console.error('Bulk Register Employees Error:', error);
     res.status(500).json({ msg: error.message || 'Server error' });
+  }
+};
+
+// Upload employee profile picture
+exports.uploadEmployeeProfilePicture = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const { id } = req.params;
+
+    // Find employee in HR's campus
+    const employee = await Employee.findOne({
+      _id: id,
+      campus: req.user.campus.name.toLowerCase()
+    });
+
+    if (!employee) {
+      return res.status(404).json({ message: 'Employee not found' });
+    }
+
+    // Delete old profile picture if exists
+    if (employee.profilePicture) {
+      const { deleteProfilePicture } = require('../utils/s3Upload');
+      await deleteProfilePicture(employee.profilePicture);
+    }
+
+    // Always construct the S3 URL if not present
+    let imageUrl = req.file.location;
+    if (!imageUrl && req.file.bucket && req.file.key) {
+      imageUrl = `https://${req.file.bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${req.file.key}`;
+    }
+
+    employee.profilePicture = imageUrl;
+    await employee.save();
+
+    res.json({
+      success: true,
+      message: 'Profile picture uploaded successfully',
+      profilePicture: employee.profilePicture
+    });
+  } catch (error) {
+    console.error('Profile picture upload error:', error);
+    res.status(500).json({ message: 'Failed to upload profile picture' });
+  }
+};
+
+// Delete employee profile picture
+exports.deleteEmployeeProfilePicture = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find employee in HR's campus
+    const employee = await Employee.findOne({
+      _id: id,
+      campus: req.user.campus.name.toLowerCase()
+    });
+
+    if (!employee) {
+      return res.status(404).json({ message: 'Employee not found' });
+    }
+
+    if (employee.profilePicture) {
+      const { deleteProfilePicture } = require('../utils/s3Upload');
+      await deleteProfilePicture(employee.profilePicture);
+      employee.profilePicture = null;
+      await employee.save();
+    }
+
+    res.json({
+      success: true,
+      message: 'Profile picture deleted successfully'
+    });
+  } catch (error) {
+    console.error('Profile picture deletion error:', error);
+    res.status(500).json({ message: 'Failed to delete profile picture' });
   }
 }; 

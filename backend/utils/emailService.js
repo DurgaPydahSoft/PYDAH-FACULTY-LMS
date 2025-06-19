@@ -24,6 +24,17 @@ function formatNumberOfDays(numberOfDays) {
   return Number(numberOfDays) === 0.5 ? '1/2' : Number(numberOfDays).toString();
 }
 
+// Helper to get frontend URL with fallback
+function getFrontendUrl() {
+  return process.env.FRONTEND_URL || 'https://pydah-faculty-lms.vercel.app';
+}
+
+// Helper to normalize campus type for HOD lookup
+function normalizeCampusType(campus) {
+  if (!campus) return '';
+  return campus.charAt(0).toUpperCase() + campus.slice(1).toLowerCase();
+}
+
 const sendEmail = async ({ to, subject, htmlContent, templateId, params }) => {
   try {
     // Validate sender email
@@ -121,14 +132,10 @@ const sendLeaveApplicationEmails = async (leaveRequest, employee) => {
 
     // Validate environment variables
     const senderEmail = process.env.BREVO_SENDER_EMAIL;
-    const frontendUrl = process.env.FRONTEND_URL;
+    const frontendUrl = getFrontendUrl();
     
     if (!senderEmail) {
       throw new Error('BREVO_SENDER_EMAIL environment variable is not set');
-    }
-    
-    if (!frontendUrl) {
-      console.warn('FRONTEND_URL environment variable is not set, using default URL');
     }
 
     // Prepare template parameters
@@ -144,7 +151,8 @@ const sendLeaveApplicationEmails = async (leaveRequest, employee) => {
       leaveRequestId: leaveRequest.leaveRequestId,
       department: employee.department,
       campus: employee.campus,
-      viewRequestUrl: frontendUrl ? `${frontendUrl}/employee-login` : 'https://pydah-faculty-lms.vercel.app/employee-login',
+      viewRequestUrl: `${frontendUrl}/employee-login`,
+      frontendUrl: frontendUrl,
       year: new Date().getFullYear()
     };
 
@@ -160,16 +168,19 @@ const sendLeaveApplicationEmails = async (leaveRequest, employee) => {
 
     // --- HOD Notification ---
     try {
-      // Find HOD for the employee's department and campus
+      // Find HOD for the employee's department and campus with improved lookup
+      const normalizedCampus = normalizeCampusType(employee.campus);
       const hod = await HOD.findOne({
         'department.code': employee.department,
-        'department.campusType': employee.campus.charAt(0).toUpperCase() + employee.campus.slice(1),
+        'department.campusType': normalizedCampus,
         status: 'active'
       });
+      
       if (!hod) {
         console.warn('No HOD found for department/campus:', {
           department: employee.department,
-          campus: employee.campus
+          campus: employee.campus,
+          normalizedCampus: normalizedCampus
         });
         return; // Don't throw, just log
       }
@@ -205,9 +216,18 @@ const sendLeaveApplicationEmails = async (leaveRequest, employee) => {
 // Send email to principal when leave is forwarded
 const sendPrincipalNotification = async (leaveRequest, employee, hod) => {
   try {
-    const principalEmail = process.env.PRINCIPAL_EMAIL;
-    if (!principalEmail) {
-      throw new Error('PRINCIPAL_EMAIL environment variable is not set');
+    // Fetch principal email from database based on campus
+    const Principal = mongoose.models.Principal || mongoose.model('Principal');
+    const normalizedCampus = normalizeCampusType(employee.campus);
+    
+    const principal = await Principal.findOne({
+      'campus.type': normalizedCampus,
+      status: 'active'
+    });
+
+    if (!principal) {
+      console.warn(`No active principal found for campus: ${normalizedCampus}`);
+      return;
     }
 
     const templateParams = {
@@ -221,17 +241,18 @@ const sendPrincipalNotification = async (leaveRequest, employee, hod) => {
       reason: leaveRequest.reason,
       hodName: hod.name,
       hodRemarks: leaveRequest.hodRemarks || 'No remarks provided',
+      frontendUrl: getFrontendUrl(),
       year: new Date().getFullYear()
     };
 
     const htmlContent = getHodForwardOrPrincipalReceiveTemplate(templateParams);
     await sendEmail({
-      to: principalEmail,
+      to: principal.email,
       subject: 'Leave Request Forwarded for Approval',
       htmlContent
     });
 
-    console.log('Principal notification email sent successfully');
+    console.log('Principal notification email sent successfully to:', principal.email);
   } catch (error) {
     console.error('Error sending principal notification:', error);
     throw error;
@@ -247,15 +268,16 @@ const sendEmployeeRejectionNotification = async (leaveRequest, employee) => {
       return;
     }
 
-    // Find HOD details
+    // Find HOD details with improved lookup
     const HOD = mongoose.models.HOD || mongoose.model('HOD');
+    const normalizedCampus = normalizeCampusType(employee.campus);
     const hod = await HOD.findOne({
       'department.code': employee.department,
-      'department.campusType': employee.campus.charAt(0).toUpperCase() + employee.campus.slice(1),
+      'department.campusType': normalizedCampus,
       status: 'active'
     });
 
-    const frontendUrl = process.env.FRONTEND_URL;
+    const frontendUrl = getFrontendUrl();
     const templateParams = {
       employeeName: employee.name,
       leaveType: leaveRequest.leaveType,
@@ -268,7 +290,7 @@ const sendEmployeeRejectionNotification = async (leaveRequest, employee) => {
       leaveRequestId: leaveRequest.leaveRequestId,
       department: employee.department,
       campus: employee.campus,
-      viewRequestUrl: frontendUrl ? `${frontendUrl}/employee-login` : 'https://pydah-faculty-lms.vercel.app/employee-login',
+      viewRequestUrl: `${frontendUrl}/employee-login`,
       year: new Date().getFullYear(),
       // Add HOD details
       hodName: hod ? hod.name : 'HOD',
@@ -297,9 +319,10 @@ const sendEmployeePrincipalRejectionNotification = async (leaveRequest, employee
       principalRemarks: leaveRequest.principalRemarks,
       leaveRequestId: leaveRequest.leaveRequestId,
       leaveType: leaveRequest.leaveType,
-      startDate: leaveRequest.startDate,
-      endDate: leaveRequest.endDate,
-      numberOfDays: leaveRequest.numberOfDays,
+      startDate: new Date(leaveRequest.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+      endDate: new Date(leaveRequest.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+      numberOfDays: formatNumberOfDays(leaveRequest.numberOfDays),
+      frontendUrl: getFrontendUrl(),
       year: new Date().getFullYear()
     });
 
@@ -323,35 +346,44 @@ const sendEmployeePrincipalApprovalNotification = async (leaveRequest, employee)
   try {
     const htmlContent = getEmployeeLeaveApprovedAtPrincipalTemplate({
       employeeName: employee.name,
-      principalRemarks: leaveRequest.principalRemarks,
       leaveRequestId: leaveRequest.leaveRequestId,
       leaveType: leaveRequest.leaveType,
+      reason: leaveRequest.reason,
+      principalRemarks: leaveRequest.principalRemarks,
+      // Handle both original and approved dates
       startDate: leaveRequest.startDate,
       endDate: leaveRequest.endDate,
       numberOfDays: leaveRequest.numberOfDays,
+      // Modified dates if applicable
+      isModifiedByPrincipal: leaveRequest.isModifiedByPrincipal || false,
+      originalStartDate: leaveRequest.startDate,
+      originalEndDate: leaveRequest.endDate,
+      originalNumberOfDays: leaveRequest.numberOfDays,
+      approvedStartDate: leaveRequest.approvedStartDate || leaveRequest.startDate,
+      approvedEndDate: leaveRequest.approvedEndDate || leaveRequest.endDate,
+      approvedNumberOfDays: leaveRequest.approvedNumberOfDays || leaveRequest.numberOfDays,
+      modificationReason: leaveRequest.principalModificationReason,
+      frontendUrl: getFrontendUrl(),
       year: new Date().getFullYear()
     });
 
-    const emailData = {
-      to: [{ email: employee.email }],
+    await sendEmail({
+      to: employee.email,
       subject: 'Leave Request Approved by Principal',
       htmlContent
-    };
-
-    const result = await sendEmail(emailData);
-    console.log('Leave approval email sent successfully to employee');
-    return result;
+    });
+    
+    console.log('Principal approval notification sent to:', employee.email);
   } catch (error) {
-    console.error('Error sending leave approval email:', error);
-    throw error;
+    console.error('Error sending principal approval notification:', error);
   }
 };
 
 // Send email to employee with their credentials
 const sendEmployeeCredentials = async (employee, password) => {
   try {
-    const frontendUrl = process.env.FRONTEND_URL;
-    const loginUrl = frontendUrl ? `${frontendUrl}/employee-login` : 'https://pydah-faculty-lms.vercel.app/employee-login';
+    const frontendUrl = getFrontendUrl();
+    const loginUrl = `${frontendUrl}/employee-login`;
     
     const htmlContent = getEmployeeCredentialsTemplate(employee, password, loginUrl);
 
@@ -375,9 +407,10 @@ const sendLeaveRejectionEmail = async (leaveRequest, employee, hod) => {
       hodRemarks: leaveRequest.hodRemarks,
       leaveRequestId: leaveRequest.leaveRequestId,
       leaveType: leaveRequest.leaveType,
-      startDate: leaveRequest.startDate,
-      endDate: leaveRequest.endDate,
-      numberOfDays: leaveRequest.numberOfDays,
+      startDate: new Date(leaveRequest.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+      endDate: new Date(leaveRequest.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+      numberOfDays: formatNumberOfDays(leaveRequest.numberOfDays),
+      frontendUrl: getFrontendUrl(),
       year: new Date().getFullYear()
     });
 
@@ -396,6 +429,30 @@ const sendLeaveRejectionEmail = async (leaveRequest, employee, hod) => {
   }
 };
 
+// Test function to validate email configuration
+const testEmailConfiguration = async () => {
+  try {
+    const requiredEnvVars = [
+      'BREVO_API_KEY',
+      'BREVO_SENDER_EMAIL'
+    ];
+    
+    const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+    
+    if (missingVars.length > 0) {
+      console.error('Missing required environment variables:', missingVars);
+      return false;
+    }
+    
+    console.log('✅ All required environment variables are set');
+    console.log('✅ Email service configuration is valid');
+    return true;
+  } catch (error) {
+    console.error('❌ Email configuration test failed:', error);
+    return false;
+  }
+};
+
 module.exports = {
   sendEmail,
   sendLeaveApplicationEmails,
@@ -404,5 +461,6 @@ module.exports = {
   sendEmployeePrincipalRejectionNotification,
   sendEmployeePrincipalApprovalNotification,
   sendEmployeeCredentials,
-  sendLeaveRejectionEmail
+  sendLeaveRejectionEmail,
+  testEmailConfiguration
 }; 

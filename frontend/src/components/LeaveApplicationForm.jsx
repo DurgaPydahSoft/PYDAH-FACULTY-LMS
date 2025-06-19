@@ -92,13 +92,9 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
     if (!startDate) return '';
     const start = new Date(startDate);
     const maxEnd = new Date(start);
-    // If employee has special permission, allow up to specialLeaveMaxDays
-    if (employee?.specialPermission) {
-      const maxDays = employee?.specialLeaveMaxDays ?? 20;
-      maxEnd.setDate(start.getDate() + (maxDays - 1)); // maxDays total (start + maxDays - 1)
-    } else {
-      maxEnd.setDate(start.getDate() + 1); // 2 days total (start + 1)
-    }
+    // Remove day limits - employees can request any number of days
+    // The principal will decide the final approved dates
+    maxEnd.setDate(start.getDate() + 365); // Allow up to 1 year for flexibility
     return maxEnd.toISOString().split('T')[0];
   };
 
@@ -143,10 +139,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
       }));
     } else if (name === 'endDate') {
       const startDate = formData.startDate;
-      const maxEnd = getMaxEndDate(startDate);
-      if (value < startDate || value > maxEnd) {
-        const maxDays = employee?.specialPermission ? (employee?.specialLeaveMaxDays ?? 20) : 2;
-        toast.error(`End date must be within ${maxDays} days of start date`);
+      if (value < startDate) {
+        toast.error('End date cannot be before start date');
         return;
       }
       setFormData(prev => ({ ...prev, endDate: value }));

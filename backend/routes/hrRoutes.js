@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
 const hrController = require('../controllers/hrController');
+const { upload, deleteProfilePicture } = require('../utils/s3Upload');
 
 // Public routes
 router.post('/login', hrController.login);
@@ -21,5 +22,9 @@ router.put('/employees/:id', hrController.updateEmployee);
 router.post('/employees/:id/reset-password', hrController.resetEmployeePassword);
 router.get('/roles', hrController.getCampusRoles);
 router.post('/employees/bulk', hrController.bulkRegisterEmployees);
+
+// Profile picture management for employees
+router.post('/employees/:id/upload-profile-picture', upload.single('profilePicture'), hrController.uploadEmployeeProfilePicture);
+router.delete('/employees/:id/delete-profile-picture', hrController.deleteEmployeeProfilePicture);
 
 module.exports = router; 

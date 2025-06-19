@@ -43,7 +43,7 @@ const getEmployeeLeaveRejectedAtPrincipalTemplate = (params) => `
     </div>
 
     <div style="text-align: center; margin-bottom: 20px;">
-      <a href="https://pydah-faculty-lms.vercel.app/employee-login" style="background-color: #1976d2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">View Details</a>
+      <a href="${params.frontendUrl}/employee-login" style="background-color: #1976d2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">View Details</a>
     </div>
 
     <div style="background-color: #fff3e0; padding: 15px; border-radius: 5px; margin-bottom: 20px;">

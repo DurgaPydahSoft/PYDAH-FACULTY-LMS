@@ -27,11 +27,62 @@ const HodLogin = () => {
     campus: '',
     branchCode: ''
   });
+  const [campuses, setCampuses] = useState([]);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [campusLoading, setCampusLoading] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+
+  // Fetch campuses from backend
+  useEffect(() => {
+    const fetchCampuses = async () => {
+      try {
+        console.log('Fetching campuses from:', `${API_BASE_URL}/super-admin/campuses/active`);
+        const response = await axios.get(`${API_BASE_URL}/super-admin/campuses/active`);
+        console.log('Campus API Response:', response.data);
+        
+        if (response.data && Array.isArray(response.data)) {
+          // Filter out any invalid entries and sort
+          const validCampuses = response.data.filter(campus => 
+            campus && campus.name && campus.displayName
+          ).map(campus => ({
+            ...campus,
+            displayName: campus.displayName || campus.name.charAt(0).toUpperCase() + campus.name.slice(1)
+          }));
+          
+          console.log('Valid campuses:', validCampuses);
+          
+          if (validCampuses.length > 0) {
+            const sortedCampuses = validCampuses.sort((a, b) => 
+              a.displayName.localeCompare(b.displayName)
+            );
+            console.log('Sorted campuses:', sortedCampuses);
+            setCampuses(sortedCampuses);
+          } else {
+            console.warn('No valid campuses found in response');
+            setCampuses([]);
+          }
+        } else {
+          console.error('Invalid response format:', response.data);
+          setCampuses([]);
+        }
+      } catch (error) {
+        console.error('Error fetching campuses:', error);
+        console.error('Error details:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        });
+        setCampuses([]);
+      } finally {
+        setCampusLoading(false);
+      }
+    };
+
+    fetchCampuses();
+  }, []);
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -157,13 +208,21 @@ const HodLogin = () => {
               onChange={handleChange}
               className="w-full p-2 sm:p-3 rounded-neumorphic shadow-innerSoft bg-background focus:outline-none focus:ring-2 focus:ring-primary text-xs sm:text-base"
               required
+              disabled={campusLoading}
             >
               <option value="">Select Campus</option>
-              <option value="engineering">Engineering</option>
-              <option value="degree">Degree</option>
-              <option value="pharmacy">Pharmacy</option>
-              <option value="diploma">Diploma</option>
+              {campuses.map((campus) => (
+                <option key={campus.name} value={campus.name}>
+                  {campus.displayName}
+                </option>
+              ))}
             </select>
+            {campusLoading && (
+              <p className="mt-2 text-sm text-gray-500">Loading campuses...</p>
+            )}
+            {!campusLoading && campuses.length === 0 && (
+              <p className="mt-2 text-sm text-red-500">No active campuses found</p>
+            )}
           </div>
 
           <div className="mb-3 sm:mb-6">
@@ -219,9 +278,10 @@ const HodLogin = () => {
 
           <button
             type="submit"
-            className="w-full bg-primary text-white py-2 sm:py-3 rounded-neumorphic hover:shadow-innerSoft transition-all duration-300 text-xs sm:text-base"
+            disabled={loading || campusLoading}
+            className="w-full bg-primary text-white py-2 sm:py-3 rounded-neumorphic hover:shadow-innerSoft transition-all duration-300 text-xs sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Login
+            {loading ? 'Signing in...' : 'Login'}
           </button>
         </form>
 

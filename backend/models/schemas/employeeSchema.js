@@ -263,6 +263,48 @@ const employeeSchema = new mongoose.Schema({
     approvedAt: {
       type: Date,
       default: null
+    },
+    approvedStartDate: {
+      type: String,
+      validate: {
+        validator: function(v) {
+          if (!v) return true;
+          return /^\d{4}-\d{2}-\d{2}$/.test(v);
+        },
+        message: props => `${props.value} is not a valid date format! Use YYYY-MM-DD`
+      }
+    },
+    approvedEndDate: {
+      type: String,
+      validate: {
+        validator: function(v) {
+          if (!v) return true;
+          return /^\d{4}-\d{2}-\d{2}$/.test(v);
+        },
+        message: props => `${props.value} is not a valid date format! Use YYYY-MM-DD`
+      }
+    },
+    approvedNumberOfDays: {
+      type: Number,
+      min: 0.5,
+      validate: {
+        validator: function(v) {
+          if (!v) return true;
+          return v >= 0.5;
+        },
+        message: 'Approved number of days must be at least 0.5'
+      }
+    },
+    isModifiedByPrincipal: {
+      type: Boolean,
+      default: false
+    },
+    principalModificationDate: {
+      type: Date
+    },
+    principalModificationReason: {
+      type: String,
+      default: ''
     }
   }],
   createdAt: {
@@ -359,12 +401,6 @@ employeeSchema.pre('save', async function(next) {
       if (actualDays !== latestLeaveRequest.numberOfDays) {
         throw new Error(`Date range spans ${actualDays} days but ${latestLeaveRequest.numberOfDays} days were requested`);
       }
-    }
-
-    // Validate maximum leave duration
-    const maxDays = this.specialPermission ? (this.specialLeaveMaxDays || 20) : 2;
-    if (latestLeaveRequest.numberOfDays > maxDays) {
-      throw new Error(`Leave duration cannot exceed ${maxDays} days`);
     }
 
     // Validate leave balance

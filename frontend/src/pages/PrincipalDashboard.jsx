@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axiosInstance from '../utils/axiosConfig';
 import { validateEmail } from '../utils/validators';
@@ -12,11 +12,11 @@ import { FaUserTie, FaUsers, FaClipboardList, FaArrowRight, FaBuilding } from 'r
 import { useAuth } from '../context/AuthContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import LeaveDateEditModal from '../components/LeaveDateEditModal';
+import { createAuthAxios } from '../utils/authAxios';
+import { API_BASE_URL } from '../config';
 
-const API_BASE_URL = config.API_BASE_URL;
-
-// Colors for charts
-const COLORS = ['#4F46E5', '#22D3EE', '#F59E42', '#10B981', '#F43F5E', '#6366F1'];
+// const API_BASE_URL = config.API_BASE_URL;
 
 // Add a hook to detect if the screen is mobile
 const useIsMobile = () => {
@@ -32,106 +32,6 @@ const useIsMobile = () => {
   }, []);
 
   return isMobile;
-};
-
-// Chart Components
-const LeaveTypeChart = ({ data }) => {
-  if (!data || data.length === 0) return null;
-  
-  return (
-    <ResponsiveContainer width="100%" height={300}>
-      <PieChart>
-        <Pie
-          data={data}
-          cx="50%"
-          cy="50%"
-          labelLine={false}
-          label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-          outerRadius={80}
-          fill="#8884d8"
-          dataKey="value"
-        >
-          {data.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-          ))}
-        </Pie>
-        <Tooltip />
-        <Legend />
-      </PieChart>
-    </ResponsiveContainer>
-  );
-};
-
-const LeaveStatusChart = ({ data }) => {
-  if (!data || data.length === 0) return null;
-  
-  return (
-    <ResponsiveContainer width="100%" height={300}>
-      <PieChart>
-        <Pie
-          data={data}
-          cx="50%"
-          cy="50%"
-          labelLine={false}
-          label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-          outerRadius={80}
-          fill="#8884d8"
-          dataKey="value"
-        >
-          {data.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-          ))}
-        </Pie>
-        <Tooltip />
-        <Legend />
-      </PieChart>
-    </ResponsiveContainer>
-  );
-};
-
-const LeaveTrendsChart = ({ data }) => {
-  if (!data || data.length === 0) return null;
-  
-  return (
-    <ResponsiveContainer width="100%" height={300}>
-      <LineChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="month" />
-        <YAxis />
-        <Tooltip />
-        <Legend />
-        <Line type="monotone" dataKey="leaves" stroke={COLORS[0]} name="Leaves" />
-        <Line type="monotone" dataKey="ccl" stroke={COLORS[1]} name="CCL Work" />
-      </LineChart>
-    </ResponsiveContainer>
-  );
-};
-
-const CCLWorkStatusChart = ({ data }) => {
-  if (!data || data.length === 0) return null;
-  
-  return (
-    <ResponsiveContainer width="100%" height={300}>
-      <PieChart>
-        <Pie
-          data={data}
-          cx="50%"
-          cy="50%"
-          labelLine={false}
-          label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-          outerRadius={80}
-          fill="#8884d8"
-          dataKey="value"
-        >
-          {data.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-          ))}
-        </Pie>
-        <Tooltip />
-        <Legend />
-      </PieChart>
-    </ResponsiveContainer>
-  );
 };
 
 const PrincipalDashboard = () => {
@@ -173,8 +73,10 @@ const PrincipalDashboard = () => {
   });
   const [forwardedLeaves, setForwardedLeaves] = useState([]);
   const [selectedLeave, setSelectedLeave] = useState(null);
-  const [remarks, setRemarks] = useState('');
+  const [showDateEditModal, setShowDateEditModal] = useState(false);
+  const [selectedLeaveForEdit, setSelectedLeaveForEdit] = useState(null);
   const [showRemarksModal, setShowRemarksModal] = useState(false);
+  const [remarks, setRemarks] = useState('');
   const [selectedAction, setSelectedAction] = useState(null);
   const [selectedRequestId, setSelectedRequestId] = useState(null);
   const [cclWorkRequests, setCclWorkRequests] = useState([]);
@@ -219,6 +121,13 @@ const PrincipalDashboard = () => {
   // Add state for pagination in the PrincipalDashboard component
   const [leavePage, setLeavePage] = useState(1);
   const LEAVES_PER_PAGE = 15;
+  const [isSubmittingRemarks, setIsSubmittingRemarks] = useState(false);
+  const [cclStatusFilter, setCclStatusFilter] = useState('');
+  const [filteredCCLWorkRequests, setFilteredCCLWorkRequests] = useState([]);
+  // 1. Add state for modal and options
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportIncludeCCL, setExportIncludeCCL] = useState(true);
+  const [exportIncludeSummary, setExportIncludeSummary] = useState(true);
 
   const { campus } = useParams();
   const navigate = useNavigate();
@@ -338,7 +247,22 @@ const PrincipalDashboard = () => {
       setLoading(prev => ({ ...prev, leaves: true }));
       const response = await axiosInstance.get('/principal/campus-leaves');
       console.log('Leaves response:', response.data);
+      
+      // Debug: Check for modification data in the response
       if (Array.isArray(response.data)) {
+        const modifiedLeaves = response.data.filter(leave => leave.originalStartDate && leave.originalEndDate);
+        console.log('Modified leaves found:', modifiedLeaves.length);
+        modifiedLeaves.forEach(leave => {
+          console.log('Modified leave details:', {
+            id: leave._id,
+            originalStartDate: leave.originalStartDate,
+            originalEndDate: leave.originalEndDate,
+            startDate: leave.startDate,
+            endDate: leave.endDate,
+            status: leave.status
+          });
+        });
+        
         setForwardedLeaves(response.data);
       }
     } catch (error) {
@@ -565,10 +489,55 @@ const PrincipalDashboard = () => {
   };
 
   const handleAction = (requestId, action) => {
-    console.log('handleAction called with:', { requestId, action });
-    setSelectedRequestId(requestId);
-    setSelectedAction(action);
-    setShowRemarksModal(true);
+    const leave = forwardedLeaves.find(l => l._id === requestId);
+    if (leave) {
+      setSelectedLeaveForEdit(leave);
+      setShowDateEditModal(true);
+    }
+  };
+
+  const handleApproveWithDates = async (requestData) => {
+    try {
+      const token = localStorage.getItem('token');
+      const authAxios = createAuthAxios(token);
+      const response = await authAxios.put(`${API_BASE_URL}/principal/leave-request/${selectedLeaveForEdit._id}`, requestData);
+      
+      if (response.status === 200) {
+        // Update the local state
+        setForwardedLeaves(prev => prev.filter(leave => leave._id !== selectedLeaveForEdit._id));
+        
+        // Show success message
+        alert('Leave request approved successfully!');
+        
+        // Refresh the data
+        fetchForwardedLeaves();
+      }
+    } catch (error) {
+      console.error('Error approving leave request:', error);
+      alert(error.response?.data?.msg || 'Error approving leave request');
+    }
+  };
+
+  const handleRejectWithDates = async (requestData) => {
+    try {
+      const token = localStorage.getItem('token');
+      const authAxios = createAuthAxios(token);
+      const response = await authAxios.put(`${API_BASE_URL}/principal/leave-request/${selectedLeaveForEdit._id}`, requestData);
+      
+      if (response.status === 200) {
+        // Update the local state
+        setForwardedLeaves(prev => prev.filter(leave => leave._id !== selectedLeaveForEdit._id));
+        
+        // Show success message
+        alert('Leave request rejected successfully!');
+        
+        // Refresh the data
+        fetchForwardedLeaves();
+      }
+    } catch (error) {
+      console.error('Error rejecting leave request:', error);
+      alert(error.response?.data?.msg || 'Error rejecting leave request');
+    }
   };
 
   const handleRemarksSubmit = async (remarks) => {
@@ -867,7 +836,7 @@ const PrincipalDashboard = () => {
                     <p className="text-red-500">Error loading data</p>
                   ) : (
                     <>
-                      <p className="text-3xl font-bold">{dashboardStats?.pendingLeaveRequests || 0}</p>
+                      <p className="text-3xl font-bold">{forwardedLeaves.filter(leave => leave.status === 'Forwarded by HOD').length}</p>
                       <span className="text-sm text-gray-500">Forwarded by HOD</span>
                     </>
                   )}
@@ -1366,7 +1335,7 @@ const PrincipalDashboard = () => {
               </button>
               <button
                 className="bg-orange-600 text-white px-4 py-2 rounded shadow hover:bg-orange-700 transition"
-                onClick={exportToPDF}
+                onClick={() => setShowExportModal(true)}
               >
                 Export to PDF
               </button>
@@ -1434,14 +1403,41 @@ const PrincipalDashboard = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {paginatedLeaveRows.map(row => row._isLeave ? (
-                      <tr key={row._id} className="hover:bg-gray-50">
+                    {/* Leave Request List View */}
+                    {paginatedLeaveRows.map((row) => {
+                      if (row._isLeave) {
+                        console.log('Leave request row:', {
+                          id: row._id,
+                          originalStartDate: row.originalStartDate,
+                          originalEndDate: row.originalEndDate,
+                          startDate: row.startDate,
+                          endDate: row.endDate,
+                          isModified: row.originalStartDate && row.originalEndDate
+                        });
+                        return (
+                          <tr key={row._id} className={`${row.originalStartDate && row.originalEndDate ? 'bg-yellow-50' : ''} border-b hover:bg-gray-50`}>
                         <td className="px-4 py-3 font-mono text-primary">{row.leaveRequestId}</td>
                         <td className="px-4 py-3">{row.employee?.name || row.employeeName || 'Unknown'}</td>
                         <td className="px-4 py-3">{row.employee?.employeeId || row.employeeEmployeeId || 'N/A'}</td>
                         <td className="px-4 py-3">{row.type ? row.type.charAt(0).toUpperCase() + row.type.slice(1) : row.leaveType ? row.leaveType.charAt(0).toUpperCase() + row.leaveType.slice(1) : 'N/A'}</td>
-                        <td className="px-4 py-3">{new Date(row.startDate).toLocaleDateString()} - {new Date(row.endDate).toLocaleDateString()}</td>
                         <td className="px-4 py-3">
+                              {row.isModifiedByPrincipal ? (
+                                <div>
+                                  <div className="line-through text-gray-500">
+                                    {new Date(row.startDate).toLocaleDateString()} - {new Date(row.endDate).toLocaleDateString()}
+                                  </div>
+                                  <div className="text-green-600 font-medium">
+                                    {new Date(row.approvedStartDate).toLocaleDateString()} - {new Date(row.approvedEndDate).toLocaleDateString()}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div>
+                                  {new Date(row.startDate).toLocaleDateString()} - {new Date(row.endDate).toLocaleDateString()}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
                           <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold
                             ${row.status === 'Approved' ? 'bg-green-100 text-green-800' :
                               row.status === 'Rejected' ? 'bg-red-100 text-red-800' :
@@ -1450,6 +1446,15 @@ const PrincipalDashboard = () => {
                           >
                             {row.status || 'N/A'}
                           </span>
+                                {row.originalStartDate && row.originalEndDate && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                    </svg>
+                                    Modified
+                                  </span>
+                                )}
+                              </div>
                         </td>
                         <td className="px-4 py-3">
                           <button
@@ -1463,7 +1468,10 @@ const PrincipalDashboard = () => {
                           </button>
                         </td>
                       </tr>
-                    ) : (
+                        );
+                      } else {
+                        // CCL Work Request
+                        return (
                       <tr key={row._id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 font-mono text-primary">{row.cclRequestId || `CCL${new Date(row.date).getFullYear()}${row.employeeDepartment?.substring(0, 3).toUpperCase()}${row._id.toString().slice(-4)}`}</td>
                         <td className="px-4 py-3">{row.employeeName || 'Unknown'}</td>
@@ -1492,7 +1500,9 @@ const PrincipalDashboard = () => {
                           </button>
                         </td>
                       </tr>
-                    ))}
+                        );
+                      }
+                    })}
                   </tbody>
                 </table>
                 {/* Pagination Controls */}
@@ -1545,12 +1555,13 @@ const PrincipalDashboard = () => {
                             if (!summaryMap[name]) {
                               summaryMap[name] = { CCL: 0, OD: 0, CL: 0 };
                             }
-                            // Determine leave type
+                            // Determine leave type and days
                             let type = row.leaveType || row.type;
+                            let days = row.isModifiedByPrincipal ? row.approvedNumberOfDays : row.numberOfDays;
                             if (!type && row._isLeave === false) type = 'CCL'; // fallback for CCL work
-                            if (type === 'CCL' || (row._isLeave === false)) summaryMap[name].CCL += 1;
-                            else if (type === 'OD') summaryMap[name].OD += 1;
-                            else if (type === 'CL') summaryMap[name].CL += 1;
+                            if (type === 'CCL' || (row._isLeave === false)) summaryMap[name].CCL += Number(days) || 0;
+                            else if (type === 'OD') summaryMap[name].OD += Number(days) || 0;
+                            else if (type === 'CL') summaryMap[name].CL += Number(days) || 0;
                           });
                           // Sort by employee name
                           const sortedNames = Object.keys(summaryMap).sort();
@@ -1593,8 +1604,40 @@ const PrincipalDashboard = () => {
                     <div className="mb-1 text-sm"><span className="font-semibold">Name:</span> {leave.employee?.name || leave.employeeName || 'Unknown'}</div>
                     <div className="mb-1 text-sm"><span className="font-semibold">Emp ID:</span> {leave.employee?.employeeId || leave.employeeEmployeeId || 'N/A'}</div>
                     <div className="mb-1 text-sm"><span className="font-semibold">Leave Type:</span> {leave.type ? leave.type.charAt(0).toUpperCase() + leave.type.slice(1) : leave.leaveType ? leave.leaveType.charAt(0).toUpperCase() + leave.leaveType.slice(1) : 'N/A'}</div>
-                    <div className="mb-1 text-sm"><span className="font-semibold">Dates:</span> {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}</div>
-                    <div className="flex justify-end mt-2">
+                    <div className="mb-1 text-sm">
+                      <span className="font-semibold">Dates:</span>
+                      {leave.originalStartDate && leave.originalEndDate ? (
+                        <div>
+                          <div className="line-through text-gray-500">
+                            {new Date(leave.originalStartDate).toLocaleDateString()} - {new Date(leave.originalEndDate).toLocaleDateString()}
+                          </div>
+                          <div className="text-green-600 font-medium">
+                            {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
+                          </div>
+                        </div>
+                      ) : (
+                        <span>{new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                    <div className="flex justify-between items-center mt-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold
+                          ${leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                            leave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                            leave.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
+                            'bg-yellow-100 text-yellow-800'}`}
+                        >
+                          {leave.status || 'N/A'}
+                        </span>
+                        {leave.originalStartDate && leave.originalEndDate && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                            </svg>
+                            Modified
+                          </span>
+                        )}
+                      </div>
                       <button
                         className="bg-primary text-white px-3 py-1 rounded-md text-xs hover:bg-primary-dark transition-colors"
                         onClick={() => {
@@ -1662,10 +1705,42 @@ const PrincipalDashboard = () => {
                           </p>
                         </div>
                         <div>
+                          {/* Show original vs approved dates if modified (EmployeeDashboard logic) */}
+                          {selectedLeave.isModifiedByPrincipal ? (
+                            <div className="col-span-1 sm:col-span-2">
+                              <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-100">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-600" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                  </svg>
+                                  <h5 className="font-semibold text-yellow-800">Leave Dates Modified by Principal</h5>
+                                </div>
+                                <div className="space-y-2">
+                                  <div>
+                                    <p className="text-sm text-yellow-800">Original Request:</p>
+                                    <p className="font-medium text-sm">{new Date(selectedLeave.startDate).toLocaleDateString()} to {new Date(selectedLeave.endDate).toLocaleDateString()}</p>
+                                    <p className="text-xs text-yellow-700">({selectedLeave.numberOfDays} days)</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm text-yellow-800">Approved Dates:</p>
+                                    <p className="font-medium text-sm">{new Date(selectedLeave.approvedStartDate).toLocaleDateString()} to {new Date(selectedLeave.approvedEndDate).toLocaleDateString()}</p>
+                                    <p className="text-xs text-yellow-700">({selectedLeave.approvedNumberOfDays} days)</p>
+                                  </div>
+                                  {selectedLeave.principalModificationReason && (
+                                    <div>
+                                      <p className="text-sm text-yellow-800">Modification Reason:</p>
+                                      <p className="text-sm">{selectedLeave.principalModificationReason}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="col-span-1 sm:col-span-2">
                           <p className="text-sm text-gray-600">Duration</p>
-                          <p className="font-medium text-sm sm:text-base">
-                            {new Date(selectedLeave.startDate).toLocaleDateString()} to {new Date(selectedLeave.endDate).toLocaleDateString()}
-                          </p>
+                              <p className="font-medium text-sm sm:text-base">{new Date(selectedLeave.startDate).toLocaleDateString()} to {new Date(selectedLeave.endDate).toLocaleDateString()} ({selectedLeave.numberOfDays} days)</p>
+                            </div>
+                          )}
                         </div>
                         <div>
                           <p className="text-sm text-gray-600">Applied On</p>
@@ -1687,6 +1762,37 @@ const PrincipalDashboard = () => {
                         {selectedLeave.isHalfDay && (
                           <div className="col-span-1 sm:col-span-2">
                             <p className="text-sm text-gray-600">Half Day Leave</p>
+                          </div>
+                        )}
+                        {/* Add Modification Details Section */}
+                        {selectedLeave.originalStartDate && selectedLeave.originalEndDate && (
+                          <div className="col-span-1 sm:col-span-2">
+                            <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-100">
+                              <div className="flex items-center gap-2 mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-600" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                </svg>
+                                <h5 className="font-semibold text-yellow-800">Leave Dates Modified by Principal</h5>
+                              </div>
+                              <div className="space-y-2">
+                                <div>
+                                  <p className="text-sm text-yellow-800">Original Request:</p>
+                                  <p className="font-medium text-sm">{new Date(selectedLeave.originalStartDate).toLocaleDateString()} to {new Date(selectedLeave.originalEndDate).toLocaleDateString()}</p>
+                                  <p className="text-xs text-yellow-700">({selectedLeave.originalNumberOfDays} days)</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-yellow-800">Approved Dates:</p>
+                                  <p className="font-medium text-sm">{new Date(selectedLeave.startDate).toLocaleDateString()} to {new Date(selectedLeave.endDate).toLocaleDateString()}</p>
+                                  <p className="text-xs text-yellow-700">({selectedLeave.numberOfDays} days)</p>
+                                </div>
+                                {selectedLeave.modificationReason && (
+                                  <div>
+                                    <p className="text-sm text-yellow-800">Modification Reason:</p>
+                                    <p className="text-sm">{selectedLeave.modificationReason}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         )}
                         <div className="col-span-1 sm:col-span-2">
@@ -1767,20 +1873,22 @@ const PrincipalDashboard = () => {
                         <button
                           onClick={() => {
                             setShowLeaveDetailsModal(false);
-                            handleAction(selectedLeave._id, 'approve');
+                            setSelectedLeaveForEdit(selectedLeave);
+                            setShowDateEditModal(true);
                           }}
                           className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors"
                         >
-                          Approve
+                          Review & Approve
                         </button>
                         <button
                           onClick={() => {
                             setShowLeaveDetailsModal(false);
-                            handleAction(selectedLeave._id, 'reject');
+                            setSelectedLeaveForEdit(selectedLeave);
+                            setShowDateEditModal(true);
                           }}
                           className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition-colors"
                         >
-                          Reject
+                          Review & Reject
                         </button>
                       </div>
                     )}
@@ -1799,88 +1907,86 @@ const PrincipalDashboard = () => {
             <div className="mb-4 flex flex-col sm:flex-row gap-2 items-start sm:items-center">
               <label className="text-sm font-medium text-gray-700">Status:</label>
               <select
-                value={cclFilters.status}
-                onChange={e => setCclFilters({ ...cclFilters, status: e.target.value })}
-                className="p-2 rounded-neumorphic shadow-innerSoft bg-background border border-gray-300"
+                value={cclStatusFilter}
+                onChange={(e) => setCclStatusFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="All">All</option>
-                <option value="Forwarded to Principal">Forwarded to Principal</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
+                <option value="">All</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
               </select>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredCCL.map((work) => (
-                <div
-                  key={work._id}
-                  className="bg-secondary p-6 rounded-neumorphic shadow-outerRaised hover:shadow-innerSoft transition-all duration-300"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-primary">
-                        {work.employee?.name || work.employeeName || 'Unknown Employee'}
-                      </h3>
-                      <p className="text-sm text-gray-600">ID: {work.employee?.employeeId || work.employeeEmployeeId || 'N/A'}</p>
+
+            {/* CCL Work Requests List */}
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              {filteredCCLWorkRequests.length === 0 ? (
+                <div className="p-6 text-center text-gray-500">
+                  No CCL work requests found.
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold
-                      ${work.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                        work.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                        work.status === 'Forwarded to Principal' ? 'bg-blue-100 text-blue-800' :
-                        'bg-yellow-100 text-yellow-800'}`}
-                    >
-                      {work.status || 'Pending'}
-                    </span>
+              ) : (
+                <div className="divide-y divide-gray-200">
+                  {filteredCCLWorkRequests.map((request) => (
+                    <div key={request._id} className="p-4 hover:bg-gray-50">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {request.employee?.name || request.employeeName}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            {request.employee?.employeeId || request.employeeEmployeeId} • {request.employee?.department?.name || request.employeeDepartment}
+                          </p>
+                          <p className="text-sm text-gray-600 mt-1">
+                            <strong>Work Description:</strong> {request.workDescription}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            <strong>Duration:</strong> {request.startDate} to {request.endDate} ({request.numberOfDays} days)
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            <strong>Applied On:</strong> {new Date(request.appliedOn).toLocaleDateString()}
+                          </p>
                   </div>
-                  <div className="space-y-2 text-sm">
-                    <p className="text-gray-700">
-                      <span className="font-medium">Date:</span> {work.date ? new Date(work.date).toLocaleDateString() : 'N/A'}
-                    </p>
-                    {work.assignedTo && (
-                      <p className="text-gray-700">
-                        <span className="font-medium">Assigned To:</span> {work.assignedTo}
-                      </p>
-                    )}
-                    <p className="text-gray-700">
-                      <span className="font-medium">Reason:</span> {work.reason || 'N/A'}
-                    </p>
-                    {work.hodRemarks && (
-                      <p className="text-gray-700">
-                        <span className="font-medium">HOD Remarks:</span> {work.hodRemarks}
-                      </p>
-                    )}
-                  </div>
-                  {work.status === 'Forwarded to Principal' && (
-                    <div className="mt-4 flex space-x-2">
+                        <div className="flex flex-col items-end space-y-2">
+                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold
+                            ${request.status === 'approved' ? 'bg-green-100 text-green-800' :
+                              request.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                              'bg-yellow-100 text-yellow-800'}`}
+                          >
+                            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                          </span>
+                          {request.status === 'pending' && (
+                            <div className="flex space-x-2">
                       <button
-                        onClick={() => {
-                          setSelectedCCLWork(work);
-                          setCclRemarks('');
-                          setShowCCLRemarksModal(true);
-                        }}
-                        className="flex-1 bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors"
+                                onClick={() => handleCCLWorkAction(request._id, 'approved')}
+                                className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition-colors"
                       >
                         Approve
                       </button>
                       <button
-                        onClick={() => {
-                          setSelectedCCLWork(work);
-                          setCclRemarks('');
-                          setShowCCLRemarksModal(true);
-                        }}
-                        className="flex-1 bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition-colors"
+                                onClick={() => handleCCLWorkAction(request._id, 'rejected')}
+                                className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors"
                       >
                         Reject
                       </button>
                     </div>
                   )}
+                        </div>
+                      </div>
                 </div>
               ))}
+                </div>
+              )}
             </div>
           </div>
         );
 
       default:
-        return null;
+        return (
+          <div className="p-6">
+            <h2 className="text-2xl font-bold text-primary mb-6">Dashboard</h2>
+            <p>Select an option from the sidebar to get started.</p>
+          </div>
+        );
     }
   };
 
@@ -1909,8 +2015,7 @@ const PrincipalDashboard = () => {
           fetchHods(),
           fetchEmployees(),
           fetchForwardedLeaves(),
-          fetchCCLWorkRequests(),
-          fetchDashboardStats()
+          fetchCCLWorkRequests()
         ]);
       } catch (error) {
         console.error('Error fetching initial data:', error);
@@ -1925,15 +2030,16 @@ const PrincipalDashboard = () => {
     }
   }, [user?.token]);
 
-  const exportToPDF = () => {
+  const exportToPDF = (pdfIncludeCCL = true, pdfIncludeSummary = true) => {
     if (!forwardedLeaves.length && !cclWorkRequests.length) {
       alert('No requests to export for the current filters.');
       return;
     }
+    const allLeaveRows = [
+      ...forwardedLeaves.map(leave => ({ ...leave, _isLeave: true })),
+      ...cclWorkRequests.map(ccl => ({ ...ccl, _isLeave: false }))
+    ];
 
-    // Show confirmation dialog
-    const includeCCL = window.confirm('Do you want to include CCL requests also?');
-    
     // Filter leave requests by date range and status
     const filteredLeaves = forwardedLeaves.filter(leave => {
       // Filter by date range
@@ -1978,6 +2084,7 @@ const PrincipalDashboard = () => {
       return 0;
     });
 
+    // PDF export: use modified dates/days if isModifiedByPrincipal
     const leaveData = sortedLeaves.map((lr, idx) => [
       idx + 1,
       lr.employeeName || lr.employee?.name || '',
@@ -1985,14 +2092,16 @@ const PrincipalDashboard = () => {
       lr.employeeEmployeeId || lr.employee?.employeeId || '',
       lr.employeeDepartment || lr.employee?.department || '',
       lr.leaveType || lr.type || '',
-      `${lr.startDate ? new Date(lr.startDate).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' }) : ''} - ${lr.endDate ? new Date(lr.endDate).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' }) : ''}`,
-      lr.numberOfDays || '',
+      lr.isModifiedByPrincipal
+        ? `${lr.approvedStartDate ? new Date(lr.approvedStartDate).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' }) : ''} - ${lr.approvedEndDate ? new Date(lr.approvedEndDate).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' }) : ''}`
+        : `${lr.startDate ? new Date(lr.startDate).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' }) : ''} - ${lr.endDate ? new Date(lr.endDate).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' }) : ''}`,
+      lr.isModifiedByPrincipal ? lr.approvedNumberOfDays || '' : lr.numberOfDays || '',
       lr.reason || '',
       lr.status || '',
     ]);
 
     // Filter CCL requests by date range and status
-    const filteredCCL = includeCCL ? cclWorkRequests.filter(ccl => {
+    const filteredCCL = pdfIncludeCCL ? cclWorkRequests.filter(ccl => {
       // Filter by date range
       if (cclFilters.startDate || cclFilters.endDate) {
         const cclDate = new Date(ccl.date);
@@ -2118,7 +2227,7 @@ const PrincipalDashboard = () => {
       });
 
       // If CCL requests are included, draw CCL table
-      if (includeCCL && filteredCCL.length > 0) {
+      if (pdfIncludeCCL && filteredCCL.length > 0) {
         const leaveTableEndY = doc.lastAutoTable.finalY;
         doc.setFontSize(14);
         doc.setTextColor('#333');
@@ -2175,10 +2284,58 @@ const PrincipalDashboard = () => {
       doc.text(`Generated on: ${timestamp}`, 10, finalY);
 
       // Save the PDF
-      const fileName = includeCCL ? 
+      const fileName = pdfIncludeCCL ? 
         `Leave_and_CCL_Requests_${month}_${year}.pdf` : 
         `Leave_Requests_${month}_${year}.pdf`;
       doc.save(fileName);
+
+      // ... inside exportToPDF ...
+      // After drawing the leave and CCL tables, add the summary table if requested
+      if (pdfIncludeSummary) {
+        // Build summary from filtered, approved leave and CCL requests
+        const summaryMap = {};
+        allLeaveRows.filter(row => row.status === 'Approved').forEach(row => {
+          const name = row.employeeName || row.employee?.name || 'Unknown';
+          if (!summaryMap[name]) {
+            summaryMap[name] = { CCL: 0, OD: 0, CL: 0 };
+          }
+          let type = row.leaveType || row.type;
+          let days = row.isModifiedByPrincipal ? row.approvedNumberOfDays : row.numberOfDays;
+          if (!type && row._isLeave === false) type = 'CCL';
+          if (type === 'CCL' || (row._isLeave === false)) summaryMap[name].CCL += Number(days) || 0;
+          else if (type === 'OD') summaryMap[name].OD += Number(days) || 0;
+          else if (type === 'CL') summaryMap[name].CL += Number(days) || 0;
+        });
+        const sortedNames = Object.keys(summaryMap).sort();
+        const summaryData = sortedNames.map(name => [
+          name,
+          summaryMap[name].CCL,
+          summaryMap[name].OD,
+          summaryMap[name].CL
+        ]);
+        const summaryHeaders = [[
+          'Employee Name', 'CCL Approved', 'OD Approved', 'CL Approved'
+        ]];
+        // Add the summary table after the last table
+        let lastY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 20 : 60;
+        doc.setFontSize(14);
+        doc.setTextColor('#333');
+        doc.text('Summary (Approved Requests)', 10, lastY);
+        autoTable(doc, {
+          startY: lastY + 5,
+          head: summaryHeaders,
+          body: summaryData,
+          styles: { fontSize: 10, cellPadding: 3 },
+          headStyles: {
+            fillColor: [255, 213, 128],
+            textColor: [0, 0, 0],
+            fontStyle: 'bold',
+          },
+          theme: 'grid',
+          margin: { left: 10, right: 10 },
+          tableWidth: 'auto',
+        });
+      }
     };
 
     // Try to load the logo, then draw the PDF
@@ -2746,6 +2903,100 @@ const PrincipalDashboard = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Leave Date Edit Modal */}
+      <LeaveDateEditModal
+        isOpen={showDateEditModal}
+        onClose={() => {
+          setShowDateEditModal(false);
+          setSelectedLeaveForEdit(null);
+        }}
+        leaveRequest={selectedLeaveForEdit}
+        onApprove={handleApproveWithDates}
+        onReject={handleRejectWithDates}
+      />
+
+      {/* Remarks Modal */}
+      {showRemarksModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Add Remarks</h3>
+            <textarea
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
+              placeholder="Enter your remarks..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+              rows="4"
+            />
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowRemarksModal(false);
+                  setRemarks('');
+                  setSelectedAction(null);
+                  setSelectedRequestId(null);
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRemarksSubmit}
+                disabled={isSubmittingRemarks}
+                className="px-4 py-2 text-white bg-blue-500 rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50"
+              >
+                {isSubmittingRemarks ? 'Submitting...' : 'Submit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export Options Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-bold mb-4 text-primary">Export to PDF Options</h3>
+            <div className="mb-4 space-y-3">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={exportIncludeCCL}
+                  onChange={e => setExportIncludeCCL(e.target.checked)}
+                  className="form-checkbox h-4 w-4 text-primary"
+                />
+                Include CCL Work Requests
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={exportIncludeSummary}
+                  onChange={e => setExportIncludeSummary(e.target.checked)}
+                  className="form-checkbox h-4 w-4 text-primary"
+                />
+                Include Summary Table
+              </label>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                onClick={() => setShowExportModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
+                onClick={() => {
+                  setShowExportModal(false);
+                  exportToPDF(exportIncludeCCL, exportIncludeSummary);
+                }}
+              >
+                Export
+              </button>
+            </div>
           </div>
         </div>
       )}

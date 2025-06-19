@@ -38,11 +38,7 @@ const corsOptions = {
       'https://pydah-faculty-lms.vercel.app',
       'http://localhost:3000',
       'http://localhost:5000'
-      
     ];
-    
-    // Log the origin for debugging
-    // console.log('CORS Request Origin:', origin);
     
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
@@ -54,8 +50,15 @@ const corsOptions = {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'x-auth-token',
+    'Origin',
+    'Accept',
+    'X-Requested-With'
+  ],
   exposedHeaders: ['Authorization'],
   credentials: true,
   preflightContinue: false,

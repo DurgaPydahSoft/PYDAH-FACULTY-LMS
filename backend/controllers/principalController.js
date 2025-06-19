@@ -414,22 +414,39 @@ exports.getCampusLeaves = async (req, res) => {
     let leaveRequests = employees.reduce((acc, employee) => {
       const employeeLeaves = employee.leaveRequests
         .filter(request => request.status === 'Forwarded by HOD' || request.status === 'Approved')
-        .map(request => ({
-          ...request.toObject(),
-          employeeId: employee._id,
-          employeeName: employee.name,
-          employeeEmail: employee.email,
-          employeeEmployeeId: employee.employeeId,
-          employeeDepartment: employee.branchCode || employee.department,
-          alternateSchedule: request.alternateSchedule.map(schedule => ({
-            date: schedule.date,
-            periods: schedule.periods.map(period => ({
-              periodNumber: period.periodNumber,
-              substituteFaculty: period.substituteFaculty ? period.substituteFaculty.name : 'Unknown Faculty',
-              assignedClass: period.assignedClass
+        .map(request => {
+          const leaveData = {
+            ...request.toObject(),
+            employeeId: employee._id,
+            employeeName: employee.name,
+            employeeEmail: employee.email,
+            employeeEmployeeId: employee.employeeId,
+            employeeDepartment: employee.branchCode || employee.department,
+            alternateSchedule: request.alternateSchedule.map(schedule => ({
+              date: schedule.date,
+              periods: schedule.periods.map(period => ({
+                periodNumber: period.periodNumber,
+                substituteFaculty: period.substituteFaculty ? period.substituteFaculty.name : 'Unknown Faculty',
+                assignedClass: period.assignedClass
+              }))
             }))
-          }))
-        }));
+          };
+          
+          // Debug: Log modification data
+          if (leaveData.originalStartDate && leaveData.originalEndDate) {
+            console.log('Found modified leave request:', {
+              id: leaveData._id,
+              employeeName: leaveData.employeeName,
+              originalStartDate: leaveData.originalStartDate,
+              originalEndDate: leaveData.originalEndDate,
+              startDate: leaveData.startDate,
+              endDate: leaveData.endDate,
+              status: leaveData.status
+            });
+          }
+          
+          return leaveData;
+        });
       return [...acc, ...employeeLeaves];
     }, []);
 
@@ -685,13 +702,24 @@ exports.getLeaveRequests = async (req, res) => {
 // Update Leave Request
 exports.updateLeaveRequest = async (req, res) => {
   try {
-    const { action, remarks } = req.body;
+    const { 
+      action, 
+      remarks, 
+      approvedStartDate, 
+      approvedEndDate, 
+      approvedNumberOfDays,
+      modificationReason 
+    } = req.body;
     const leaveId = req.params.id;
 
     console.log('Updating leave request:', {
       leaveId,
       action,
       remarks,
+      approvedStartDate,
+      approvedEndDate,
+      approvedNumberOfDays,
+      modificationReason,
       user: {
         id: req.user.id,
         campus: req.user.campus,
@@ -848,10 +876,68 @@ exports.updateLeaveRequest = async (req, res) => {
         return res.status(400).json({ msg: 'Leave request is already approved' });
       }
 
-      // Check balance before approving
+      // Handle date modifications by principal
+      let finalStartDate = leaveRequest.startDate;
+      let finalEndDate = leaveRequest.endDate;
+      let finalNumberOfDays = leaveRequest.numberOfDays;
+      let isModified = false;
+
+      // If principal provided modified dates, validate and use them
+      if (approvedStartDate && approvedEndDate && approvedNumberOfDays) {
+        // Validate modified dates
+        const modStartDate = new Date(approvedStartDate);
+        const modEndDate = new Date(approvedEndDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Check if dates are valid
+        if (isNaN(modStartDate.getTime()) || isNaN(modEndDate.getTime())) {
+          return res.status(400).json({ msg: 'Invalid modified date format' });
+        }
+
+        // Check if end date is not before start date
+        if (modEndDate < modStartDate) {
+          return res.status(400).json({ msg: 'Modified end date cannot be before start date' });
+        }
+
+        // Validate number of days matches date range
+        const diffTime = Math.abs(modEndDate - modStartDate);
+        const actualDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        if (actualDays !== approvedNumberOfDays) {
+          return res.status(400).json({ 
+            msg: `Modified date range spans ${actualDays} days but ${approvedNumberOfDays} days were specified` 
+          });
+        }
+
+        // Store original dates before modification
+        leaveRequest.originalStartDate = leaveRequest.startDate;
+        leaveRequest.originalEndDate = leaveRequest.endDate;
+        leaveRequest.originalNumberOfDays = leaveRequest.numberOfDays;
+
+        // Use modified dates
+        finalStartDate = approvedStartDate;
+        finalEndDate = approvedEndDate;
+        finalNumberOfDays = approvedNumberOfDays;
+        isModified = true;
+
+        console.log('Principal modified leave dates:', {
+          original: {
+            startDate: leaveRequest.originalStartDate,
+            endDate: leaveRequest.originalEndDate,
+            numberOfDays: leaveRequest.originalNumberOfDays
+          },
+          modified: {
+            startDate: finalStartDate,
+            endDate: finalEndDate,
+            numberOfDays: finalNumberOfDays
+          }
+        });
+      }
+
+      // Check balance before approving (use final number of days)
       if (leaveRequest.leaveType === 'CCL') {
         // Calculate actual days to deduct
-        const daysToDeduct = leaveRequest.isHalfDay ? 0.5 : leaveRequest.numberOfDays;
+        const daysToDeduct = leaveRequest.isHalfDay ? 0.5 : finalNumberOfDays;
         
         console.log('Checking CCL balance:', {
           employeeId: employee._id,
@@ -859,7 +945,7 @@ exports.updateLeaveRequest = async (req, res) => {
           currentBalance: employee.cclBalance,
           requestedDays: daysToDeduct,
           isHalfDay: leaveRequest.isHalfDay,
-          numberOfDays: leaveRequest.numberOfDays
+          numberOfDays: finalNumberOfDays
         });
 
         // Check if employee has sufficient balance
@@ -876,60 +962,72 @@ exports.updateLeaveRequest = async (req, res) => {
         }
       } else if (leaveRequest.leaveType === 'CL') {
         // For CL, check if employee has sufficient balance
-        if (employee.leaveBalance < leaveRequest.numberOfDays) {
+        if (employee.leaveBalance < finalNumberOfDays) {
           return res.status(400).json({ 
-            msg: `Insufficient leave balance. Available: ${employee.leaveBalance} days, Required: ${leaveRequest.numberOfDays} days`
+            msg: `Insufficient leave balance. Available: ${employee.leaveBalance} days, Required: ${finalNumberOfDays} days`
           });
         }
       }
       // For OD, no balance check needed
 
-      // Update leave request status
+      // Update leave request status and approved dates
       leaveRequest.status = 'Approved';
       leaveRequest.principalRemarks = remarks || 'Approved by Principal';
       leaveRequest.principalApprovalDate = new Date();
       leaveRequest.approvedBy.principal = true;
 
-      // Handle balance updates for approval
+      // Set approved dates if modified
+      if (isModified) {
+        leaveRequest.approvedStartDate = finalStartDate;
+        leaveRequest.approvedEndDate = finalEndDate;
+        leaveRequest.approvedNumberOfDays = finalNumberOfDays;
+        leaveRequest.isModifiedByPrincipal = true;
+        leaveRequest.principalModificationDate = new Date();
+        leaveRequest.principalModificationReason = modificationReason || 'Dates modified by Principal';
+      }
+
+      // Handle balance updates for approval (use final number of days)
       if (leaveRequest.leaveType === 'CCL') {
-        // For CCL, ensure we're using the correct number of days (0.5 for half-day)
-        const daysToDeduct = leaveRequest.isHalfDay ? 0.5 : leaveRequest.numberOfDays;
+        // Calculate actual days to deduct
+        const daysToDeduct = leaveRequest.isHalfDay ? 0.5 : finalNumberOfDays;
         // Update CCL balance using the schema method
         await employee.updateCCLBalance(
           'used',
           daysToDeduct,
           leaveRequest._id,
           'LeaveRequest',
-          `CCL leave approved by Principal${leaveRequest.isHalfDay ? ' (Half-day)' : ''}`
+          `CCL leave approved by Principal${leaveRequest.isHalfDay ? ' (Half-day)' : ''}${isModified ? ' (Dates modified)' : ''}`
         );
       } else if (leaveRequest.leaveType === 'CL') {
         // For CL, deduct from regular leave balance
-        employee.leaveBalance -= leaveRequest.numberOfDays;
+        employee.leaveBalance -= finalNumberOfDays;
         // Add to leave history
         employee.leaveHistory = employee.leaveHistory || [];
         employee.leaveHistory.push({
           type: 'used',
           date: new Date(),
-          days: leaveRequest.numberOfDays,
+          days: finalNumberOfDays,
           reference: leaveRequest._id,
           referenceModel: 'LeaveRequest',
-          remarks: 'CL leave approved by Principal'
+          remarks: `CL leave approved by Principal${isModified ? ' (Dates modified)' : ''}`
         });
       }
 
-      // Save both employee and leave request
-      await Promise.all([
-        employee.save(),
-        leaveRequest.save()
-      ]);
+      // Save the employee (which will save the embedded leave request)
+      await employee.save();
 
-      console.log('Leave request approved:', {
+      console.log('Leave request approved with modification data:', {
         leaveId: leaveRequest._id,
         leaveType: leaveRequest.leaveType,
         status: leaveRequest.status,
         employeeId: employee._id,
         employeeName: employee.name,
-        newBalance: leaveRequest.leaveType === 'CCL' ? employee.cclBalance : employee.leaveBalance
+        isModified: isModified,
+        originalStartDate: leaveRequest.originalStartDate,
+        originalEndDate: leaveRequest.originalEndDate,
+        startDate: leaveRequest.startDate,
+        endDate: leaveRequest.endDate,
+        finalNumberOfDays: finalNumberOfDays
       });
 
       // Send approval notification to employee
@@ -953,25 +1051,28 @@ exports.updateLeaveRequest = async (req, res) => {
 
       // Handle balance restoration for rejection if previously approved
       if (previousStatus === 'Approved') {
+        // Use the actual number of days that were deducted
+        const daysToRestore = leaveRequest.approvedNumberOfDays || leaveRequest.numberOfDays;
+        
         if (leaveRequest.leaveType === 'CCL') {
           // For CCL, ensure we're using the correct number of days (0.5 for half-day)
-          const daysToRestore = leaveRequest.isHalfDay ? 0.5 : leaveRequest.numberOfDays;
+          const actualDaysToRestore = leaveRequest.isHalfDay ? 0.5 : daysToRestore;
           await employee.updateCCLBalance(
             'restored',
-            daysToRestore,
+            actualDaysToRestore,
             leaveRequest._id,
             'LeaveRequest',
             `CCL leave rejected by Principal after approval${leaveRequest.isHalfDay ? ' (Half-day)' : ''}`
           );
         } else {
           // For all other leave types, restore regular leave balance
-          employee.leaveBalance += leaveRequest.numberOfDays;
+          employee.leaveBalance += daysToRestore;
           // Add to leave history
           employee.leaveHistory = employee.leaveHistory || [];
           employee.leaveHistory.push({
             type: 'restored',
             date: new Date(),
-            days: leaveRequest.numberOfDays,
+            days: daysToRestore,
             reference: leaveRequest._id,
             referenceModel: 'LeaveRequest',
             remarks: `${leaveRequest.leaveType} leave rejected by Principal after approval`
@@ -979,19 +1080,19 @@ exports.updateLeaveRequest = async (req, res) => {
         }
       }
 
-      // Save both employee and leave request
-      await Promise.all([
-        employee.save(),
-        leaveRequest.save()
-      ]);
+      // Save the employee (which will save the embedded leave request)
+      await employee.save();
 
-      console.log('Leave request rejected:', {
+      console.log('Leave request rejected with modification data:', {
         leaveId: leaveRequest._id,
         leaveType: leaveRequest.leaveType,
         status: leaveRequest.status,
         employeeId: employee._id,
         employeeName: employee.name,
-        newBalance: leaveRequest.leaveType === 'CCL' ? employee.cclBalance : employee.leaveBalance
+        originalStartDate: leaveRequest.originalStartDate,
+        originalEndDate: leaveRequest.originalEndDate,
+        startDate: leaveRequest.startDate,
+        endDate: leaveRequest.endDate
       });
 
       // Send rejection notification to employee
@@ -1001,7 +1102,8 @@ exports.updateLeaveRequest = async (req, res) => {
     res.json({ 
       msg: `Leave request ${action === 'approve' ? 'approved' : 'rejected'}`,
       leaveRequest,
-      newBalance: leaveRequest.leaveType === 'CL' ? employee.leaveBalance : employee.cclBalance
+      newBalance: leaveRequest.leaveType === 'CL' ? employee.leaveBalance : employee.cclBalance,
+      isModified: leaveRequest.isModifiedByPrincipal || false
     });
   } catch (error) {
     console.error('Update Leave Request Error:', {
@@ -1384,22 +1486,39 @@ exports.getCampusLeaves = async (req, res) => {
     let leaveRequests = employees.reduce((acc, employee) => {
       const employeeLeaves = employee.leaveRequests
         .filter(request => request.status === 'Forwarded by HOD' || request.status === 'Approved')
-        .map(request => ({
-          ...request.toObject(),
-          employeeId: employee._id,
-          employeeName: employee.name,
-          employeeEmail: employee.email,
-          employeeEmployeeId: employee.employeeId,
-          employeeDepartment: employee.branchCode || employee.department,
-          alternateSchedule: request.alternateSchedule.map(schedule => ({
-            date: schedule.date,
-            periods: schedule.periods.map(period => ({
-              periodNumber: period.periodNumber,
-              substituteFaculty: period.substituteFaculty ? period.substituteFaculty.name : 'Unknown Faculty',
-              assignedClass: period.assignedClass
+        .map(request => {
+          const leaveData = {
+            ...request.toObject(),
+            employeeId: employee._id,
+            employeeName: employee.name,
+            employeeEmail: employee.email,
+            employeeEmployeeId: employee.employeeId,
+            employeeDepartment: employee.branchCode || employee.department,
+            alternateSchedule: request.alternateSchedule.map(schedule => ({
+              date: schedule.date,
+              periods: schedule.periods.map(period => ({
+                periodNumber: period.periodNumber,
+                substituteFaculty: period.substituteFaculty ? period.substituteFaculty.name : 'Unknown Faculty',
+                assignedClass: period.assignedClass
+              }))
             }))
-          }))
-        }));
+          };
+          
+          // Debug: Log modification data
+          if (leaveData.originalStartDate && leaveData.originalEndDate) {
+            console.log('Found modified leave request:', {
+              id: leaveData._id,
+              employeeName: leaveData.employeeName,
+              originalStartDate: leaveData.originalStartDate,
+              originalEndDate: leaveData.originalEndDate,
+              startDate: leaveData.startDate,
+              endDate: leaveData.endDate,
+              status: leaveData.status
+            });
+          }
+          
+          return leaveData;
+        });
       return [...acc, ...employeeLeaves];
     }, []);
 

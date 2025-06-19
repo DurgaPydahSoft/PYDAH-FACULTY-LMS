@@ -58,8 +58,8 @@ const getHodForwardOrPrincipalReceiveTemplate = (params) => `
     </div>
 
     <div style="text-align: center; margin-bottom: 20px;">
-      <a href="https://pydah-faculty-lms.vercel.app/principal-dashboard/approve/${params.leaveRequestId}" style="background-color: #1976d2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-right: 10px;">Approve</a>
-      <a href="https://pydah-faculty-lms.vercel.app/principal-dashboard/reject/${params.leaveRequestId}" style="background-color: #ef4444; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Reject</a>
+      <a href="${params.frontendUrl}/principal-dashboard/approve/${params.leaveRequestId}" style="background-color: #1976d2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-right: 10px;">Approve</a>
+      <a href="${params.frontendUrl}/principal-dashboard/reject/${params.leaveRequestId}" style="background-color: #ef4444; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Reject</a>
     </div>
 
     <div style="background-color: #fff3e0; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
@@ -70,7 +70,7 @@ const getHodForwardOrPrincipalReceiveTemplate = (params) => `
     </div>
 
     <div style="text-align: center; margin-bottom: 20px;">
-      <a href="https://pydah-faculty-lms.vercel.app/principal-dashboard" style="color: #1976d2; text-decoration: none;">View All Pending Requests</a>
+      <a href="${params.frontendUrl}/principal-dashboard" style="color: #1976d2; text-decoration: none;">View All Pending Requests</a>
     </div>
 
     <div style="text-align: center; color: #666; font-size: 12px; margin-top: 20px;">

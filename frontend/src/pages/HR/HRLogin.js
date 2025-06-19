@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
@@ -15,15 +15,60 @@ const HRLogin = () => {
     password: '',
     campus: '',
   });
+  const [campuses, setCampuses] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [campusLoading, setCampusLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const campuses = [
-    { value: 'engineering', label: 'PYDAH Engineering College' },
-    { value: 'degree', label: 'PYDAH Degree College' },
-    { value: 'pharmacy', label: 'PYDAH College of Pharmacy' },
-    { value: 'diploma', label: 'PYDAH Polytechnic College' },
-  ];
+  // Fetch campuses from backend
+  useEffect(() => {
+    const fetchCampuses = async () => {
+      try {
+        console.log('Fetching campuses from:', `${API_BASE_URL}/super-admin/campuses/active`);
+        const response = await fetch(`${API_BASE_URL}/super-admin/campuses/active`);
+        const data = await response.json();
+        console.log('Campus API Response:', data);
+        
+        if (data && Array.isArray(data)) {
+          // Filter out any invalid entries and sort
+          const validCampuses = data.filter(campus => 
+            campus && campus.name && campus.displayName
+          ).map(campus => ({
+            ...campus,
+            displayName: campus.displayName || campus.name.charAt(0).toUpperCase() + campus.name.slice(1)
+          }));
+          
+          console.log('Valid campuses:', validCampuses);
+          
+          if (validCampuses.length > 0) {
+            const sortedCampuses = validCampuses.sort((a, b) => 
+              a.displayName.localeCompare(b.displayName)
+            );
+            console.log('Sorted campuses:', sortedCampuses);
+            setCampuses(sortedCampuses);
+          } else {
+            console.warn('No valid campuses found in response');
+            setCampuses([]);
+          }
+        } else {
+          console.error('Invalid response format:', data);
+          setCampuses([]);
+        }
+      } catch (error) {
+        console.error('Error fetching campuses:', error);
+        console.error('Error details:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        });
+        setCampuses([]);
+      } finally {
+        setCampusLoading(false);
+      }
+    };
+
+    fetchCampuses();
+  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -105,14 +150,21 @@ const HRLogin = () => {
               onChange={handleChange}
               className="w-full p-2 sm:p-3 rounded-neumorphic shadow-innerSoft bg-background focus:outline-none focus:ring-2 focus:ring-primary text-xs sm:text-base"
               required
+              disabled={campusLoading}
             >
               <option value="">Select Campus</option>
-              {campuses.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
+              {campuses.map((campus) => (
+                <option key={campus.name} value={campus.name}>
+                  {campus.displayName}
                 </option>
               ))}
             </select>
+            {campusLoading && (
+              <p className="mt-2 text-sm text-gray-500">Loading campuses...</p>
+            )}
+            {!campusLoading && campuses.length === 0 && (
+              <p className="mt-2 text-sm text-red-500">No active campuses found</p>
+            )}
           </div>
           <div className="mb-3 sm:mb-6">
             <label className="block text-gray-700 text-xs sm:text-base font-bold mb-1 sm:mb-2">
@@ -144,7 +196,8 @@ const HRLogin = () => {
           </div>
           <button
             type="submit"
-            className="w-full bg-primary text-white py-2 sm:py-3 rounded-neumorphic hover:shadow-innerSoft transition-all duration-300 text-xs sm:text-base"
+            disabled={loading || campusLoading}
+            className="w-full bg-primary text-white py-2 sm:py-3 rounded-neumorphic hover:shadow-innerSoft transition-all duration-300 text-xs sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Logging in...' : 'Login'}
           </button>

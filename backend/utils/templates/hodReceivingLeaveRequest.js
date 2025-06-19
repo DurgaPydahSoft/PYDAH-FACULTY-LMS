@@ -51,8 +51,8 @@ const getHodReceivingLeaveRequestTemplate = (params) => `
     </div>
 
     <div style="text-align: center; margin-bottom: 20px;">
-      <a href="https://pydah-faculty-lms.vercel.app/hod-dashboard/approve/${params.leaveRequestId}" style="background-color: #1976d2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-right: 10px;">Forward</a>
-      <a href="https://pydah-faculty-lms.vercel.app/hod-dashboard/reject/${params.leaveRequestId}" style="background-color: #ef4444; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Reject</a>
+      <a href="${params.frontendUrl}/hod-dashboard/approve/${params.leaveRequestId}" style="background-color: #1976d2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-right: 10px;">Forward</a>
+      <a href="${params.frontendUrl}/hod-dashboard/reject/${params.leaveRequestId}" style="background-color: #ef4444; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Reject</a>
     </div>
 
     <div style="background-color: #fff3e0; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
@@ -63,7 +63,7 @@ const getHodReceivingLeaveRequestTemplate = (params) => `
     </div>
 
     <div style="text-align: center; margin-bottom: 20px;">
-      <a href="https://pydah-faculty-lms.vercel.app/hod-dashboard" style="color: #1976d2; text-decoration: none;">View All Pending Requests</a>
+      <a href="${params.frontendUrl}/hod-dashboard" style="color: #1976d2; text-decoration: none;">View All Pending Requests</a>
     </div>
 
     <div style="text-align: center; color: #666; font-size: 12px; margin-top: 20px;">

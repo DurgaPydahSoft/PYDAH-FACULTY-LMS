@@ -64,6 +64,7 @@ const leaveRequestSchema = new mongoose.Schema({
       return this.isHalfDay;
     }
   },
+  // Original dates requested by employee
   startDate: {
     type: String, // Store as YYYY-MM-DD string
     required: true,
@@ -87,6 +88,37 @@ const leaveRequestSchema = new mongoose.Schema({
   numberOfDays: {
     type: Number,
     required: true
+  },
+  // Original dates before modification by principal
+  originalStartDate: {
+    type: String, // Store as YYYY-MM-DD string
+    validate: {
+      validator: function(v) {
+        if (!v) return true; // Optional field
+        return /^\d{4}-\d{2}-\d{2}$/.test(v);
+      },
+      message: props => `${props.value} is not a valid date format! Use YYYY-MM-DD`
+    }
+  },
+  originalEndDate: {
+    type: String, // Store as YYYY-MM-DD string
+    validate: {
+      validator: function(v) {
+        if (!v) return true; // Optional field
+        return /^\d{4}-\d{2}-\d{2}$/.test(v);
+      },
+      message: props => `${props.value} is not a valid date format! Use YYYY-MM-DD`
+    }
+  },
+  originalNumberOfDays: {
+    type: Number,
+    validate: {
+      validator: function(v) {
+        if (!v) return true; // Optional field
+        return v >= 0.5;
+      },
+      message: 'Original number of days must be at least 0.5'
+    }
   },
   reason: {
     type: String,
@@ -115,6 +147,49 @@ const leaveRequestSchema = new mongoose.Schema({
   appliedOn: {
     type: Date,
     default: Date.now
+  },
+  // New fields for principal date modifications
+  approvedStartDate: {
+    type: String, // Store as YYYY-MM-DD string
+    validate: {
+      validator: function(v) {
+        if (!v) return true; // Optional field
+        return /^\d{4}-\d{2}-\d{2}$/.test(v);
+      },
+      message: props => `${props.value} is not a valid date format! Use YYYY-MM-DD`
+    }
+  },
+  approvedEndDate: {
+    type: String, // Store as YYYY-MM-DD string
+    validate: {
+      validator: function(v) {
+        if (!v) return true; // Optional field
+        return /^\d{4}-\d{2}-\d{2}$/.test(v);
+      },
+      message: props => `${props.value} is not a valid date format! Use YYYY-MM-DD`
+    }
+  },
+  approvedNumberOfDays: {
+    type: Number,
+    min: 0.5,
+    validate: {
+      validator: function(v) {
+        if (!v) return true; // Optional field
+        return v >= 0.5;
+      },
+      message: 'Approved number of days must be at least 0.5'
+    }
+  },
+  isModifiedByPrincipal: {
+    type: Boolean,
+    default: false
+  },
+  principalModificationDate: {
+    type: Date
+  },
+  principalModificationReason: {
+    type: String,
+    default: ''
   }
 }, {
   timestamps: true
@@ -197,105 +272,96 @@ leaveRequestSchema.pre('validate', function(next) {
     }
   }
 
-  // Validate maximum leave duration
-  if (this.numberOfDays > 20) {
-    next(new Error('Leave duration cannot exceed 20 days'));
-    return;
-  }
-
-  next();
-});
-
-// Validate leave balance and alternate schedule before save
-leaveRequestSchema.pre('save', async function(next) {
-  try {
-    const Employee = this.model('Employee');
-    const employee = await Employee.findById(this.employeeId);
-    
-    if (!employee) {
-      throw new Error('Employee not found');
-    }
-
-    // Check leave balance based on leave type
-    if (this.isNew || this.isModified('leaveType') || this.isModified('numberOfDays')) {
-      switch(this.leaveType) {
-        case 'CCL':
-          if (employee.cclBalance < this.numberOfDays) {
-            throw new Error(`Insufficient CCL balance. Available: ${employee.cclBalance} days`);
-          }
-          break;
-        case 'CL':
-          if (employee.leaveBalance < this.numberOfDays) {
-            throw new Error(`Insufficient leave balance. Available: ${employee.leaveBalance} days`);
-          }
-          break;
-        case 'OD':
-          // No balance check needed for OD
-          break;
-        default:
-          throw new Error('Invalid leave type');
-      }
-    }
-
-    // Validate alternate schedule if provided
-    if (this.alternateSchedule && this.alternateSchedule.length > 0) {
-      // Check if alternate schedule is provided for each day
-      const scheduleDates = this.alternateSchedule.map(schedule => schedule.date);
-
-      let currentDate = new Date(this.startDate);
-      const endDate = new Date(this.endDate);
+  // Validate leave balance and alternate schedule before save
+  leaveRequestSchema.pre('save', async function(next) {
+    try {
+      const Employee = this.model('Employee');
+      const employee = await Employee.findById(this.employeeId);
       
-      while (currentDate <= endDate) {
-        const dateStr = currentDate.toISOString().split('T')[0];
-        if (!scheduleDates.includes(dateStr)) {
-          throw new Error(`Alternate schedule not provided for ${dateStr}`);
-        }
-        currentDate.setDate(currentDate.getDate() + 1);
+      if (!employee) {
+        throw new Error('Employee not found');
       }
 
-      // Validate each schedule entry
-      for (const schedule of this.alternateSchedule) {
-        // Check for duplicate periods
-        const periodNumbers = schedule.periods.map(p => p.periodNumber);
-        if (new Set(periodNumbers).size !== periodNumbers.length) {
-          throw new Error(`Duplicate periods found in schedule for ${schedule.date}`);
+      // Check leave balance based on leave type
+      if (this.isNew || this.isModified('leaveType') || this.isModified('numberOfDays')) {
+        switch(this.leaveType) {
+          case 'CCL':
+            if (employee.cclBalance < this.numberOfDays) {
+              throw new Error(`Insufficient CCL balance. Available: ${employee.cclBalance} days`);
+            }
+            break;
+          case 'CL':
+            if (employee.leaveBalance < this.numberOfDays) {
+              throw new Error(`Insufficient leave balance. Available: ${employee.leaveBalance} days`);
+            }
+            break;
+          case 'OD':
+            // No balance check needed for OD
+            break;
+          default:
+            throw new Error('Invalid leave type');
+        }
+      }
+
+      // Validate alternate schedule if provided
+      if (this.alternateSchedule && this.alternateSchedule.length > 0) {
+        // Check if alternate schedule is provided for each day
+        const scheduleDates = this.alternateSchedule.map(schedule => schedule.date);
+
+        let currentDate = new Date(this.startDate);
+        const endDate = new Date(this.endDate);
+        
+        while (currentDate <= endDate) {
+          const dateStr = currentDate.toISOString().split('T')[0];
+          if (!scheduleDates.includes(dateStr)) {
+            throw new Error(`Alternate schedule not provided for ${dateStr}`);
+          }
+          currentDate.setDate(currentDate.getDate() + 1);
         }
 
-        // Check faculty availability for each period
-        for (const period of schedule.periods) {
-          const faculty = await Employee.findById(period.substituteFaculty);
-          if (!faculty) {
-            throw new Error(`Substitute faculty not found for period ${period.periodNumber}`);
+        // Validate each schedule entry
+        for (const schedule of this.alternateSchedule) {
+          // Check for duplicate periods
+          const periodNumbers = schedule.periods.map(p => p.periodNumber);
+          if (new Set(periodNumbers).size !== periodNumbers.length) {
+            throw new Error(`Duplicate periods found in schedule for ${schedule.date}`);
           }
 
-          // Check if faculty has leave on this date
-          const hasLeave = faculty.leaveRequests.some(leave => 
-            leave.status !== 'Rejected' &&
-            new Date(schedule.date) >= new Date(leave.startDate) &&
-            new Date(schedule.date) <= new Date(leave.endDate)
-          );
+          // Check faculty availability for each period
+          for (const period of schedule.periods) {
+            const faculty = await Employee.findById(period.substituteFaculty);
+            if (!faculty) {
+              throw new Error(`Substitute faculty not found for period ${period.periodNumber}`);
+            }
 
-          if (hasLeave) {
-            throw new Error(`Faculty ${faculty.name} is on leave on ${schedule.date}`);
-          }
+            // Check if faculty has leave on this date
+            const hasLeave = faculty.leaveRequests.some(leave => 
+              leave.status !== 'Rejected' &&
+              new Date(schedule.date) >= new Date(leave.startDate) &&
+              new Date(schedule.date) <= new Date(leave.endDate)
+            );
 
-          // Check if faculty is already assigned elsewhere
-          const hasConflict = faculty.cclWork.some(work => 
-            new Date(work.date).toISOString().split('T')[0] === schedule.date &&
-            work.periods.some(p => p.periodNumber === period.periodNumber)
-          );
+            if (hasLeave) {
+              throw new Error(`Faculty ${faculty.name} is on leave on ${schedule.date}`);
+            }
 
-          if (hasConflict) {
-            throw new Error(`Faculty ${faculty.name} is already assigned for period ${period.periodNumber}`);
+            // Check if faculty is already assigned elsewhere
+            const hasConflict = faculty.cclWork.some(work => 
+              new Date(work.date).toISOString().split('T')[0] === schedule.date &&
+              work.periods.some(p => p.periodNumber === period.periodNumber)
+            );
+
+            if (hasConflict) {
+              throw new Error(`Faculty ${faculty.name} is already assigned for period ${period.periodNumber}`);
+            }
           }
         }
       }
+
+      next();
+    } catch (error) {
+      next(error);
     }
-
-    next();
-  } catch (error) {
-    next(error);
-  }
+  });
 });
-
-module.exports = leaveRequestSchema; 
+module.exports = leaveRequestSchema;  

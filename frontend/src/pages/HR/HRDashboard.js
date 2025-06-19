@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import PasswordResetModal from '../../components/PasswordResetModal';
-import { FaUserTie, FaUsers, FaRegCalendarCheck } from 'react-icons/fa';
+import { FaUserTie, FaUsers, FaRegCalendarCheck, FaCamera, FaTrash, FaUserCircle } from 'react-icons/fa';
 import { MdOutlineLogout } from 'react-icons/md';
 import * as XLSX from 'xlsx';
 import config from '../../config';
@@ -69,6 +69,14 @@ const HRDashboard = () => {
   const [bulkRoles, setBulkRoles] = useState([]);
   const [bulkErrors, setBulkErrors] = useState([]);
 
+  // Profile picture states
+  const [uploadingProfile, setUploadingProfile] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [selectedEmployeeForPicture, setSelectedEmployeeForPicture] = useState(null);
+
+  const fileInputRef = useRef(null);
+
   const campuses = [
     { value: 'engineering', label: 'Engineering' },
     { value: 'degree', label: 'Degree' },
@@ -81,6 +89,16 @@ const HRDashboard = () => {
     fetchEmployees();
     fetchRoles();
   }, [search, department, status]);
+
+  // // Add periodic refresh of employee data
+  // useEffect(() => {
+  //   const refreshInterval = setInterval(() => {
+  //     fetchEmployees();
+  //     fetchEmployeeStats();
+  //   }, 10000); // Refresh every 10 seconds
+
+  //   return () => clearInterval(refreshInterval);
+  // }, [search, department, status]);
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -138,9 +156,12 @@ const HRDashboard = () => {
       if (search) queryParams.append('search', search);
       if (department) queryParams.append('department', department);
       if (status) queryParams.append('status', status);
+      // Add timestamp to prevent caching
+      queryParams.append('_t', Date.now());
+      
       const response = await fetch(`${API_BASE_URL}/hr/employees?${queryParams}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
       });
       if (!response.ok) throw new Error('Failed to fetch employees');
@@ -635,6 +656,100 @@ const HRDashboard = () => {
       setBulkLoading(false);
     }
   };
+
+  // Profile picture handling functions
+  const handleProfilePictureUpload = async (event, employeeId) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
+      toast.error('Invalid file type. Only JPEG, PNG and JPG are allowed.');
+      return;
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size should be less than 5MB');
+      return;
+    }
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onloadend = () => setPreviewImage(reader.result);
+    reader.readAsDataURL(file);
+
+    setUploadingProfile(true);
+    const formData = new FormData();
+    formData.append('profilePicture', file);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/hr/employees/${employeeId}/upload-profile-picture`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        // Update the employee in the list
+        setEmployees(prevEmployees =>
+          prevEmployees.map(emp =>
+            emp._id === employeeId
+              ? { ...emp, profilePicture: data.profilePicture }
+              : emp
+          )
+        );
+        toast.success('Profile picture updated successfully');
+        setPreviewImage(null);
+      } else {
+        throw new Error(data.message || 'Failed to upload profile picture');
+      }
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      toast.error(error.message || 'Failed to upload profile picture');
+    } finally {
+      setUploadingProfile(false);
+    }
+  };
+
+  const handleDeleteProfilePicture = async (employeeId) => {
+    setUploadingProfile(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/hr/employees/${employeeId}/delete-profile-picture`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        // Update the employee in the list
+        setEmployees(prevEmployees =>
+          prevEmployees.map(emp =>
+            emp._id === employeeId
+              ? { ...emp, profilePicture: null }
+              : emp
+          )
+        );
+        toast.success('Profile picture deleted successfully');
+      } else {
+        throw new Error(data.message || 'Failed to delete profile picture');
+      }
+    } catch (error) {
+      console.error('Error deleting profile picture:', error);
+      toast.error(error.message || 'Failed to delete profile picture');
+    } finally {
+      setUploadingProfile(false);
+      setShowDeleteModal(false);
+    }
+  };
+
   if (loading) {
     return <Loading />;
   }
@@ -723,6 +838,7 @@ const HRDashboard = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Photo</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
@@ -735,6 +851,25 @@ const HRDashboard = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {employees.map(employee => (
                   <tr key={employee._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="h-10 w-10 flex-shrink-0">
+                          {employee.profilePicture ? (
+                            <img
+                              src={employee.profilePicture}
+                              alt={employee.name}
+                              className="h-10 w-10 rounded-full object-cover border border-gray-200"
+                              onError={e => { e.target.onerror = null; e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                            />
+                          ) : null}
+                          <div className={`h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center border border-gray-200 ${employee.profilePicture ? 'hidden' : 'flex'}`}>
+                            <span className="text-primary font-semibold text-sm">
+                              {employee.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{employee.employeeId}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{employee.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{employee.email}</td>
@@ -772,11 +907,28 @@ const HRDashboard = () => {
             {employees.map(employee => (
               <div key={employee._id} className="bg-white rounded-lg shadow p-4 flex flex-col gap-2">
                 <div className="flex justify-between items-center mb-2">
-                  <div>
-                    <div className="font-semibold text-gray-900 text-base">{employee.name}</div>
-                    <div className="text-xs text-gray-500">ID: {employee.employeeId}</div>
-                    <div className="text-xs text-gray-500">{employee.email}</div>
-                    <div className="text-xs text-gray-500">{employee.department}</div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 flex-shrink-0">
+                      {employee.profilePicture ? (
+                        <img
+                          src={employee.profilePicture}
+                          alt={employee.name}
+                          className="h-12 w-12 rounded-full object-cover border border-gray-200"
+                          onError={e => { e.target.onerror = null; e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                        />
+                      ) : null}
+                      <div className={`h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center border border-gray-200 ${employee.profilePicture ? 'hidden' : 'flex'}`}>
+                        <span className="text-primary font-semibold text-lg">
+                          {employee.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-900 text-base">{employee.name}</div>
+                      <div className="text-xs text-gray-500">ID: {employee.employeeId}</div>
+                      <div className="text-xs text-gray-500">{employee.email}</div>
+                      <div className="text-xs text-gray-500">{employee.department}</div>
+                    </div>
                   </div>
                   <span className={`px-2 py-1 rounded-full text-xs font-semibold ${employee.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{employee.status}</span>
                 </div>
@@ -973,6 +1125,65 @@ const HRDashboard = () => {
                 &times;
               </button>
               <h3 className="text-xl font-bold text-primary mb-4 text-center">Edit Employee</h3>
+              
+              {/* Profile Picture Section */}
+              <div className="flex flex-col items-center mb-6">
+                <div className="relative rounded-full overflow-hidden border-4 border-white shadow w-24 h-24 mb-4 group">
+                  {previewImage || editEmployee?.profilePicture ? (
+                    <img
+                      src={previewImage || editEmployee?.profilePicture || ''}
+                      alt={editEmployee?.name}
+                      className="w-full h-full object-cover"
+                      onError={e => { e.target.onerror = null; e.target.src = ''; }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                      <FaUserCircle className="text-gray-400 text-4xl" />
+                    </div>
+                  )}
+                  {/* Overlay for actions */}
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-full z-10">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-2 bg-white rounded-full shadow hover:bg-gray-100"
+                      aria-label="Change profile picture"
+                      disabled={uploadingProfile}
+                    >
+                      <FaCamera className="text-gray-700 text-lg" />
+                    </button>
+                    {editEmployee?.profilePicture && !previewImage && (
+                      <button
+                        onClick={() => {
+                          setSelectedEmployeeForPicture(editEmployee);
+                          setShowDeleteModal(true);
+                        }}
+                        className="ml-2 p-2 bg-red-500 rounded-full shadow hover:bg-red-600"
+                        aria-label="Remove profile picture"
+                        disabled={uploadingProfile}
+                      >
+                        <FaTrash className="text-white text-lg" />
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={(e) => handleProfilePictureUpload(e, editEmployee._id)}
+                    accept="image/jpeg,image/png,image/jpg"
+                    className="hidden"
+                    disabled={uploadingProfile}
+                  />
+                  {uploadingProfile && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-70 rounded-full z-20">
+                      <Loading />
+                    </div>
+                  )}
+                </div>
+                <p className="text-sm text-gray-600 text-center">
+                  Click on the image to change profile picture
+                </p>
+              </div>
+              
               <form onSubmit={handleEditSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700">Full Name</label>
@@ -1200,72 +1411,55 @@ const HRDashboard = () => {
                           const rowErrors = bulkErrors[idx];
                           const isValid = isRowValid(rowErrors);
                           return (
-                            <tr key={idx} className={`border-t ${isValid ? 'bg-green-50' : 'bg-red-50'}`}>
+                            <tr key={idx} className={isValid ? 'bg-green-50' : 'bg-red-50'}>
                               <td className="border px-2 py-1">
-                                <div className="flex items-center gap-2">
-                                  {isValid ? (
-                                    <span className="text-green-600">✓</span>
-                                  ) : (
-                                    <span className="text-red-600">✗</span>
-                                  )}
-                                  <span className="text-xs">{Object.keys(rowErrors).length} errors</span>
-                                </div>
+                                <div className={`w-3 h-3 rounded-full ${isValid ? 'bg-green-500' : 'bg-red-500'}`}></div>
                               </td>
                               <td className="border px-2 py-1">
-                                <input 
-                                  value={row.name} 
-                                  onChange={e => handleBulkFieldChange(idx, 'name', e.target.value)} 
-                                  className={`w-28 border rounded p-1 ${rowErrors.name ? 'border-red-500' : 'border-gray-300'}`}
-                                  placeholder="Full Name"
+                                <input
+                                  type="text"
+                                  value={row.name || ''}
+                                  onChange={(e) => handleBulkFieldChange(idx, 'name', e.target.value)}
+                                  className="w-full bg-transparent border-none outline-none"
                                 />
-                                {rowErrors.name && <div className="text-xs text-red-600">{rowErrors.name}</div>}
                               </td>
                               <td className="border px-2 py-1">
-                                <input 
-                                  value={row.email} 
-                                  onChange={e => handleBulkFieldChange(idx, 'email', e.target.value)} 
-                                  className={`w-32 border rounded p-1 ${rowErrors.email ? 'border-red-500' : 'border-gray-300'}`}
-                                  placeholder="example@domain.com"
+                                <input
+                                  type="email"
+                                  value={row.email || ''}
+                                  onChange={(e) => handleBulkFieldChange(idx, 'email', e.target.value)}
+                                  className="w-full bg-transparent border-none outline-none"
                                 />
-                                {rowErrors.email && <div className="text-xs text-red-600">{rowErrors.email}</div>}
                               </td>
                               <td className="border px-2 py-1">
-                                <input 
-                                  value={row.employeeId} 
-                                  onChange={e => handleBulkFieldChange(idx, 'employeeId', e.target.value)} 
-                                  className={`w-20 border rounded p-1 ${rowErrors.employeeId ? 'border-red-500' : 'border-gray-300'}`}
-                                  placeholder="EMP001"
+                                <input
+                                  type="text"
+                                  value={row.employeeId || ''}
+                                  onChange={(e) => handleBulkFieldChange(idx, 'employeeId', e.target.value)}
+                                  className="w-full bg-transparent border-none outline-none"
                                 />
-                                {rowErrors.employeeId && <div className="text-xs text-red-600">{rowErrors.employeeId}</div>}
                               </td>
                               <td className="border px-2 py-1">
-                                <input 
-                                  value={row.phoneNumber} 
-                                  onChange={e => handleBulkFieldChange(idx, 'phoneNumber', e.target.value)} 
-                                  className={`w-24 border rounded p-1 ${rowErrors.phoneNumber ? 'border-red-500' : 'border-gray-300'}`}
-                                  placeholder="1234567890"
-                                  maxLength={10}
+                                <input
+                                  type="text"
+                                  value={row.phoneNumber || ''}
+                                  onChange={(e) => handleBulkFieldChange(idx, 'phoneNumber', e.target.value)}
+                                  className="w-full bg-transparent border-none outline-none"
                                 />
-                                {rowErrors.phoneNumber && <div className="text-xs text-red-600">{rowErrors.phoneNumber}</div>}
                               </td>
                               <td className="border px-2 py-1">
-                                <select 
-                                  value={row.campus} 
-                                  onChange={e => handleBulkFieldChange(idx, 'campus', e.target.value)} 
-                                  className={`w-28 border rounded p-1 ${rowErrors.campus ? 'border-red-500' : 'border-gray-300'}`}
-                                  disabled
-                                >
-                                  {campuses.filter(c => c.value === user?.campus?.name).map(c => (
-                                    <option key={c.value} value={c.value}>{c.label}</option>
-                                  ))}
-                                </select>
-                                {rowErrors.campus && <div className="text-xs text-red-600">{rowErrors.campus}</div>}
+                                <input
+                                  type="text"
+                                  value={row.campus || ''}
+                                  className="w-full bg-transparent border-none outline-none"
+                                  readOnly
+                                />
                               </td>
                               <td className="border px-2 py-1">
-                                <select 
-                                  value={row.branchCode} 
-                                  onChange={e => handleBulkFieldChange(idx, 'branchCode', e.target.value)} 
-                                  className={`w-24 border rounded p-1 ${rowErrors.branchCode ? 'border-red-500' : 'border-gray-300'}`}
+                                <select
+                                  value={row.branchCode || ''}
+                                  onChange={(e) => handleBulkFieldChange(idx, 'branchCode', e.target.value)}
+                                  className="w-full bg-transparent border-none outline-none"
                                 >
                                   <option value="">Select Branch</option>
                                   {row.branches?.map(branch => (
@@ -1274,53 +1468,54 @@ const HRDashboard = () => {
                                     </option>
                                   ))}
                                 </select>
-                                {rowErrors.branchCode && <div className="text-xs text-red-600">{rowErrors.branchCode}</div>}
                               </td>
                               <td className="border px-2 py-1">
-                                <select 
-                                  value={row.role} 
-                                  onChange={e => handleBulkFieldChange(idx, 'role', e.target.value)} 
-                                  className={`w-28 border rounded p-1 ${rowErrors.role ? 'border-red-500' : 'border-gray-300'}`}
+                                <select
+                                  value={row.role || ''}
+                                  onChange={(e) => handleBulkFieldChange(idx, 'role', e.target.value)}
+                                  className="w-full bg-transparent border-none outline-none"
                                 >
-                                  <option value="">Select</option>
-                                  {row.roles?.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                                  <option value="">Select Role</option>
+                                  {row.roles?.map(role => (
+                                    <option key={role.value} value={role.value}>
+                                      {role.label}
+                                    </option>
+                                  ))}
                                 </select>
-                                {rowErrors.role && <div className="text-xs text-red-600">{rowErrors.role}</div>}
                               </td>
                               <td className="border px-2 py-1">
-                                {row.role === 'other' && (
-                                  <input 
-                                    value={row.customRole} 
-                                    onChange={e => handleBulkFieldChange(idx, 'customRole', e.target.value)} 
-                                    className={`w-24 border rounded p-1 ${rowErrors.customRole ? 'border-red-500' : 'border-gray-300'}`} 
-                                  />
-                                )}
-                                {rowErrors.customRole && <div className="text-xs text-red-600">{rowErrors.customRole}</div>}
+                                <input
+                                  type="text"
+                                  value={row.customRole || ''}
+                                  onChange={(e) => handleBulkFieldChange(idx, 'customRole', e.target.value)}
+                                  className="w-full bg-transparent border-none outline-none"
+                                  placeholder="Custom role if 'other'"
+                                />
                               </td>
                               <td className="border px-2 py-1">
-                                <input 
+                                <input
                                   type="number"
-                                  value={row.leaveBalanceByExperience || ''} 
-                                  onChange={e => handleBulkFieldChange(idx, 'leaveBalanceByExperience', e.target.value)} 
-                                  className={`w-20 border rounded p-1 ${rowErrors.leaveBalanceByExperience ? 'border-red-500' : 'border-gray-300'}`}
-                                  placeholder="15"
-                                  min="0"
-                                  max="30"
-                                />
-                                {rowErrors.leaveBalanceByExperience && <div className="text-xs text-red-600">{rowErrors.leaveBalanceByExperience}</div>}
-                              </td>
-                              <td className="border px-2 py-1">
-                                <input 
-                                  value={row.status || 'active'} 
-                                  onChange={e => handleBulkFieldChange(idx, 'status', e.target.value)} 
-                                  className="w-16 border rounded p-1" 
+                                  value={row.leaveBalanceByExperience || ''}
+                                  onChange={(e) => handleBulkFieldChange(idx, 'leaveBalanceByExperience', e.target.value)}
+                                  className="w-full bg-transparent border-none outline-none"
                                 />
                               </td>
                               <td className="border px-2 py-1">
-                                <input 
-                                  value={row.designation || ''} 
-                                  onChange={e => handleBulkFieldChange(idx, 'designation', e.target.value)} 
-                                  className="w-24 border rounded p-1" 
+                                <select
+                                  value={row.status || 'active'}
+                                  onChange={(e) => handleBulkFieldChange(idx, 'status', e.target.value)}
+                                  className="w-full bg-transparent border-none outline-none"
+                                >
+                                  <option value="active">Active</option>
+                                  <option value="inactive">Inactive</option>
+                                </select>
+                              </td>
+                              <td className="border px-2 py-1">
+                                <input
+                                  type="text"
+                                  value={row.designation || ''}
+                                  onChange={(e) => handleBulkFieldChange(idx, 'designation', e.target.value)}
+                                  className="w-full bg-transparent border-none outline-none"
                                 />
                               </td>
                             </tr>
@@ -1329,56 +1524,58 @@ const HRDashboard = () => {
                       </tbody>
                     </table>
                   </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      className="px-4 py-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 transition"
+                      onClick={() => {
+                        setShowBulkModal(false);
+                        setBulkFile(null);
+                        setBulkEditableData([]);
+                        setBulkResults([]);
+                        setBulkErrors([]);
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="px-4 py-2 rounded-md bg-primary text-white hover:bg-primary-dark transition"
+                      onClick={handleBulkRegister}
+                      disabled={bulkLoading || !isBulkValid}
+                    >
+                      {bulkLoading ? 'Registering...' : 'Register All'}
+                    </button>
+                  </div>
                 </>
               )}
-              <div className="flex justify-end gap-2 mt-4">
+            </div>
+          </div>
+        )}
+        
+        {/* Delete Profile Picture Confirmation Modal */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-lg p-6 max-w-xs w-full text-center">
+              <FaTrash className="mx-auto text-red-500 text-3xl mb-2" />
+              <h3 className="text-lg font-semibold mb-2">Remove Profile Picture?</h3>
+              <p className="text-gray-600 mb-4">Are you sure you want to delete the profile picture for {selectedEmployeeForPicture?.name}?</p>
+              <div className="flex justify-center gap-4">
                 <button
-                  type="button"
-                  className="px-4 py-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 transition"
-                  onClick={() => setShowBulkModal(false)}
+                  onClick={() => handleDeleteProfilePicture(selectedEmployeeForPicture._id)}
+                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                  disabled={uploadingProfile}
+                >
+                  Yes, Delete
+                </button>
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+                  disabled={uploadingProfile}
                 >
                   Cancel
                 </button>
-                <button
-                  type="button"
-                  className={`px-4 py-2 rounded-md text-white transition ${
-                    isBulkValid 
-                      ? 'bg-primary hover:bg-primary-dark' 
-                      : 'bg-gray-400 cursor-not-allowed'
-                  }`}
-                  onClick={handleBulkRegister}
-                  disabled={bulkLoading || !isBulkValid}
-                >
-                  {bulkLoading ? 'Registering...' : 'Register All'}
-                </button>
               </div>
-              {bulkResults.length > 0 && (
-                <div className="mt-6">
-                  <h4 className="font-semibold mb-2">Results:</h4>
-                  <table className="min-w-full text-xs border">
-                    <thead>
-                      <tr>
-                        <th className="border px-2 py-1">Row</th>
-                        <th className="border px-2 py-1">Employee ID</th>
-                        <th className="border px-2 py-1">Email</th>
-                        <th className="border px-2 py-1">Status</th>
-                        <th className="border px-2 py-1">Error</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bulkResults.map((res, idx) => (
-                        <tr key={idx} className={res.success ? 'bg-green-50' : 'bg-red-50'}>
-                          <td className="border px-2 py-1">{res.row}</td>
-                          <td className="border px-2 py-1">{res.employeeId}</td>
-                          <td className="border px-2 py-1">{res.email}</td>
-                          <td className="border px-2 py-1">{res.success ? 'Success' : 'Failed'}</td>
-                          <td className="border px-2 py-1">{res.error || ''}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
             </div>
           </div>
         )}

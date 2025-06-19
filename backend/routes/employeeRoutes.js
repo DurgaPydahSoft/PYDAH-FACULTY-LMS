@@ -223,13 +223,17 @@ router.post('/upload-profile-picture', authEmployee, upload.single('profilePictu
       imageUrl = `https://${req.file.bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${req.file.key}`;
     }
 
+    // Update employee profile picture
     employee.profilePicture = imageUrl;
     await employee.save();
+
+    // Fetch the updated employee to ensure we have the latest data
+    const updatedEmployee = await Employee.findById(req.user.id);
 
     res.json({
       success: true,
       message: 'Profile picture uploaded successfully',
-      profilePicture: employee.profilePicture
+      profilePicture: updatedEmployee.profilePicture
     });
   } catch (error) {
     console.error('Profile picture upload error:', error);

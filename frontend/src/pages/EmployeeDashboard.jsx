@@ -227,12 +227,12 @@ const EmployeeDashboard = () => {
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center bg-secondary rounded-neumorphic shadow-outerRaised p-4 sm:p-6 gap-3 sm:gap-4">
           {/* Profile Section */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
-            <div className="relative rounded-full overflow-hidden  border-4 border-white shadow w-20 h-20 sm:w-24 sm:h-24 mb-2 sm:mb-0 group mx-auto sm:mx-0">
+            <div className="relative rounded-lg overflow-hidden  border-4 border-white shadow w-20 h-20 sm:w-24 sm:h-24 mb-2 sm:mb-0 group mx-auto sm:mx-0">
               {previewImage || employee?.profilePicture ? (
                 <img
                   src={previewImage || employee?.profilePicture || ''}
                   alt={employee?.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover rounded-lg"
                   onError={e => { e.target.onerror = null; e.target.src = ''; }}
                 />
               ) : (
@@ -241,7 +241,7 @@ const EmployeeDashboard = () => {
                 </div>
               )}
               {/* Overlay for actions */}
-              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-full z-10">
+              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="p-2 bg-white rounded-full shadow hover:bg-gray-100"
@@ -270,7 +270,7 @@ const EmployeeDashboard = () => {
                 disabled={uploadingProfile}
               />
               {uploadingProfile && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-70 rounded-full z-20">
+                <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-70 rounded-lg z-20">
                   <Loading />
                 </div>
               )}
@@ -419,15 +419,47 @@ const EmployeeDashboard = () => {
                     onClick={() => setSelectedLeave(leave)}
                   >
                     <td className="px-4 py-2">{leave.leaveType}</td>
-                    <td className="px-4 py-2">{new Date(leave.startDate).toLocaleDateString()}</td>
-                    <td className="px-4 py-2">{new Date(leave.endDate).toLocaleDateString()}</td>
-                    <td className="px-4 py-2">{leave.numberOfDays}</td>
+                    <td className="px-4 py-2">
+                      {leave.isModifiedByPrincipal ? (
+                        <div>
+                          <div className="text-xs text-gray-500 line-through">{new Date(leave.startDate).toLocaleDateString()}</div>
+                          <div className="font-medium">{new Date(leave.approvedStartDate).toLocaleDateString()}</div>
+                        </div>
+                      ) : (
+                        new Date(leave.startDate).toLocaleDateString()
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
+                      {leave.isModifiedByPrincipal ? (
+                        <div>
+                          <div className="text-xs text-gray-500 line-through">{new Date(leave.endDate).toLocaleDateString()}</div>
+                          <div className="font-medium">{new Date(leave.approvedEndDate).toLocaleDateString()}</div>
+                        </div>
+                      ) : (
+                        new Date(leave.endDate).toLocaleDateString()
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
+                      {leave.isModifiedByPrincipal ? (
+                        <div>
+                          <div className="text-xs text-gray-500 line-through">{leave.numberOfDays}</div>
+                          <div className="font-medium">{leave.approvedNumberOfDays}</div>
+                        </div>
+                      ) : (
+                        leave.numberOfDays
+                      )}
+                    </td>
                     <td className="px-4 py-2">
                       <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold
                         ${leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
                           leave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
                           leave.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
-                          'bg-yellow-100 text-yellow-800'}`}>{leave.status}</span>
+                          'bg-yellow-100 text-yellow-800'}`}>
+                        {leave.status}
+                        {leave.isModifiedByPrincipal && leave.status === 'Approved' && (
+                          <span className="ml-1 text-yellow-600">✏️</span>
+                        )}
+                      </span>
                     </td>
                     <td className="px-4 py-2">{new Date(leave.appliedOn).toLocaleDateString()}</td>
                   </tr>
@@ -446,10 +478,29 @@ const EmployeeDashboard = () => {
                       ${leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
                         leave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
                         leave.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
-                        'bg-yellow-100 text-yellow-800'}`}>{leave.status}</span>
+                        'bg-yellow-100 text-yellow-800'}`}>
+                      {leave.status}
+                      {leave.isModifiedByPrincipal && leave.status === 'Approved' && (
+                        <span className="ml-1 text-yellow-600">✏️</span>
+                      )}
+                    </span>
                   </div>
-                  <div className="text-xs text-gray-500 mb-1">{new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}</div>
-                  <div className="text-xs text-gray-500 mb-1">Days: {leave.numberOfDays}</div>
+                  {leave.isModifiedByPrincipal ? (
+                    <div className="text-xs text-gray-500 mb-1">
+                      <div className="line-through">{new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}</div>
+                      <div className="font-medium">{new Date(leave.approvedStartDate).toLocaleDateString()} - {new Date(leave.approvedEndDate).toLocaleDateString()}</div>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500 mb-1">{new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}</div>
+                  )}
+                  {leave.isModifiedByPrincipal ? (
+                    <div className="text-xs text-gray-500 mb-1">
+                      <div className="line-through">Days: {leave.numberOfDays}</div>
+                      <div className="font-medium">Days: {leave.approvedNumberOfDays}</div>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500 mb-1">Days: {leave.numberOfDays}</div>
+                  )}
                   <div className="text-xs text-gray-500 mb-1">Applied: {new Date(leave.appliedOn).toLocaleDateString()}</div>
                   <div className="text-xs text-gray-600">Reason: {leave.reason}</div>
                 </div>
@@ -511,10 +562,6 @@ const EmployeeDashboard = () => {
                       <p className="font-medium break-words">{selectedLeave.leaveType}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Duration</p>
-                      <p className="font-medium break-words">{new Date(selectedLeave.startDate).toLocaleDateString()} to {new Date(selectedLeave.endDate).toLocaleDateString()}</p>
-                    </div>
-                    <div>
                       <p className="text-sm text-gray-600">Applied On</p>
                       <p className="font-medium break-words">{selectedLeave.appliedOn ? new Date(selectedLeave.appliedOn).toLocaleDateString() : 'N/A'}</p>
                     </div>
@@ -533,6 +580,39 @@ const EmployeeDashboard = () => {
                         <p className="text-sm text-gray-600">Half Day Leave</p>
                       </div>
                     )}
+                    
+                    {/* Show original vs approved dates if modified */}
+                    {selectedLeave.isModifiedByPrincipal ? (
+                      <div className="col-span-1 sm:col-span-2">
+                        <div className="bg-yellow-50 p-3 rounded-md border-l-4 border-yellow-400">
+                          <h5 className="font-semibold text-yellow-800 mb-2">⚠️ Leave Dates Modified by Principal</h5>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <p className="text-sm text-gray-600 font-medium">Original Request:</p>
+                              <p className="text-sm">{new Date(selectedLeave.startDate).toLocaleDateString()} to {new Date(selectedLeave.endDate).toLocaleDateString()}</p>
+                              <p className="text-sm text-gray-500">({selectedLeave.numberOfDays} days)</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600 font-medium">Approved Dates:</p>
+                              <p className="text-sm font-medium">{new Date(selectedLeave.approvedStartDate).toLocaleDateString()} to {new Date(selectedLeave.approvedEndDate).toLocaleDateString()}</p>
+                              <p className="text-sm text-gray-500">({selectedLeave.approvedNumberOfDays} days)</p>
+                            </div>
+                          </div>
+                          {selectedLeave.principalModificationReason && (
+                            <div className="mt-2">
+                              <p className="text-sm text-gray-600 font-medium">Modification Reason:</p>
+                              <p className="text-sm">{selectedLeave.principalModificationReason}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="col-span-1 sm:col-span-2">
+                        <p className="text-sm text-gray-600">Duration</p>
+                        <p className="font-medium break-words">{new Date(selectedLeave.startDate).toLocaleDateString()} to {new Date(selectedLeave.endDate).toLocaleDateString()} ({selectedLeave.numberOfDays} days)</p>
+                      </div>
+                    )}
+                    
                     <div className="col-span-1 sm:col-span-2">
                       <p className="text-sm text-gray-600">Reason</p>
                       <p className="font-medium break-words">{selectedLeave.reason || 'No reason provided'}</p>
