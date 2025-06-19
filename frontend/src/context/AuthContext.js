@@ -11,7 +11,12 @@ export const AuthProvider = ({ children }) => {
     // Check if user data exists in localStorage
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (error) {
+        console.error('Error parsing stored user data:', error);
+        localStorage.removeItem('user'); // Remove invalid data
+      }
     }
     setLoading(false);
   }, []);
