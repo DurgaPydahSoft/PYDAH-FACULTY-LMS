@@ -221,115 +221,124 @@ const EmployeeDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen py-4 px-1 sm:px-6">
-      <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8 ">
+    <div className="min-h-screen py-2 px-3 sm:py-4 sm:px-6 bg-gray-50">
+      <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center bg-secondary rounded-neumorphic shadow-outerRaised p-4 sm:p-6 gap-3 sm:gap-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
           {/* Profile Section */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
-            <div className="relative rounded-lg overflow-hidden  border-4 border-white shadow w-20 h-20 sm:w-24 sm:h-24 mb-2 sm:mb-0 group mx-auto sm:mx-0">
-              {previewImage || employee?.profilePicture ? (
-                <img
-                  src={previewImage || employee?.profilePicture || ''}
-                  alt={employee?.name}
-                  className="w-full h-full object-cover rounded-lg"
-                  onError={e => { e.target.onerror = null; e.target.src = ''; }}
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <FaUserCircle className="text-gray-400 text-6xl" />
-                </div>
-              )}
-              {/* Overlay for actions */}
-              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-2 bg-white rounded-full shadow hover:bg-gray-100"
-                  aria-label="Change profile picture"
-                  disabled={uploadingProfile}
-                >
-                  <FaCamera className="text-gray-700 text-xl" />
-                </button>
-                {employee?.profilePicture && !previewImage && (
+          <div className="flex flex-col items-center sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
+              <div className="relative rounded-full overflow-hidden border-4 border-white shadow-lg w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 group mx-auto sm:mx-0">
+                {previewImage || employee?.profilePicture ? (
+                  <img
+                    src={previewImage || employee?.profilePicture || ''}
+                    alt={employee?.name}
+                    className="w-full h-full object-cover"
+                    onError={e => { e.target.onerror = null; e.target.src = ''; }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                    <FaUserCircle className="text-gray-400 text-4xl sm:text-5xl lg:text-6xl" />
+                  </div>
+                )}
+                {/* Overlay for actions */}
+                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                   <button
-                    onClick={() => setShowDeleteModal(true)}
-                    className="ml-2 p-2 bg-red-500 rounded-full shadow hover:bg-red-600"
-                    aria-label="Remove profile picture"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-1.5 sm:p-2 bg-white rounded-full shadow hover:bg-gray-100"
+                    aria-label="Change profile picture"
                     disabled={uploadingProfile}
                   >
-                    <FaTrash className="text-white text-xl" />
+                    <FaCamera className="text-gray-700 text-sm sm:text-lg lg:text-xl" />
                   </button>
+                  {employee?.profilePicture && !previewImage && (
+                    <button
+                      onClick={() => setShowDeleteModal(true)}
+                      className="ml-1.5 sm:ml-2 p-1.5 sm:p-2 bg-red-500 rounded-full shadow hover:bg-red-600"
+                      aria-label="Remove profile picture"
+                      disabled={uploadingProfile}
+                    >
+                      <FaTrash className="text-white text-sm sm:text-lg lg:text-xl" />
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleProfilePictureUpload}
+                  accept="image/jpeg,image/png,image/jpg"
+                  className="hidden"
+                  disabled={uploadingProfile}
+                />
+                {uploadingProfile && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-80 rounded-full z-20">
+                    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  </div>
                 )}
               </div>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleProfilePictureUpload}
-                accept="image/jpeg,image/png,image/jpg"
-                className="hidden"
-                disabled={uploadingProfile}
-              />
-              {uploadingProfile && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-70 rounded-lg z-20">
-                  <Loading />
-                </div>
-              )}
+              <div className="text-center sm:text-left flex-1">
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-primary mb-1 break-words leading-tight">Welcome, {employee?.name}</h1>
+                <p className="text-gray-600 text-xs sm:text-sm">
+                  <span className="font-medium">{employee?.employeeId}</span> • {employee?.department}
+                </p>
+              </div>
             </div>
-            <div className="text-center sm:text-left w-full">
-              <h1 className="text-xl sm:text-2xl font-bold text-primary mb-1 break-words">Welcome, {employee?.name}</h1>
-              <p className="text-gray-600 text-xs sm:text-sm">
-                <span className="font-medium">{employee?.employeeId}</span> &bull; {employee?.department}
-              </p>
-            </div>
+            <button
+              onClick={handleLogout}
+              className="w-full sm:w-auto px-4 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2 justify-center text-sm sm:text-base font-medium shadow-sm"
+            >
+              <MdOutlineLogout className="text-lg" /> Logout
+            </button>
           </div>
-          <button
-            onClick={handleLogout}
-            className="w-full sm:w-auto mt-2 sm:mt-0 px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors flex items-center gap-2 justify-center text-base sm:text-lg"
-          >
-            <MdOutlineLogout className="text-lg" /> Logout
-          </button>
         </div>
+
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          <div className="bg-white rounded-xl shadow p-6 flex items-center gap-4">
-            <div className="bg-primary/10 rounded-full p-3 flex items-center justify-center">
-              <FaRegCalendarCheck className="text-primary text-3xl" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-primary">Leave Balance</h2>
-              <div className="text-2xl font-bold text-gray-800">{employee?.leaveBalance || 0} days</div>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="bg-primary/10 rounded-full p-2.5 sm:p-3 flex items-center justify-center">
+                <FaRegCalendarCheck className="text-primary text-2xl sm:text-3xl" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-sm sm:text-base font-semibold text-primary mb-1">Leave Balance</h2>
+                <div className="text-xl sm:text-2xl font-bold text-gray-800">{employee?.leaveBalance || 0} days</div>
+              </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow p-6 flex items-center gap-4">
-            <div className="bg-green-500/10 rounded-full p-3 flex items-center justify-center">
-              <MdOutlineWorkHistory className="text-green-600 text-3xl" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-green-600">CCL Balance</h2>
-              <div className="text-2xl font-bold text-gray-800">{employee?.cclBalance || 0} days</div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="bg-green-500/10 rounded-full p-2.5 sm:p-3 flex items-center justify-center">
+                <MdOutlineWorkHistory className="text-green-600 text-2xl sm:text-3xl" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-sm sm:text-base font-semibold text-green-600 mb-1">CCL Balance</h2>
+                <div className="text-xl sm:text-2xl font-bold text-gray-800">{employee?.cclBalance || 0} days</div>
+              </div>
             </div>
           </div>
         </div>
+
         {/* Action Buttons */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <button
             onClick={() => setShowLeaveForm(true)}
-            className="w-full px-4 py-3 bg-primary text-white rounded-lg shadow hover:bg-primary-dark transition-colors text-base sm:text-lg font-semibold flex items-center justify-center gap-2"
+            className="w-full px-4 py-3.5 bg-primary text-white rounded-xl shadow-sm hover:bg-primary-dark transition-colors text-base sm:text-lg font-semibold flex items-center justify-center gap-3"
           >
             <FaRegCalendarCheck className="text-xl" /> Apply for Leave
           </button>
           <button
             onClick={() => setShowCCLForm(true)}
-            className="w-full px-4 py-3 bg-green-500 text-white rounded-lg shadow hover:bg-green-600 transition-colors text-base sm:text-lg font-semibold flex items-center justify-center gap-2"
+            className="w-full px-4 py-3.5 bg-green-500 text-white rounded-xl shadow-sm hover:bg-green-600 transition-colors text-base sm:text-lg font-semibold flex items-center justify-center gap-3"
           >
             <MdOutlineWorkHistory className="text-xl" /> Submit CCL Work
           </button>
         </div>
+
         {/* CCL Work History */}
-        <div className="bg-secondary rounded-neumorphic shadow-outerRaised p-6">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+          <div className="flex items-center gap-2 mb-4 sm:mb-6">
             <MdOutlineWorkHistory className="text-primary text-xl" />
-            <h2 className="text-xl font-semibold text-primary">CCL Work History</h2>
+            <h2 className="text-lg sm:text-xl font-semibold text-primary">CCL Work History</h2>
           </div>
           {/* Desktop Table */}
           <div className="overflow-x-auto hidden sm:block">
@@ -370,33 +379,56 @@ const EmployeeDashboard = () => {
             </table>
           </div>
           {/* Mobile Card View */}
-          <div className="sm:hidden space-y-4">
+          <div className="sm:hidden space-y-3">
             {cclWorkHistory && cclWorkHistory.length > 0 ? (
               cclWorkHistory.map((work) => (
-                <div key={work._id} className="bg-white rounded-lg shadow p-4 flex flex-col gap-2">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-primary">{work.assignedTo || '-'}</span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold 
+                <div key={work._id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-primary text-sm mb-1">{work.assignedTo || 'Unassigned'}</h3>
+                      <p className="text-xs text-gray-500 mb-2">
+                        {work.date ? new Date(work.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'No date'}
+                      </p>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ml-2 flex-shrink-0
                       ${work.status === 'Approved' ? 'bg-green-100 text-green-800' : 
                         work.status === 'Rejected' ? 'bg-red-100 text-red-800' : 
                         'bg-yellow-100 text-yellow-800'}`}>{work.status || 'Pending'}</span>
                   </div>
-                  <div className="text-xs text-gray-500 mb-1">{work.date ? new Date(work.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}</div>
-                  <div className="text-sm text-gray-700 mb-1">Reason: {work.reason || '-'}</div>
-                  <div className="text-xs text-gray-600">HOD: {work.hodRemarks || '-'}</div>
-                  <div className="text-xs text-gray-600">Principal: {work.principalRemarks || '-'}</div>
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-xs font-medium text-gray-600 mb-1">Reason</p>
+                      <p className="text-sm text-gray-800">{work.reason || 'No reason provided'}</p>
+                    </div>
+                    {work.hodRemarks && (
+                      <div>
+                        <p className="text-xs font-medium text-gray-600 mb-1">HOD Remarks</p>
+                        <p className="text-sm text-gray-800">{work.hodRemarks}</p>
+                      </div>
+                    )}
+                    {work.principalRemarks && (
+                      <div>
+                        <p className="text-xs font-medium text-gray-600 mb-1">Principal Remarks</p>
+                        <p className="text-sm text-gray-800">{work.principalRemarks}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))
             ) : (
-              <div className="text-center text-gray-500">No CCL work history found</div>
+              <div className="text-center py-8">
+                <MdOutlineWorkHistory className="text-gray-300 text-4xl mx-auto mb-2" />
+                <p className="text-gray-500 text-sm">No CCL work history found</p>
+              </div>
             )}
           </div>
         </div>
+
         {/* Leave History */}
-        <div className="bg-secondary rounded-neumorphic shadow-outerRaised p-6">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+          <div className="flex items-center gap-2 mb-4 sm:mb-6">
             <FaHistory className="text-primary text-xl" />
-            <h2 className="text-xl font-semibold text-primary">Leave History</h2>
+            <h2 className="text-lg sm:text-xl font-semibold text-primary">Leave History</h2>
           </div>
           {/* Desktop Table */}
           <div className="overflow-x-auto hidden sm:block">
@@ -468,13 +500,18 @@ const EmployeeDashboard = () => {
             </table>
           </div>
           {/* Mobile Card View */}
-          <div className="sm:hidden space-y-4">
+          <div className="sm:hidden space-y-3">
             {leaveHistory.length > 0 ? (
               leaveHistory.map((leave) => (
-                <div key={leave._id} className="bg-white rounded-lg shadow p-4 flex flex-col gap-2 cursor-pointer" onClick={() => setSelectedLeave(leave)}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-primary">{leave.leaveType}</span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold
+                <div key={leave._id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => setSelectedLeave(leave)}>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-primary text-sm mb-1">{leave.leaveType}</h3>
+                      <p className="text-xs text-gray-500 mb-2">
+                        Applied: {new Date(leave.appliedOn).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ml-2 flex-shrink-0
                       ${leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
                         leave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
                         leave.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
@@ -485,53 +522,64 @@ const EmployeeDashboard = () => {
                       )}
                     </span>
                   </div>
-                  {leave.isModifiedByPrincipal ? (
-                    <div className="text-xs text-gray-500 mb-1">
-                      <div className="line-through">{new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}</div>
-                      <div className="font-medium">{new Date(leave.approvedStartDate).toLocaleDateString()} - {new Date(leave.approvedEndDate).toLocaleDateString()}</div>
+                  <div className="space-y-2">
+                    {leave.isModifiedByPrincipal ? (
+                      <div>
+                        <p className="text-xs font-medium text-gray-600 mb-1">Duration</p>
+                        <div className="text-sm">
+                          <div className="text-gray-500 line-through text-xs">
+                            {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()} ({leave.numberOfDays} days)
+                          </div>
+                          <div className="font-medium text-gray-800">
+                            {new Date(leave.approvedStartDate).toLocaleDateString()} - {new Date(leave.approvedEndDate).toLocaleDateString()} ({leave.approvedNumberOfDays} days)
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-xs font-medium text-gray-600 mb-1">Duration</p>
+                        <p className="text-sm text-gray-800">
+                          {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()} ({leave.numberOfDays} days)
+                        </p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs font-medium text-gray-600 mb-1">Reason</p>
+                      <p className="text-sm text-gray-800 line-clamp-2">{leave.reason || 'No reason provided'}</p>
                     </div>
-                  ) : (
-                    <div className="text-xs text-gray-500 mb-1">{new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}</div>
-                  )}
-                  {leave.isModifiedByPrincipal ? (
-                    <div className="text-xs text-gray-500 mb-1">
-                      <div className="line-through">Days: {leave.numberOfDays}</div>
-                      <div className="font-medium">Days: {leave.approvedNumberOfDays}</div>
-                    </div>
-                  ) : (
-                    <div className="text-xs text-gray-500 mb-1">Days: {leave.numberOfDays}</div>
-                  )}
-                  <div className="text-xs text-gray-500 mb-1">Applied: {new Date(leave.appliedOn).toLocaleDateString()}</div>
-                  <div className="text-xs text-gray-600">Reason: {leave.reason}</div>
+                  </div>
                 </div>
               ))
             ) : (
-              <div className="text-center text-gray-500">No leave history available</div>
+              <div className="text-center py-8">
+                <FaHistory className="text-gray-300 text-4xl mx-auto mb-2" />
+                <p className="text-gray-500 text-sm">No leave history available</p>
+              </div>
             )}
           </div>
         </div>
+
         {/* Leave Details Modal */}
         {selectedLeave && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
-            <div className="bg-white rounded-lg shadow-xl p-3 sm:p-6 w-full max-w-lg sm:max-w-2xl max-h-[90vh] overflow-y-auto relative">
-              {/* Close button absolutely positioned top right */}
+            <div className="bg-white rounded-xl shadow-xl p-4 sm:p-6 max-w-2xl w-full max-h-[95vh] overflow-y-auto relative">
               <button
                 onClick={() => setSelectedLeave(null)}
-                className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl p-1 z-10"
+                className="absolute top-3 right-3 text-gray-400 bg-gray-100 rounded-full p-1.5 hover:bg-gray-200 hover:text-gray-600 transition-colors z-10"
                 aria-label="Close"
               >
-                ✕
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-2">
                 <h3 className="text-lg sm:text-xl font-bold text-primary">Leave Request Details</h3>
               </div>
               <div className="space-y-4">
-                {/* Show Request ID at the top */}
                 <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-100 mb-2 flex flex-col items-start">
                   <p className="text-sm text-gray-600 font-semibold mb-1">Request ID</p>
                   <p className="font-mono text-base text-primary break-all">{selectedLeave.leaveRequestId}</p>
                 </div>
-                {/* Employee Information */}
                 <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
                   <h4 className="font-semibold text-gray-900 mb-2">Employee Information</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
@@ -553,7 +601,6 @@ const EmployeeDashboard = () => {
                     </div>
                   </div>
                 </div>
-                {/* Leave Details */}
                 <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
                   <h4 className="font-semibold text-gray-900 mb-2">Leave Details</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
@@ -581,7 +628,6 @@ const EmployeeDashboard = () => {
                       </div>
                     )}
                     
-                    {/* Show original vs approved dates if modified */}
                     {selectedLeave.isModifiedByPrincipal ? (
                       <div className="col-span-1 sm:col-span-2">
                         <div className="bg-yellow-50 p-3 rounded-md border-l-4 border-yellow-400">
@@ -619,7 +665,6 @@ const EmployeeDashboard = () => {
                     </div>
                   </div>
                 </div>
-                {/* Remarks */}
                 {(selectedLeave.hodRemarks || selectedLeave.principalRemarks) && (
                   <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
                     <h4 className="font-semibold text-gray-900 mb-2">Remarks</h4>
@@ -639,7 +684,6 @@ const EmployeeDashboard = () => {
                     </div>
                   </div>
                 )}
-                {/* Alternate Schedule */}
                 {selectedLeave.alternateSchedule && selectedLeave.alternateSchedule.length > 0 && (
                   <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
                     <h4 className="font-semibold text-gray-900 mb-2">Alternate Schedule</h4>
@@ -692,8 +736,8 @@ const EmployeeDashboard = () => {
 
       {/* Leave Application Form Modal */}
       {showLeaveForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl p-4 sm:p-6 max-w-2xl w-full max-h-[95vh] overflow-y-auto">
             <LeaveApplicationForm
               onSubmit={handleLeaveSubmit}
               onClose={() => setShowLeaveForm(false)}
@@ -706,8 +750,8 @@ const EmployeeDashboard = () => {
 
       {/* CCL Request Form Modal */}
       {showCCLForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl p-4 sm:p-6 max-w-2xl w-full max-h-[95vh] overflow-y-auto">
             <CCLWorkRequestForm
               onSubmit={handleCCLSubmit}
               onClose={() => setShowCCLForm(false)}
@@ -718,25 +762,27 @@ const EmployeeDashboard = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-xs w-full text-center">
-            <FaTrash className="mx-auto text-red-500 text-3xl mb-2" />
-            <h3 className="text-lg font-semibold mb-2">Remove Profile Picture?</h3>
-            <p className="text-gray-600 mb-4">Are you sure you want to delete your profile picture?</p>
-            <div className="flex justify-center gap-4">
-              <button
-                onClick={handleDeleteProfilePicture}
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-                disabled={uploadingProfile}
-              >
-                Yes, Delete
-              </button>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 text-center">
+            <div className="bg-red-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <FaTrash className="text-red-500 text-2xl" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Remove Profile Picture?</h3>
+            <p className="text-gray-600 mb-6 text-sm">Are you sure you want to delete your profile picture? This action cannot be undone.</p>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
                 disabled={uploadingProfile}
               >
                 Cancel
+              </button>
+              <button
+                onClick={handleDeleteProfilePicture}
+                className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+                disabled={uploadingProfile}
+              >
+                {uploadingProfile ? 'Deleting...' : 'Yes, Delete'}
               </button>
             </div>
           </div>

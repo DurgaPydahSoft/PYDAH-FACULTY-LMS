@@ -755,66 +755,81 @@ const HRDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center p-2 sm:p-4">
-      <div className="w-full max-w-6xl mx-auto mt-6">
+    <div className="min-h-screen bg-gray-50 p-2 sm:p-4">
+      <div className="w-full max-w-7xl mx-auto">
         {/* Header Section */}
-        <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-4 mb-6">
-          <h2 className="text-2xl sm:text-3xl font-bold text-primary text-center flex items-center gap-2">
-            <FaUserTie className="text-primary text-xl sm:text-2xl" /> HR Dashboard - {user?.campus?.name}
+        <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-4 mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+          <h2 className="text-xl sm:text-2xl font-bold text-primary text-center flex items-center gap-3">
+            <FaUserTie className="text-primary" />
+            <span>HR Dashboard - <span className="font-semibold">{user?.campus?.name}</span></span>
           </h2>
           <button
-            className="w-full sm:w-auto justify-center px-4 py-2 bg-red-500 text-white rounded-md shadow hover:bg-red-600 transition flex items-center gap-2 mt-4 sm:mt-0"
+            className="w-full sm:w-auto justify-center px-4 py-2.5 bg-red-500 text-white rounded-lg shadow-sm hover:bg-red-600 transition flex items-center gap-2 font-medium"
             onClick={handleLogout}
           >
             <MdOutlineLogout className="text-lg" /> Logout
           </button>
         </div>
         {/* Stats Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-secondary p-6 rounded-neumorphic shadow-outerRaised flex flex-col items-center gap-2">
-            <FaUsers className="text-primary text-3xl mb-2" />
-            <h3 className="text-lg font-semibold text-primary mb-1">Total Employees</h3>
-            <p className="text-3xl font-bold">{stats.totalEmployees}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+            <div className="bg-primary/10 p-3 rounded-full">
+              <FaUsers className="text-primary text-2xl" />
           </div>
-          <div className="bg-secondary p-6 rounded-neumorphic shadow-outerRaised flex flex-col items-center gap-2">
-            <FaUsers className="text-green-600 text-3xl mb-2" />
-            <h3 className="text-lg font-semibold text-primary mb-1">Active Employees</h3>
-            <p className="text-3xl font-bold">{stats.activeEmployees}</p>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-600">Total Employees</h3>
+              <p className="text-2xl font-bold text-gray-800">{stats.totalEmployees}</p>
           </div>
-          <div className="bg-secondary p-6 rounded-neumorphic shadow-outerRaised flex flex-col items-center gap-2">
-            <FaUsers className="text-red-600 text-3xl mb-2" />
-            <h3 className="text-lg font-semibold text-primary mb-1">Inactive Employees</h3>
-            <p className="text-3xl font-bold">{stats.inactiveEmployees}</p>
+          </div>
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+            <div className="bg-green-500/10 p-3 rounded-full">
+              <FaUsers className="text-green-600 text-2xl" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-600">Active Employees</h3>
+              <p className="text-2xl font-bold text-gray-800">{stats.activeEmployees}</p>
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+            <div className="bg-red-500/10 p-3 rounded-full">
+              <FaUsers className="text-red-600 text-2xl" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-600">Inactive Employees</h3>
+              <p className="text-2xl font-bold text-gray-800">{stats.inactiveEmployees}</p>
+            </div>
           </div>
         </div>
         {/* Employee Management Section */}
-        <div className="bg-secondary rounded-neumorphic shadow-outerRaised p-6 mb-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
-            <h3 className="text-xl font-semibold text-primary flex items-center gap-2"><FaRegCalendarCheck className="text-primary text-xl" /> Employee Management</h3>
+            <h3 className="text-lg sm:text-xl font-semibold text-primary flex items-center gap-3"><FaRegCalendarCheck /> Employee Management</h3>
+            <div className="flex flex-col sm:flex-row gap-3">
             <button
-              className="bg-primary text-white px-4 py-2 rounded-md shadow hover:bg-primary-dark transition flex items-center gap-2"
+                className="bg-primary text-white px-4 py-2.5 rounded-lg shadow-sm hover:bg-primary-dark transition flex items-center justify-center gap-2 font-medium"
               onClick={() => setShowRegisterModal(true)}
             >
-              <FaUserTie className="text-white text-lg" /> Register New Employee
+                <FaUserTie /> Register New Employee
             </button>
             <button
-              className="bg-primary text-white px-4 py-2 rounded-md shadow hover:bg-primary/20 transition flex items-center gap-2"
+                className="bg-green-600 text-white px-4 py-2.5 rounded-lg shadow-sm hover:bg-green-700 transition flex items-center justify-center gap-2 font-medium"
               onClick={() => setShowBulkModal(true)}
             >
-              <FaUsers className="text-white text-lg" />Bulk Register
+                <FaUsers />Bulk Register
             </button>
+            </div>
           </div>
           {/* Filters */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <input
               type="text"
-              className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+              className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
               placeholder="Search by name, email, or ID"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
             <select
-              className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+              className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
               value={department}
               onChange={e => setDepartment(e.target.value)}
             >
@@ -824,7 +839,7 @@ const HRDashboard = () => {
               ))}
             </select>
             <select
-              className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+              className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
               value={status}
               onChange={e => setStatus(e.target.value)}
             >
@@ -839,9 +854,7 @@ const HRDashboard = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Photo</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee Details</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leave Balance</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -850,44 +863,44 @@ const HRDashboard = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {employees.map(employee => (
-                  <tr key={employee._id} className="hover:bg-gray-50">
+                  <tr key={employee._id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
                         <div className="h-10 w-10 flex-shrink-0">
                           {employee.profilePicture ? (
                             <img
                               src={employee.profilePicture}
                               alt={employee.name}
-                              className="h-10 w-10 rounded-full object-cover border border-gray-200"
-                              onError={e => { e.target.onerror = null; e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                            className="h-10 w-10 rounded-full object-cover border-2 border-white shadow"
                             />
-                          ) : null}
-                          <div className={`h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center border border-gray-200 ${employee.profilePicture ? 'hidden' : 'flex'}`}>
-                            <span className="text-primary font-semibold text-sm">
+                        ) : (
+                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center border border-gray-200">
+                            <span className="text-primary font-semibold">
                               {employee.name.charAt(0).toUpperCase()}
                             </span>
                           </div>
-                        </div>
+                        )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{employee.employeeId}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{employee.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{employee.email}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{employee.department}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{employee.leaveBalance || 12}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${employee.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{employee.status}</span>
+                      <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                      <div className="text-sm text-gray-500">{employee.employeeId}</div>
+                      <div className="text-sm text-gray-500">{employee.email}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex space-x-2">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{employee.department}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{employee.leaveBalance || 12}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${employee.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{employee.status}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center space-x-4">
                         <button
-                          className="text-indigo-600 hover:text-indigo-900"
+                          className="text-primary hover:text-primary-dark transition-colors"
                           onClick={() => handleEditClick(employee)}
                         >
                           Edit
                         </button>
                         <button
-                          className="text-red-600 hover:text-red-900"
+                          className="text-red-600 hover:text-red-800 transition-colors"
                           onClick={() => {
                             setSelectedEmployeeForReset(employee);
                             setShowPasswordResetModal(true);
@@ -904,43 +917,55 @@ const HRDashboard = () => {
           </div>
           {/* Employee Cards (mobile) */}
           <div className="md:hidden space-y-4">
-            {employees.map(employee => (
-              <div key={employee._id} className="bg-white rounded-lg shadow p-4 flex flex-col gap-2">
-                <div className="flex justify-between items-center mb-2">
+            {employees.length > 0 ? employees.map(employee => (
+              <div key={employee._id} className="bg-gray-50 rounded-lg shadow-sm p-4 border border-gray-200">
+                <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className="h-12 w-12 flex-shrink-0">
                       {employee.profilePicture ? (
                         <img
                           src={employee.profilePicture}
                           alt={employee.name}
-                          className="h-12 w-12 rounded-full object-cover border border-gray-200"
-                          onError={e => { e.target.onerror = null; e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                          className="h-12 w-12 rounded-full object-cover border-2 border-white shadow"
                         />
-                      ) : null}
-                      <div className={`h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center border border-gray-200 ${employee.profilePicture ? 'hidden' : 'flex'}`}>
+                      ) : (
+                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center border border-gray-200">
                         <span className="text-primary font-semibold text-lg">
                           {employee.name.charAt(0).toUpperCase()}
                         </span>
                       </div>
+                      )}
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <div className="font-semibold text-gray-900 text-base">{employee.name}</div>
                       <div className="text-xs text-gray-500">ID: {employee.employeeId}</div>
-                      <div className="text-xs text-gray-500">{employee.email}</div>
-                      <div className="text-xs text-gray-500">{employee.department}</div>
                     </div>
                   </div>
                   <span className={`px-2 py-1 rounded-full text-xs font-semibold ${employee.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{employee.status}</span>
                 </div>
-                <div className="flex flex-col gap-2 mt-2">
+                <div className="border-t border-gray-200 pt-3 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Email:</span>
+                    <span className="text-gray-800 font-medium truncate">{employee.email}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Department:</span>
+                    <span className="text-gray-800 font-medium">{employee.department}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Leave Balance:</span>
+                    <span className="text-gray-800 font-medium">{employee.leaveBalance || 12}</span>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 mt-4">
                   <button
-                    className="w-full bg-primary text-white py-2 rounded-md hover:bg-primary/20 transition-colors text-sm"
+                    className="w-full bg-primary text-white py-2 rounded-md hover:bg-primary-dark transition-colors text-sm font-medium"
                     onClick={() => handleEditClick(employee)}
                   >
-                    Edit
+                    Edit Details
                   </button>
                   <button
-                    className="w-full bg-red-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors text-sm"
+                    className="w-full bg-red-600 text-white py-2 rounded-md hover:bg-red-700 transition-colors text-sm font-medium"
                     onClick={() => {
                       setSelectedEmployeeForReset(employee);
                       setShowPasswordResetModal(true);
@@ -950,18 +975,24 @@ const HRDashboard = () => {
                   </button>
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="text-center py-10">
+                <p className="text-gray-500">No employees found.</p>
+              </div>
+            )}
           </div>
         </div>
         {/* Register Employee Modal */}
         {showRegisterModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-            <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg relative">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg relative max-h-[95vh] overflow-y-auto">
               <button
-                className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"
+                className="absolute top-3 right-3 text-gray-400 bg-gray-100 rounded-full p-1.5 hover:bg-gray-200"
                 onClick={() => setShowRegisterModal(false)}
               >
-                &times;
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
               <h3 className="text-xl font-bold text-primary mb-4 text-center">Register New Employee</h3>
               <form
@@ -974,7 +1005,7 @@ const HRDashboard = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <input
                     type="text"
-                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     placeholder="First Name"
                     value={newEmployee.firstName}
                     onChange={e => setNewEmployee({ ...newEmployee, firstName: e.target.value })}
@@ -982,7 +1013,7 @@ const HRDashboard = () => {
                   />
                   <input
                     type="text"
-                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     placeholder="Last Name"
                     value={newEmployee.lastName}
                     onChange={e => setNewEmployee({ ...newEmployee, lastName: e.target.value })}
@@ -991,7 +1022,7 @@ const HRDashboard = () => {
                 </div>
                 <input
                   type="text"
-                  className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                  className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                   placeholder="Employee ID"
                   value={newEmployee.employeeId}
                   onChange={e => setNewEmployee({ ...newEmployee, employeeId: e.target.value })}
@@ -1000,7 +1031,7 @@ const HRDashboard = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <input
                     type="email"
-                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     placeholder="Email"
                     value={newEmployee.email}
                     onChange={e => setNewEmployee({ ...newEmployee, email: e.target.value })}
@@ -1008,7 +1039,7 @@ const HRDashboard = () => {
                   />
                   <input
                     type="tel"
-                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     placeholder="Phone Number"
                     value={newEmployee.phoneNumber}
                     onChange={e => setNewEmployee({ ...newEmployee, phoneNumber: e.target.value })}
@@ -1018,7 +1049,7 @@ const HRDashboard = () => {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <select
-                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     value={newEmployee.campus}
                     onChange={e => setNewEmployee({ ...newEmployee, campus: e.target.value })}
                     required
@@ -1030,7 +1061,7 @@ const HRDashboard = () => {
                     ))}
                   </select>
                   <select
-                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     value={newEmployee.department}
                     onChange={e => setNewEmployee({ ...newEmployee, department: e.target.value })}
                     required
@@ -1044,7 +1075,7 @@ const HRDashboard = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <input
                     type="number"
-                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     placeholder="Leave Balance by Experience"
                     value={newEmployee.leaveBalanceByExperience}
                     onChange={e => setNewEmployee({ ...newEmployee, leaveBalanceByExperience: e.target.value })}
@@ -1053,7 +1084,7 @@ const HRDashboard = () => {
                 </div>
                 <div className="space-y-4">
                   <select
-                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     value={newEmployee.role}
                     onChange={handleRoleChange}
                     required
@@ -1066,7 +1097,7 @@ const HRDashboard = () => {
                   {newEmployee.role === 'other' && (
                     <input
                       type="text"
-                      className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                      className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                       placeholder="Enter Custom Role"
                       value={newEmployee.customRole}
                       onChange={e => setNewEmployee({ ...newEmployee, customRole: e.target.value })}
@@ -1077,7 +1108,7 @@ const HRDashboard = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <input
                     type="password"
-                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     placeholder="Password"
                     value={newEmployee.password}
                     onChange={e => setNewEmployee({ ...newEmployee, password: e.target.value })}
@@ -1086,7 +1117,7 @@ const HRDashboard = () => {
                   />
                   <input
                     type="password"
-                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     placeholder="Confirm Password"
                     value={newEmployee.confirmPassword}
                     onChange={e => setNewEmployee({ ...newEmployee, confirmPassword: e.target.value })}
@@ -1094,17 +1125,17 @@ const HRDashboard = () => {
                     minLength={6}
                   />
                 </div>
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-3 pt-2">
                   <button
                     type="button"
-                    className="px-4 py-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 transition"
+                    className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition font-medium"
                     onClick={() => setShowRegisterModal(false)}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-md bg-primary text-white hover:bg-primary-dark transition"
+                    className="px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark transition font-medium"
                     disabled={loading}
                   >
                     {loading ? 'Registering...' : 'Register'}
@@ -1116,37 +1147,37 @@ const HRDashboard = () => {
         )}
         {/* Edit Employee Modal */}
         {showEditModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-2 sm:p-4">
-            <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 w-full max-w-lg sm:max-w-lg max-h-[90vh] overflow-y-auto relative">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg relative max-h-[95vh] overflow-y-auto">
               <button
-                className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"
+                className="absolute top-3 right-3 text-gray-400 bg-gray-100 rounded-full p-1.5 hover:bg-gray-200"
                 onClick={() => setShowEditModal(false)}
               >
-                &times;
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
               <h3 className="text-xl font-bold text-primary mb-4 text-center">Edit Employee</h3>
               
               {/* Profile Picture Section */}
               <div className="flex flex-col items-center mb-6">
-                <div className="relative rounded-full overflow-hidden border-4 border-white shadow w-24 h-24 mb-4 group">
+                <div className="relative rounded-full overflow-hidden border-4 border-white shadow-lg w-24 h-24 group">
                   {previewImage || editEmployee?.profilePicture ? (
                     <img
                       src={previewImage || editEmployee?.profilePicture || ''}
                       alt={editEmployee?.name}
                       className="w-full h-full object-cover"
-                      onError={e => { e.target.onerror = null; e.target.src = ''; }}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                      <FaUserCircle className="text-gray-400 text-4xl" />
+                      <FaUserCircle className="text-gray-400 text-5xl" />
                     </div>
                   )}
                   {/* Overlay for actions */}
-                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-full z-10">
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-full z-10">
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       className="p-2 bg-white rounded-full shadow hover:bg-gray-100"
-                      aria-label="Change profile picture"
                       disabled={uploadingProfile}
                     >
                       <FaCamera className="text-gray-700 text-lg" />
@@ -1158,7 +1189,6 @@ const HRDashboard = () => {
                           setShowDeleteModal(true);
                         }}
                         className="ml-2 p-2 bg-red-500 rounded-full shadow hover:bg-red-600"
-                        aria-label="Remove profile picture"
                         disabled={uploadingProfile}
                       >
                         <FaTrash className="text-white text-lg" />
@@ -1174,57 +1204,54 @@ const HRDashboard = () => {
                     disabled={uploadingProfile}
                   />
                   {uploadingProfile && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-70 rounded-full z-20">
-                      <Loading />
+                    <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-80 rounded-full z-20">
+                      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                     </div>
                   )}
                 </div>
-                <p className="text-sm text-gray-600 text-center">
-                  Click on the image to change profile picture
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  Click image to change profile picture
                 </p>
               </div>
               
               <form onSubmit={handleEditSubmit} className="space-y-4">
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-700">Full Name</label>
                   <input
                     type="text"
-                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
-                    placeholder="Enter full name"
+                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     value={editForm.name}
                     onChange={e => setEditForm({ ...editForm, name: e.target.value })}
                     required
                   />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-700">Email Address</label>
                   <input
                     type="email"
-                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
-                    placeholder="Enter email address"
+                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     value={editForm.email}
                     onChange={e => setEditForm({ ...editForm, email: e.target.value })}
                     required
                   />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-700">Phone Number</label>
                   <input
                     type="tel"
-                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
-                    placeholder="Enter phone number"
+                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     value={editForm.phoneNumber}
                     onChange={e => setEditForm({ ...editForm, phoneNumber: e.target.value })}
                     required
                   />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-700">Role</label>
                   <select
-                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     value={editForm.role}
                     onChange={e => setEditForm({ ...editForm, role: e.target.value, customRole: e.target.value === 'other' ? editForm.customRole : '' })}
                     required
@@ -1237,7 +1264,7 @@ const HRDashboard = () => {
                   {editForm.role === 'other' && (
                     <input
                       type="text"
-                      className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                      className="w-full mt-2 p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                       placeholder="Enter Custom Role"
                       value={editForm.customRole}
                       onChange={e => setEditForm({ ...editForm, customRole: e.target.value })}
@@ -1246,10 +1273,10 @@ const HRDashboard = () => {
                   )}
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-700">Department</label>
                   <select
-                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     value={editForm.department}
                     onChange={e => setEditForm({ ...editForm, department: e.target.value, branchCode: e.target.value })}
                     required
@@ -1261,12 +1288,11 @@ const HRDashboard = () => {
                   </select>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-700">Leave Balance</label>
                   <input
                     type="number"
-                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
-                    placeholder="Enter leave balance"
+                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     value={editForm.leaveBalance}
                     onChange={e => setEditForm({ ...editForm, leaveBalance: e.target.value })}
                     min="0"
@@ -1275,12 +1301,11 @@ const HRDashboard = () => {
                   />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-700">Leave Balance by Experience</label>
                   <input
                     type="number"
-                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
-                    placeholder="Enter leave balance by experience"
+                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     value={editForm.leaveBalanceByExperience}
                     onChange={e => setEditForm({ ...editForm, leaveBalanceByExperience: e.target.value })}
                     min="0"
@@ -1289,10 +1314,10 @@ const HRDashboard = () => {
                   />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-700">Status</label>
                   <select
-                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     value={editForm.status}
                     onChange={e => setEditForm({ ...editForm, status: e.target.value })}
                     required
@@ -1302,17 +1327,17 @@ const HRDashboard = () => {
                   </select>
                 </div>
 
-                <div className="flex justify-end gap-2 mt-4">
+                <div className="flex justify-end gap-3 pt-4">
                   <button
                     type="button"
-                    className="px-4 py-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 transition"
+                    className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition font-medium"
                     onClick={() => setShowEditModal(false)}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-md bg-primary text-white hover:bg-primary-dark transition"
+                    className="px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark transition font-medium"
                   >
                     Save Changes
                   </button>
@@ -1336,10 +1361,10 @@ const HRDashboard = () => {
         />
         {/* Bulk Register Modal */}
         {showBulkModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-2 sm:p-4">
-            <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-4xl max-h-[95vh] overflow-y-auto relative">
               <button
-                className="absolute top-2 right-2 text-gray-400 hover:text-gray-700"
+                className="absolute top-3 right-3 text-gray-400 bg-gray-100 rounded-full p-1.5 hover:bg-gray-200"
                 onClick={() => {
                   setShowBulkModal(false);
                   setBulkFile(null);
@@ -1348,186 +1373,106 @@ const HRDashboard = () => {
                   setBulkErrors([]);
                 }}
               >
-                &times;
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
               <h3 className="text-xl font-bold text-primary mb-4 text-center">Bulk Register Employees</h3>
               
-              {/* Add Download Sample Button */}
-              <div className="mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-                <button
-                  onClick={() => window.open('/bulk_employee_registration.xlsx', '_blank')}
-                  className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition flex items-center justify-center gap-2"
+              <div className="mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b pb-4">
+                <a
+                  href="/bulk_employee_registration.xlsx"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2 font-medium"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
-                  Download Sample Template
-                </button>
-                <div className="text-sm text-gray-600 w-full sm:w-auto text-center sm:text-right">
-                  Upload your Excel file below
-                </div>
+                  Download Sample
+                </a>
+                <input type="file" accept=".xlsx,.xls" onChange={handleBulkFileChange} className="text-sm" />
               </div>
 
-              <div className="mb-4">
-                <input type="file" accept=".xlsx,.xls" onChange={handleBulkFileChange} />
-              </div>
               {bulkEditableData.length > 0 && (
                 <>
-                  <div className="mb-4 flex justify-between items-center">
+                  <div className="mb-4 flex flex-col sm:flex-row justify-between items-center gap-2">
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-green-100 border border-green-500"></div>
+                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
                         <span className="text-sm">Valid</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-red-100 border border-red-500"></div>
+                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
                         <span className="text-sm">Invalid</span>
                       </div>
                     </div>
-                    <div className="text-sm">
+                    <div className="text-sm font-medium">
                       {bulkEditableData.filter((_, idx) => isRowValid(bulkErrors[idx])).length} of {bulkEditableData.length} records valid
                     </div>
                   </div>
-                  <div className="mb-4 overflow-x-auto">
-                    <table className="min-w-full text-xs border">
-                      <thead>
-                        <tr className="bg-gray-50">
-                          <th className="border px-2 py-1">Status</th>
-                          <th className="border px-2 py-1">Name</th>
-                          <th className="border px-2 py-1">Email</th>
-                          <th className="border px-2 py-1">Employee ID</th>
-                          <th className="border px-2 py-1">Phone</th>
-                          <th className="border px-2 py-1">Campus</th>
-                          <th className="border px-2 py-1">Branch</th>
-                          <th className="border px-2 py-1">Role</th>
-                          <th className="border px-2 py-1">Custom Role</th>
-                          <th className="border px-2 py-1">Leave Balance</th>
-                          <th className="border px-2 py-1">Status</th>
-                          <th className="border px-2 py-1">Designation</th>
+                  <div className="mb-4 overflow-x-auto border rounded-lg">
+                    <table className="min-w-full text-xs">
+                      <thead className="bg-gray-50">
+                        <tr className="divide-x divide-gray-200">
+                          <th className="px-2 py-2">Status</th>
+                          <th className="px-2 py-2">Name</th>
+                          <th className="px-2 py-2">Email</th>
+                          <th className="px-2 py-2">Employee ID</th>
+                          <th className="px-2 py-2">Phone</th>
+                          <th className="px-2 py-2">Campus</th>
+                          <th className="px-2 py-2">Branch</th>
+                          <th className="px-2 py-2">Role</th>
+                          <th className="px-2 py-2">Custom Role</th>
+                          <th className="px-2 py-2">Leave Balance</th>
+                          <th className="px-2 py-2">Status</th>
+                          <th className="px-2 py-2">Designation</th>
                         </tr>
                       </thead>
-                      <tbody>
+                      <tbody className="divide-y divide-gray-200">
                         {bulkEditableData.map((row, idx) => {
                           const rowErrors = bulkErrors[idx];
                           const isValid = isRowValid(rowErrors);
                           return (
-                            <tr key={idx} className={isValid ? 'bg-green-50' : 'bg-red-50'}>
-                              <td className="border px-2 py-1">
-                                <div className={`w-3 h-3 rounded-full ${isValid ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                            <tr key={idx} className={`divide-x divide-gray-200 ${isValid ? 'bg-green-50/50' : 'bg-red-50/50'}`}>
+                              <td className="px-2 py-1 text-center">
+                                <div className={`w-3 h-3 rounded-full inline-block ${isValid ? 'bg-green-500' : 'bg-red-500'}`} title={Object.values(rowErrors).join(', ')}></div>
                               </td>
-                              <td className="border px-2 py-1">
-                                <input
-                                  type="text"
-                                  value={row.name || ''}
-                                  onChange={(e) => handleBulkFieldChange(idx, 'name', e.target.value)}
-                                  className="w-full bg-transparent border-none outline-none"
-                                />
-                              </td>
-                              <td className="border px-2 py-1">
-                                <input
-                                  type="email"
-                                  value={row.email || ''}
-                                  onChange={(e) => handleBulkFieldChange(idx, 'email', e.target.value)}
-                                  className="w-full bg-transparent border-none outline-none"
-                                />
-                              </td>
-                              <td className="border px-2 py-1">
-                                <input
-                                  type="text"
-                                  value={row.employeeId || ''}
-                                  onChange={(e) => handleBulkFieldChange(idx, 'employeeId', e.target.value)}
-                                  className="w-full bg-transparent border-none outline-none"
-                                />
-                              </td>
-                              <td className="border px-2 py-1">
-                                <input
-                                  type="text"
-                                  value={row.phoneNumber || ''}
-                                  onChange={(e) => handleBulkFieldChange(idx, 'phoneNumber', e.target.value)}
-                                  className="w-full bg-transparent border-none outline-none"
-                                />
-                              </td>
-                              <td className="border px-2 py-1">
-                                <input
-                                  type="text"
-                                  value={row.campus || ''}
-                                  className="w-full bg-transparent border-none outline-none"
-                                  readOnly
-                                />
-                              </td>
-                              <td className="border px-2 py-1">
-                                <select
-                                  value={row.branchCode || ''}
-                                  onChange={(e) => handleBulkFieldChange(idx, 'branchCode', e.target.value)}
-                                  className="w-full bg-transparent border-none outline-none"
-                                >
-                                  <option value="">Select Branch</option>
-                                  {row.branches?.map(branch => (
-                                    <option key={branch.code} value={branch.code}>
-                                      {branch.name} ({branch.code})
-                                    </option>
-                                  ))}
+                              <td className="px-2 py-1"><input type="text" value={row.name || ''} onChange={(e) => handleBulkFieldChange(idx, 'name', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white" /></td>
+                              <td className="px-2 py-1"><input type="email" value={row.email || ''} onChange={(e) => handleBulkFieldChange(idx, 'email', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white" /></td>
+                              <td className="px-2 py-1"><input type="text" value={row.employeeId || ''} onChange={(e) => handleBulkFieldChange(idx, 'employeeId', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white" /></td>
+                              <td className="px-2 py-1"><input type="text" value={row.phoneNumber || ''} onChange={(e) => handleBulkFieldChange(idx, 'phoneNumber', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white" /></td>
+                              <td className="px-2 py-1"><input type="text" value={row.campus || ''} className="w-full bg-transparent p-1 outline-none focus:bg-white" readOnly /></td>
+                              <td className="px-2 py-1">
+                                <select value={row.branchCode || ''} onChange={(e) => handleBulkFieldChange(idx, 'branchCode', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white">
+                                  <option value="">Select</option>
+                                  {row.branches?.map(branch => (<option key={branch.code} value={branch.code}>{branch.code}</option>))}
                                 </select>
                               </td>
-                              <td className="border px-2 py-1">
-                                <select
-                                  value={row.role || ''}
-                                  onChange={(e) => handleBulkFieldChange(idx, 'role', e.target.value)}
-                                  className="w-full bg-transparent border-none outline-none"
-                                >
-                                  <option value="">Select Role</option>
-                                  {row.roles?.map(role => (
-                                    <option key={role.value} value={role.value}>
-                                      {role.label}
-                                    </option>
-                                  ))}
+                              <td className="px-2 py-1">
+                                <select value={row.role || ''} onChange={(e) => handleBulkFieldChange(idx, 'role', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white">
+                                  <option value="">Select</option>
+                                  {row.roles?.map(role => (<option key={role.value} value={role.value}>{role.label}</option>))}
                                 </select>
                               </td>
-                              <td className="border px-2 py-1">
-                                <input
-                                  type="text"
-                                  value={row.customRole || ''}
-                                  onChange={(e) => handleBulkFieldChange(idx, 'customRole', e.target.value)}
-                                  className="w-full bg-transparent border-none outline-none"
-                                  placeholder="Custom role if 'other'"
-                                />
-                              </td>
-                              <td className="border px-2 py-1">
-                                <input
-                                  type="number"
-                                  value={row.leaveBalanceByExperience || ''}
-                                  onChange={(e) => handleBulkFieldChange(idx, 'leaveBalanceByExperience', e.target.value)}
-                                  className="w-full bg-transparent border-none outline-none"
-                                />
-                              </td>
-                              <td className="border px-2 py-1">
-                                <select
-                                  value={row.status || 'active'}
-                                  onChange={(e) => handleBulkFieldChange(idx, 'status', e.target.value)}
-                                  className="w-full bg-transparent border-none outline-none"
-                                >
-                                  <option value="active">Active</option>
-                                  <option value="inactive">Inactive</option>
+                              <td className="px-2 py-1"><input type="text" value={row.customRole || ''} onChange={(e) => handleBulkFieldChange(idx, 'customRole', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white" /></td>
+                              <td className="px-2 py-1"><input type="number" value={row.leaveBalanceByExperience || ''} onChange={(e) => handleBulkFieldChange(idx, 'leaveBalanceByExperience', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white" /></td>
+                              <td className="px-2 py-1">
+                                <select value={row.status || 'active'} onChange={(e) => handleBulkFieldChange(idx, 'status', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white">
+                                  <option value="active">Active</option><option value="inactive">Inactive</option>
                                 </select>
                               </td>
-                              <td className="border px-2 py-1">
-                                <input
-                                  type="text"
-                                  value={row.designation || ''}
-                                  onChange={(e) => handleBulkFieldChange(idx, 'designation', e.target.value)}
-                                  className="w-full bg-transparent border-none outline-none"
-                                />
-                              </td>
+                              <td className="px-2 py-1"><input type="text" value={row.designation || ''} onChange={(e) => handleBulkFieldChange(idx, 'designation', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white" /></td>
                             </tr>
                           );
                         })}
                       </tbody>
                     </table>
                   </div>
-                  <div className="flex justify-end gap-2">
+                  <div className="flex justify-end gap-3">
                     <button
                       type="button"
-                      className="px-4 py-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 transition"
+                      className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition font-medium"
                       onClick={() => {
                         setShowBulkModal(false);
                         setBulkFile(null);
@@ -1540,11 +1485,11 @@ const HRDashboard = () => {
                     </button>
                     <button
                       type="button"
-                      className="px-4 py-2 rounded-md bg-primary text-white hover:bg-primary-dark transition"
+                      className="px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark transition font-medium"
                       onClick={handleBulkRegister}
                       disabled={bulkLoading || !isBulkValid}
                     >
-                      {bulkLoading ? 'Registering...' : 'Register All'}
+                      {bulkLoading ? 'Registering...' : `Register ${bulkEditableData.filter((_, idx) => isRowValid(bulkErrors[idx])).length} Valid Records`}
                     </button>
                   </div>
                 </>
@@ -1555,25 +1500,27 @@ const HRDashboard = () => {
         
         {/* Delete Profile Picture Confirmation Modal */}
         {showDeleteModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-lg p-6 max-w-xs w-full text-center">
-              <FaTrash className="mx-auto text-red-500 text-3xl mb-2" />
-              <h3 className="text-lg font-semibold mb-2">Remove Profile Picture?</h3>
-              <p className="text-gray-600 mb-4">Are you sure you want to delete the profile picture for {selectedEmployeeForPicture?.name}?</p>
-              <div className="flex justify-center gap-4">
-                <button
-                  onClick={() => handleDeleteProfilePicture(selectedEmployeeForPicture._id)}
-                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-                  disabled={uploadingProfile}
-                >
-                  Yes, Delete
-                </button>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 text-center">
+              <div className="bg-red-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                <FaTrash className="text-red-500 text-2xl" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Remove Profile Picture?</h3>
+              <p className="text-gray-600 mb-6 text-sm">Are you sure you want to delete the profile picture for <span className="font-medium">{selectedEmployeeForPicture?.name}</span>? This action cannot be undone.</p>
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <button
                   onClick={() => setShowDeleteModal(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
                   disabled={uploadingProfile}
                 >
                   Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteProfilePicture(selectedEmployeeForPicture._id)}
+                  className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+                  disabled={uploadingProfile}
+                >
+                  {uploadingProfile ? 'Deleting...' : 'Yes, Delete'}
                 </button>
               </div>
             </div>

@@ -2824,40 +2824,6 @@ const PrincipalDashboard = () => {
                   <option value="inactive">Inactive</option>
                 </select>
               </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="specialPermission"
-                  checked={editEmployeeForm.specialPermission}
-                  onChange={(e) => setEditEmployeeForm(prev => ({ 
-                    ...prev, 
-                    specialPermission: e.target.checked,
-                    specialLeaveMaxDays: e.target.checked ? (prev.specialLeaveMaxDays || 20) : undefined
-                  }))}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="specialPermission" className="ml-2 block text-sm text-gray-900">
-                  Special Leave Permission
-                </label>
-              </div>
-
-              {editEmployeeForm.specialPermission && (
-                <div className="flex items-center mt-2">
-                  <label className="block text-sm font-medium text-gray-700 mr-2">Max Days:</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={60}
-                    value={editEmployeeForm.specialLeaveMaxDays || ''}
-                    onChange={e => setEditEmployeeForm(prev => ({ 
-                      ...prev, 
-                      specialLeaveMaxDays: Number(e.target.value)
-                    }))}
-                    className="w-20 p-1 rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    required={editEmployeeForm.specialPermission}
-                  />
-                </div>
-              )}
               <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
                 <button
                   type="button"
