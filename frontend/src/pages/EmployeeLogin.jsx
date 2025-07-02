@@ -195,18 +195,12 @@ const EmployeeLogin = () => {
           </button>
         </form>
 
-        
-        {/* <div className="mt-3 sm:mt-6 text-center">
-          <p className="text-xs sm:text-base text-gray-600">
-            Don't have an account?{' '}
-            <span
-              onClick={() => navigate('/employee-register')}
-              className="text-primary cursor-pointer hover:underline font-medium"
-            >
-              Register here
-            </span>
+        {/* Add note for forgotten credentials */}
+        <div className="mt-3 sm:mt-4 text-center">
+          <p className="text-xs sm:text-sm text-gray-500 italic">
+            If you forgot/reset your credentials, please contact your HOD.
           </p>
-        </div> */}
+        </div>
 
         <button
           onClick={() => navigate('/')}

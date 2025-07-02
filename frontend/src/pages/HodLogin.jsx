@@ -198,6 +198,18 @@ const HodLogin = () => {
         )}
 
         <form onSubmit={handleSubmit}>
+          {/* Add note about server load only when there's an error */}
+          {!campusLoading && campuses.length === 0 && (
+            <div className="mb-3 sm:mb-4 text-center">
+              <p className="text-xs sm:text-sm text-gray-500 italic flex items-center justify-center gap-1">
+                <svg className="w-3 h-3 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM13 17H11V15H13V17ZM13 13H11V7H13V13Z" fill="currentColor"/>
+                </svg>
+                Please wait for 30-40 seconds and try a refresh. Sometimes the server faces huge load.
+              </p>
+            </div>
+          )}
+
           <div className="mb-3 sm:mb-6">
             <label className="block text-gray-700 text-xs sm:text-base font-bold mb-1 sm:mb-2">
               Campus
@@ -284,6 +296,13 @@ const HodLogin = () => {
             {loading ? 'Signing in...' : 'Login'}
           </button>
         </form>
+
+        {/* Add note for forgotten credentials */}
+        <div className="mt-3 sm:mt-4 text-center">
+          <p className="text-xs sm:text-sm text-gray-500 italic">
+            If you forgot/reset your credentials, please contact your Principal.
+          </p>
+        </div>
 
         <button
           onClick={() => navigate('/')}
