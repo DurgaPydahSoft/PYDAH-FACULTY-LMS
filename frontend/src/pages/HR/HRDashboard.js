@@ -68,6 +68,7 @@ const HRDashboard = () => {
   const [bulkBranches, setBulkBranches] = useState([]);
   const [bulkRoles, setBulkRoles] = useState([]);
   const [bulkErrors, setBulkErrors] = useState([]);
+  const [headerMapping, setHeaderMapping] = useState({});
 
   // Profile picture states
   const [uploadingProfile, setUploadingProfile] = useState(false);
@@ -263,10 +264,6 @@ const HRDashboard = () => {
       toast.error('Invalid department for selected campus');
       return;
     }
-    if (!newEmployee.role) {
-      toast.error('Please select a role');
-      return;
-    }
     if (newEmployee.role === 'other' && !newEmployee.customRole) {
       toast.error('Please enter a custom role');
       return;
@@ -275,11 +272,11 @@ const HRDashboard = () => {
     try {
       const payload = {
         name: `${newEmployee.firstName} ${newEmployee.lastName}`,
-        email: newEmployee.email.toLowerCase(),
+        email: newEmployee.email ? newEmployee.email.toLowerCase() : null, // Make email optional
         password: newEmployee.password,
         employeeId: newEmployee.employeeId,
         phoneNumber: newEmployee.phoneNumber,
-        role: newEmployee.role,
+        role: newEmployee.role || 'faculty', // Default to faculty if no role provided
         department: newEmployee.department,
         branchCode: newEmployee.department,
         leaveBalanceByExperience: newEmployee.leaveBalanceByExperience
@@ -416,7 +413,7 @@ const HRDashboard = () => {
 
   const fetchRolesForCampus = async (campus) => {
     try {
-        const response = await fetch(`${API_BASE_URL}/hr/roles?campus=${campus}`, {
+      const response = await fetch(`${API_BASE_URL}/hr/roles`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -447,11 +444,9 @@ const HRDashboard = () => {
       errors.name = 'Name can only contain letters, spaces and dots';
     }
 
-    // Enhanced email validation
+    // Enhanced email validation (make it optional)
+    if (row.email && row.email.trim() !== '') {
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!row.email) {
-      errors.email = 'Email is required';
-    } else {
       const [localPart] = row.email.split('@');
       if (localPart.length < 5) {
         errors.email = 'Email must have at least 5 characters before @';
@@ -482,15 +477,15 @@ const HRDashboard = () => {
       errors.phoneNumber = 'Phone number must be 10 digits';
     }
 
-    // Leave Balance by Experience validation
-    if (!row.leaveBalanceByExperience) {
-      errors.leaveBalanceByExperience = 'Leave balance by experience is required';
-    } else if (isNaN(Number(row.leaveBalanceByExperience))) {
+    // Leave Balance by Experience validation (make it optional with default)
+    if (row.leaveBalanceByExperience !== undefined && row.leaveBalanceByExperience !== '') {
+      if (isNaN(Number(row.leaveBalanceByExperience))) {
       errors.leaveBalanceByExperience = 'Leave balance must be a number';
     } else if (Number(row.leaveBalanceByExperience) < 0) {
       errors.leaveBalanceByExperience = 'Leave balance cannot be negative';
     } else if (Number(row.leaveBalanceByExperience) > 30) {
       errors.leaveBalanceByExperience = 'Leave balance cannot exceed 30';
+      }
     }
 
     // Campus validation
@@ -503,31 +498,35 @@ const HRDashboard = () => {
     // Branch validation
     if (!row.branchCode) {
       errors.branchCode = 'Branch is required';
-    } else {
-      const validBranch = row.branches?.find(b => b.code === row.branchCode);
+    } else if (row.branches && row.branches.length > 0) {
+      const validBranch = row.branches.find(b => b.code === row.branchCode || b.name === row.branchCode);
       if (!validBranch) {
         errors.branchCode = 'Invalid branch for selected campus';
       }
     }
 
-    // Role validation
-    if (!row.role) {
-      errors.role = 'Role is required';
-    } else if (!row.roles || !row.roles.some(r => r.value === row.role)) {
-      errors.role = 'Invalid role for selected campus';
-    } else if (row.role === 'other' && !row.customRole) {
-      errors.customRole = 'Custom role is required';
-    } else if (row.role === 'other' && row.customRole) {
-      if (row.customRole.length < 2) {
-        errors.customRole = 'Custom role is too short';
-      } else if (row.customRole.length > 50) {
-        errors.customRole = 'Custom role is too long';
-      }
-    }
+    // Role validation (make it optional)
+    if (row.role && row.role.trim() !== '') {
+      if (row.roles && row.roles.length > 0) {
+        // Debug log for role validation
+        const inputRole = row.role.trim().toLowerCase().replace(/[_\s]+/g, '');
+        const allowedRoleValues = row.roles.map(r => r.value.toLowerCase().replace(/[_\s]+/g, ''));
+        const allowedRoleLabels = row.roles.map(r => r.label.toLowerCase().replace(/[_\s]+/g, ''));
+        console.log('[Bulk Upload Role Validation] Input:', row.role, '| Allowed values:', row.roles.map(r => r.value), '| Allowed labels:', row.roles.map(r => r.label));
 
-    // Status validation
-    if (row.status && !['active', 'inactive'].includes(row.status)) {
-      errors.status = 'Status must be active or inactive';
+        // Robust matching: check both value and label, ignore case, spaces, underscores
+        const validRole = row.roles.find(r => {
+          const valueNorm = r.value.toLowerCase().replace(/[_\s]+/g, '');
+          const labelNorm = r.label.toLowerCase().replace(/[_\s]+/g, '');
+          return inputRole === valueNorm || inputRole === labelNorm;
+        });
+        if (!validRole) {
+          const allowedRoles = row.roles.map(r => r.label).join(', ');
+          errors.role = `Invalid role for selected campus: '${row.role}'. Allowed: ${allowedRoles}`;
+        } else if (inputRole === 'other' && !row.customRole) {
+      errors.customRole = 'Custom role is required';
+        }
+      }
     }
 
     // Designation validation (optional)
@@ -539,6 +538,104 @@ const HRDashboard = () => {
   };
 
   const isRowValid = (errors) => Object.keys(errors).length === 0;
+
+  // Enhanced header mapping function to handle different cases and similar meanings
+  const mapExcelHeaders = (row) => {
+    // Normalize header names by converting to lowercase and removing special characters
+    const normalizeHeader = (header) => {
+      if (!header) return '';
+      return header.toString()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+        .trim();
+    };
+
+    // Create a mapping of normalized headers to possible variations
+    const headerMappings = {
+      // Name variations
+      'name': ['name', 'fullname', 'full_name', 'employeename', 'employee_name', 'staffname', 'staff_name', 'facultyname', 'faculty_name'],
+      
+      // Email variations
+      'email': ['email', 'emailaddress', 'email_address', 'mail', 'mailid', 'mail_id', 'e_mail'],
+      
+      // Employee ID variations
+      'employeeid': ['employeeid', 'employee_id', 'emp_id', 'empid', 'id', 'staffid', 'staff_id', 'facultyid', 'faculty_id', 'userid', 'user_id'],
+      
+      // Phone variations
+      'phonenumber': ['phonenumber', 'phone_number', 'phone', 'mobile', 'mobilenumber', 'mobile_number', 'contact', 'contactnumber', 'contact_number', 'tel', 'telephone'],
+      
+      // Branch variations
+      'branchcode': ['branchcode', 'branch_code', 'branch', 'department', 'dept', 'section', 'division', 'stream', 'course'],
+      
+      // Role variations
+      'role': ['role', 'designation', 'position', 'title', 'jobtitle', 'job_title', 'rank', 'grade', 'level'],
+      
+      // Custom role variations
+      'customrole': ['customrole', 'custom_role', 'otherrole', 'other_role', 'specifyrole', 'specify_role'],
+      
+      // Status variations
+      'status': ['status', 'activestatus', 'active_status', 'employeestatus', 'employee_status', 'workingstatus', 'working_status'],
+      
+      // Designation variations (additional field)
+      'designation': ['designation', 'jobdesignation', 'job_designation', 'positiontitle', 'position_title', 'jobtitle', 'job_title'],
+      
+      // Leave balance variations
+      'leavebalancebyexperience': ['leavebalancebyexperience', 'leave_balance_by_experience', 'leavebalance', 'leave_balance', 'leaves', 'leavecount', 'leave_count', 'experienceleaves', 'experience_leaves', 'annualleaves', 'annual_leaves']
+    };
+
+    // Function to find the best matching header
+    const findBestMatch = (targetField, row) => {
+      const targetVariations = headerMappings[targetField] || [];
+      
+      // First, try exact matches (case-insensitive)
+      for (const variation of targetVariations) {
+        for (const header in row) {
+          if (normalizeHeader(header) === variation) {
+            return row[header];
+          }
+        }
+      }
+      
+      // Then, try partial matches
+      for (const variation of targetVariations) {
+        for (const header in row) {
+          const normalizedHeader = normalizeHeader(header);
+          if (normalizedHeader.includes(variation) || variation.includes(normalizedHeader)) {
+            return row[header];
+          }
+        }
+      }
+      
+      // Finally, try fuzzy matching for common variations
+      for (const header in row) {
+        const normalizedHeader = normalizeHeader(header);
+        for (const variation of targetVariations) {
+          // Check if headers are similar (e.g., "emp" matches "employee")
+          if (normalizedHeader.length >= 3 && variation.length >= 3) {
+            if (normalizedHeader.includes(variation.substring(0, 3)) || 
+                variation.includes(normalizedHeader.substring(0, 3))) {
+              return row[header];
+            }
+          }
+        }
+      }
+      
+      return '';
+    };
+
+    return {
+      name: findBestMatch('name', row),
+      email: findBestMatch('email', row),
+      employeeId: findBestMatch('employeeid', row),
+      phoneNumber: findBestMatch('phonenumber', row),
+      branchCode: findBestMatch('branchcode', row),
+      role: findBestMatch('role', row),
+      customRole: findBestMatch('customrole', row),
+      status: (findBestMatch('status', row) || 'active').toString().toLowerCase(), // Always lowercase
+      designation: findBestMatch('designation', row),
+      leaveBalanceByExperience: findBestMatch('leavebalancebyexperience', row) || 12
+    };
+  };
 
   const handleBulkFileChange = async (e) => {
     const file = e.target.files[0];
@@ -571,17 +668,69 @@ const HRDashboard = () => {
           return;
         }
 
-        const editable = data.map(row => ({
-          ...row,
+        // Log detected headers for debugging and create header mapping display
+        let detectedHeaders = [];
+        let headerMappingDisplay = {};
+        
+        if (data.length > 0) {
+          detectedHeaders = Object.keys(data[0]);
+          console.log('Detected Excel headers:', detectedHeaders);
+          
+          // Create header mapping display for user feedback
+          const sampleRow = data[0];
+          const mappedData = mapExcelHeaders(sampleRow);
+          
+          headerMappingDisplay = {
+            'Name': mappedData.name ? '✓ Mapped' : '✗ Not found',
+            'Email': mappedData.email ? '✓ Mapped' : '✗ Not found (optional)',
+            'Employee ID': mappedData.employeeId ? '✓ Mapped' : '✗ Not found',
+            'Phone Number': mappedData.phoneNumber ? '✓ Mapped' : '✗ Not found',
+            'Branch': mappedData.branchCode ? '✓ Mapped' : '✗ Not found',
+            'Role': mappedData.role ? '✓ Mapped' : '✗ Not found (optional)',
+            'Leave Balance': mappedData.leaveBalanceByExperience ? '✓ Mapped' : '✗ Not found (default: 12)'
+          };
+          
+          setHeaderMapping(headerMappingDisplay);
+        }
+
+        const editable = data.map((row, index) => {
+          // Use enhanced header mapping
+          const mappedData = mapExcelHeaders(row);
+          
+          const mappedRow = {
+            id: index, // Add unique ID for row management
           campus: hrCampus,
-          branchCode: row.branchCode || '',
-          role: row.role || '',
-          customRole: row.customRole || '',
+            name: mappedData.name,
+            email: mappedData.email,
+            employeeId: mappedData.employeeId,
+            phoneNumber: mappedData.phoneNumber,
+            branchCode: mappedData.branchCode,
+            role: mappedData.role,
+            customRole: mappedData.customRole,
+            status: mappedData.status,
+            designation: mappedData.designation,
+            leaveBalanceByExperience: mappedData.leaveBalanceByExperience,
           branches, // Use the same branches for all rows
           roles,    // Use the same roles for all rows
-        }));
+          };
+
+          // Clean up the data
+          Object.keys(mappedRow).forEach(key => {
+            if (typeof mappedRow[key] === 'string') {
+              mappedRow[key] = mappedRow[key].toString().trim();
+            }
+          });
+
+          return mappedRow;
+        });
+
         setBulkEditableData(editable);
         setBulkErrors(editable.map(validateBulkRow));
+        
+        // Show success message with detected headers
+        if (data.length > 0) {
+          toast.success(`File uploaded successfully! Detected ${detectedHeaders.length} columns.`);
+        }
       };
       reader.readAsBinaryString(file);
     }
@@ -606,6 +755,10 @@ const HRDashboard = () => {
         .join(' ');
     } else if (field === 'email') {
       updated[idx][field] = value.toLowerCase();
+    } else if (field === 'status') {
+      updated[idx][field] = value.toLowerCase();
+    } else {
+      updated[idx][field] = value;
     }
 
     setBulkEditableData(updated);
@@ -613,6 +766,14 @@ const HRDashboard = () => {
     const errors = [...bulkErrors];
     errors[idx] = validateBulkRow(updated[idx]);
     setBulkErrors(errors);
+  };
+
+  const deleteBulkRow = (idx) => {
+    const updated = bulkEditableData.filter((_, index) => index !== idx);
+    const updatedErrors = bulkErrors.filter((_, index) => index !== idx);
+    setBulkEditableData(updated);
+    setBulkErrors(updatedErrors);
+    setBulkResults([]); // Clear results when rows change
   };
 
   const isBulkValid = bulkEditableData.length > 0 && bulkErrors.every(err => Object.keys(err).length === 0);
@@ -626,12 +787,19 @@ const HRDashboard = () => {
         setBulkLoading(false);
         return;
       }
+      // Remove status from the payload
       const employees = bulkEditableData.map(row => ({
-        ...row,
-        branchCode: row.branchCode,
-        campus: row.campus,
+        name: row.name,
+        email: row.email,
+        employeeId: row.employeeId,
+        phoneNumber: row.phoneNumber,
         role: row.role,
         customRole: row.role === 'other' ? row.customRole : '',
+        department: row.branchCode,
+        branchCode: row.branchCode,
+        campus: row.campus,
+        designation: row.designation || '',
+        leaveBalanceByExperience: row.leaveBalanceByExperience || 12
       }));
       const response = await fetch(`${API_BASE_URL}/hr/employees/bulk`, {
         method: 'POST',
@@ -1032,10 +1200,9 @@ const HRDashboard = () => {
                   <input
                     type="email"
                     className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
-                    placeholder="Email"
+                    placeholder="Email (optional)"
                     value={newEmployee.email}
                     onChange={e => setNewEmployee({ ...newEmployee, email: e.target.value })}
-                    required
                   />
                   <input
                     type="tel"
@@ -1087,9 +1254,8 @@ const HRDashboard = () => {
                     className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     value={newEmployee.role}
                     onChange={handleRoleChange}
-                    required
                   >
-                    <option value="">Select Role</option>
+                    <option value="">Select Role (Optional)</option>
                     {getCampusRoles(user?.campus?.name).map(role => (
                       <option key={role.value} value={role.value}>{role.label}</option>
                     ))}
@@ -1227,13 +1393,12 @@ const HRDashboard = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-sm font-medium text-gray-700">Email Address</label>
+                  <label className="block text-sm font-medium text-gray-700">Email Address (Optional)</label>
                   <input
                     type="email"
                     className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     value={editForm.email}
                     onChange={e => setEditForm({ ...editForm, email: e.target.value })}
-                    required
                   />
                 </div>
 
@@ -1249,12 +1414,11 @@ const HRDashboard = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-sm font-medium text-gray-700">Role</label>
+                  <label className="block text-sm font-medium text-gray-700">Role (Optional)</label>
                   <select
                     className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
                     value={editForm.role}
                     onChange={e => setEditForm({ ...editForm, role: e.target.value, customRole: e.target.value === 'other' ? editForm.customRole : '' })}
-                    required
                   >
                     <option value="">Select Role</option>
                     {getCampusRoles(user?.campus?.name).map(role => (
@@ -1362,9 +1526,9 @@ const HRDashboard = () => {
         {/* Bulk Register Modal */}
         {showBulkModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-4xl max-h-[95vh] overflow-y-auto relative">
+            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-7xl max-h-[95vh] overflow-y-auto relative">
               <button
-                className="absolute top-3 right-3 text-gray-400 bg-gray-100 rounded-full p-1.5 hover:bg-gray-200"
+                className="absolute top-3 right-3 text-gray-400 bg-gray-100 rounded-full p-1.5 hover:bg-gray-200 z-10"
                 onClick={() => {
                   setShowBulkModal(false);
                   setBulkFile(null);
@@ -1377,102 +1541,285 @@ const HRDashboard = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-              <h3 className="text-xl font-bold text-primary mb-4 text-center">Bulk Register Employees</h3>
               
-              <div className="mb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b pb-4">
-                <a
-                  href="/bulk_employee_registration.xlsx"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full sm:w-auto px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2 font-medium"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <div className="mb-6">
+                <h3 className="text-xl font-bold text-primary mb-2 text-center">Bulk Register Employees</h3>
+                <p className="text-sm text-gray-600 text-center">Upload an Excel file to register multiple employees at once</p>
+              </div>
+              
+              {/* File Upload Section */}
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                  <div className="flex flex-col sm:flex-row items-center gap-4">
+                    <a
+                      href="/bulk_employee_registration.xlsx"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2 font-medium text-sm"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
-                  Download Sample
-                </a>
-                <input type="file" accept=".xlsx,.xls" onChange={handleBulkFileChange} className="text-sm" />
+                  Download Sample Template
+                    </a>
+                    <div className="text-sm text-gray-600">
+                      {bulkFile ? `Selected: ${bulkFile.name}` : 'No file selected'}
+                </div>
+              </div>
+                  <input 
+                    type="file" 
+                    accept=".xlsx,.xls" 
+                    onChange={handleBulkFileChange} 
+                    className="text-sm border border-gray-300 rounded px-3 py-2 bg-white"
+                  />
+              </div>
               </div>
 
+              {/* Data Preview Section */}
               {bulkEditableData.length > 0 && (
                 <>
-                  <div className="mb-4 flex flex-col sm:flex-row justify-between items-center gap-2">
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                        <span className="text-sm">Valid</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                        <span className="text-sm">Invalid</span>
-                      </div>
+                  {/* Header Mapping Display */}
+                  <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h4 className="text-sm font-semibold text-blue-800 mb-3">Header Mapping Status</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs">
+                      {Object.entries(headerMapping).map(([field, status]) => (
+                        <div key={field} className="flex items-center justify-between p-2 bg-white rounded border">
+                          <span className="font-medium text-gray-700">{field}:</span>
+                          <span className={`font-medium ${status.includes('✓') ? 'text-green-600' : 'text-red-600'}`}>
+                            {status}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                    <div className="text-sm font-medium">
-                      {bulkEditableData.filter((_, idx) => isRowValid(bulkErrors[idx])).length} of {bulkEditableData.length} records valid
+                    <div className="mt-3 p-2 bg-blue-100 rounded text-xs text-blue-700">
+                      <strong>Note:</strong> The system automatically maps your Excel headers to the required fields. 
+                      If any required field shows "Not found", please check your column headers or edit the data below.
                     </div>
                   </div>
-                  <div className="mb-4 overflow-x-auto border rounded-lg">
+
+                  {/* Summary Stats */}
+                  <div className="mb-4 p-4 bg-white rounded-lg border border-gray-200">
+                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                      <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded-full bg-green-500"></div>
+                          <span className="text-sm font-medium">Valid Records</span>
+                          <span className="text-sm text-gray-600">({bulkEditableData.filter((_, idx) => isRowValid(bulkErrors[idx])).length})</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded-full bg-red-500"></div>
+                          <span className="text-sm font-medium">Invalid Records</span>
+                          <span className="text-sm text-gray-600">({bulkEditableData.filter((_, idx) => !isRowValid(bulkErrors[idx])).length})</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded-full bg-gray-400"></div>
+                          <span className="text-sm font-medium">Total Records</span>
+                          <span className="text-sm text-gray-600">({bulkEditableData.length})</span>
+                      </div>
+                    </div>
+                    <div className="text-sm">
+                        <span className="font-medium">Campus:</span> {user?.campus?.name}
+                    </div>
+                  </div>
+                    
+                    {/* Error Summary */}
+                    {bulkErrors.some(err => Object.keys(err).length > 0) && (
+                      <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <h4 className="text-sm font-medium text-red-800 mb-2">Common Errors Found:</h4>
+                        <div className="text-xs text-red-700 space-y-1">
+                          {(() => {
+                            const errorCounts = {};
+                            const errorMessages = {};
+                            
+                            bulkErrors.forEach(err => {
+                              Object.entries(err).forEach(([field, message]) => {
+                                if (!errorCounts[field]) {
+                                  errorCounts[field] = 0;
+                                  errorMessages[field] = message;
+                                }
+                                errorCounts[field]++;
+                              });
+                            });
+                            
+                            return Object.entries(errorCounts)
+                              .sort(([,a], [,b]) => b - a)
+                              .slice(0, 5)
+                              .map(([field, count]) => (
+                                <div key={field} className="flex justify-between items-start">
+                                  <span>• {field.charAt(0).toUpperCase() + field.slice(1)}: {count} record{count > 1 ? 's' : ''}</span>
+                                  <span className="text-red-600 ml-2">({errorMessages[field]})</span>
+                                </div>
+                              ));
+                          })()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Data Table */}
+                  <div className="mb-6 overflow-x-auto border border-gray-200 rounded-lg">
                     <table className="min-w-full text-xs">
-                      <thead className="bg-gray-50">
-                        <tr className="divide-x divide-gray-200">
-                          <th className="px-2 py-2">Status</th>
-                          <th className="px-2 py-2">Name</th>
-                          <th className="px-2 py-2">Email</th>
-                          <th className="px-2 py-2">Employee ID</th>
-                          <th className="px-2 py-2">Phone</th>
-                          <th className="px-2 py-2">Campus</th>
-                          <th className="px-2 py-2">Branch</th>
-                          <th className="px-2 py-2">Role</th>
-                          <th className="px-2 py-2">Custom Role</th>
-                          <th className="px-2 py-2">Leave Balance</th>
-                          <th className="px-2 py-2">Status</th>
-                          <th className="px-2 py-2">Designation</th>
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="px-3 py-3 text-left font-medium text-gray-700">Row</th>
+                          <th className="px-3 py-3 text-left font-medium text-gray-700">Status</th>
+                          <th className="px-3 py-3 text-left font-medium text-gray-700">Name *</th>
+                          <th className="px-3 py-3 text-left font-medium text-gray-700">Email</th>
+                          <th className="px-3 py-3 text-left font-medium text-gray-700">Employee ID *</th>
+                          <th className="px-3 py-3 text-left font-medium text-gray-700">Phone *</th>
+                          <th className="px-3 py-3 text-left font-medium text-gray-700">Branch *</th>
+                          <th className="px-3 py-3 text-left font-medium text-gray-700">Role</th>
+                          <th className="px-3 py-3 text-left font-medium text-gray-700">Custom Role</th>
+                          <th className="px-3 py-3 text-left font-medium text-gray-700">Leave Balance</th>
+                          <th className="px-3 py-3 text-left font-medium text-gray-700">Designation</th>
+                          <th className="px-3 py-3 text-left font-medium text-gray-700"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
                         {bulkEditableData.map((row, idx) => {
                           const rowErrors = bulkErrors[idx];
                           const isValid = isRowValid(rowErrors);
+                          const errorCount = Object.keys(rowErrors).length;
+                          
                           return (
-                            <tr key={idx} className={`divide-x divide-gray-200 ${isValid ? 'bg-green-50/50' : 'bg-red-50/50'}`}>
-                              <td className="px-2 py-1 text-center">
-                                <div className={`w-3 h-3 rounded-full inline-block ${isValid ? 'bg-green-500' : 'bg-red-500'}`} title={Object.values(rowErrors).join(', ')}></div>
+                            <tr key={idx} className={`${isValid ? 'bg-green-50/30' : 'bg-red-50/30'} hover:bg-gray-50/50 transition-colors`}>
+                              <td className="px-3 py-2 font-medium text-gray-700">{idx + 1}</td>
+                              <td className="px-3 py-2">
+                                <div className={`flex items-center gap-2 ${isValid ? 'text-green-500' : 'text-red-500'}`}>
+                                <div className={`w-3 h-3 rounded-full ${isValid ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                  {!isValid && (
+                                    <span className="text-xs font-medium">
+                                      {/* Show the first error message instead of just error count */}
+                                      {Object.values(rowErrors)[0]}
+                                    </span>
+                                  )}
+                                </div>
                               </td>
-                              <td className="px-2 py-1"><input type="text" value={row.name || ''} onChange={(e) => handleBulkFieldChange(idx, 'name', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white" /></td>
-                              <td className="px-2 py-1"><input type="email" value={row.email || ''} onChange={(e) => handleBulkFieldChange(idx, 'email', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white" /></td>
-                              <td className="px-2 py-1"><input type="text" value={row.employeeId || ''} onChange={(e) => handleBulkFieldChange(idx, 'employeeId', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white" /></td>
-                              <td className="px-2 py-1"><input type="text" value={row.phoneNumber || ''} onChange={(e) => handleBulkFieldChange(idx, 'phoneNumber', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white" /></td>
-                              <td className="px-2 py-1"><input type="text" value={row.campus || ''} className="w-full bg-transparent p-1 outline-none focus:bg-white" readOnly /></td>
-                              <td className="px-2 py-1">
-                                <select value={row.branchCode || ''} onChange={(e) => handleBulkFieldChange(idx, 'branchCode', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white">
-                                  <option value="">Select</option>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="text"
+                                  value={row.name || ''}
+                                  onChange={(e) => handleBulkFieldChange(idx, 'name', e.target.value)}
+                                  className={`w-full p-1.5 rounded border text-sm ${rowErrors.name ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} focus:outline-none focus:ring-1 focus:ring-primary/50`}
+                                  placeholder="Full Name"
+                                />
+                                {rowErrors.name && <div className="text-red-500 text-xs mt-1">{rowErrors.name}</div>}
+                              </td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="email"
+                                  value={row.email || ''}
+                                  onChange={(e) => handleBulkFieldChange(idx, 'email', e.target.value)}
+                                  className={`w-full p-1.5 rounded border text-sm ${rowErrors.email ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} focus:outline-none focus:ring-1 focus:ring-primary/50`}
+                                  placeholder="email@example.com (optional)"
+                                />
+                                {rowErrors.email && <div className="text-red-500 text-xs mt-1">{rowErrors.email}</div>}
+                              </td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="text"
+                                  value={row.employeeId || ''}
+                                  onChange={(e) => handleBulkFieldChange(idx, 'employeeId', e.target.value)}
+                                  className={`w-full p-1.5 rounded border text-sm ${rowErrors.employeeId ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} focus:outline-none focus:ring-1 focus:ring-primary/50`}
+                                  placeholder="EMP001"
+                                />
+                                {rowErrors.employeeId && <div className="text-red-500 text-xs mt-1">{rowErrors.employeeId}</div>}
+                              </td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="text"
+                                  value={row.phoneNumber || ''}
+                                  onChange={(e) => handleBulkFieldChange(idx, 'phoneNumber', e.target.value)}
+                                  className={`w-full p-1.5 rounded border text-sm ${rowErrors.phoneNumber ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} focus:outline-none focus:ring-1 focus:ring-primary/50`}
+                                  placeholder="1234567890"
+                                />
+                                {rowErrors.phoneNumber && <div className="text-red-500 text-xs mt-1">{rowErrors.phoneNumber}</div>}
+                              </td>
+                              <td className="px-3 py-2">
+                                <select
+                                  value={row.branchCode || ''}
+                                  onChange={(e) => handleBulkFieldChange(idx, 'branchCode', e.target.value)}
+                                  className={`w-full p-1.5 rounded border text-sm ${rowErrors.branchCode ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} focus:outline-none focus:ring-1 focus:ring-primary/50`}
+                                >
+                                  <option value="">Select Branch</option>
                                   {row.branches?.map(branch => (<option key={branch.code} value={branch.code}>{branch.code}</option>))}
                                 </select>
+                                {rowErrors.branchCode && <div className="text-red-500 text-xs mt-1">{rowErrors.branchCode}</div>}
                               </td>
-                              <td className="px-2 py-1">
-                                <select value={row.role || ''} onChange={(e) => handleBulkFieldChange(idx, 'role', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white">
-                                  <option value="">Select</option>
-                                  {row.roles?.map(role => (<option key={role.value} value={role.value}>{role.label}</option>))}
+                              <td className="px-3 py-2">
+                                <select
+                                  value={row.role || ''}
+                                  onChange={(e) => handleBulkFieldChange(idx, 'role', e.target.value)}
+                                  className={`w-full p-1.5 rounded border text-sm ${rowErrors.role ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} focus:outline-none focus:ring-1 focus:ring-primary/50`}
+                                >
+                                  <option value="">Select Role</option>
+                                  {row.roles?.map(role => (
+                                    <option key={role.value} value={role.value}>
+                                      {role.label}
+                                    </option>
+                                  ))}
                                 </select>
+                                {rowErrors.role && <div className="text-red-500 text-xs mt-1">{rowErrors.role}</div>}
                               </td>
-                              <td className="px-2 py-1"><input type="text" value={row.customRole || ''} onChange={(e) => handleBulkFieldChange(idx, 'customRole', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white" /></td>
-                              <td className="px-2 py-1"><input type="number" value={row.leaveBalanceByExperience || ''} onChange={(e) => handleBulkFieldChange(idx, 'leaveBalanceByExperience', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white" /></td>
-                              <td className="px-2 py-1">
-                                <select value={row.status || 'active'} onChange={(e) => handleBulkFieldChange(idx, 'status', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white">
-                                  <option value="active">Active</option><option value="inactive">Inactive</option>
-                                </select>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="text"
+                                  value={row.customRole || ''}
+                                  onChange={(e) => handleBulkFieldChange(idx, 'customRole', e.target.value)}
+                                  className={`w-full p-1.5 rounded border text-sm ${rowErrors.customRole ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} focus:outline-none focus:ring-1 focus:ring-primary/50`}
+                                  placeholder="Custom role if 'other'"
+                                  disabled={row.role !== 'other'}
+                                />
+                                {rowErrors.customRole && <div className="text-red-500 text-xs mt-1">{rowErrors.customRole}</div>}
                               </td>
-                              <td className="px-2 py-1"><input type="text" value={row.designation || ''} onChange={(e) => handleBulkFieldChange(idx, 'designation', e.target.value)} className="w-full bg-transparent p-1 outline-none focus:bg-white" /></td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="number"
+                                  value={row.leaveBalanceByExperience || ''}
+                                  onChange={(e) => handleBulkFieldChange(idx, 'leaveBalanceByExperience', e.target.value)}
+                                  className={`w-full p-1.5 rounded border text-sm ${rowErrors.leaveBalanceByExperience ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'} focus:outline-none focus:ring-1 focus:ring-primary/50`}
+                                  placeholder="12"
+                                  min="0"
+                                  max="30"
+                                />
+                                {rowErrors.leaveBalanceByExperience && <div className="text-red-500 text-xs mt-1">{rowErrors.leaveBalanceByExperience}</div>}
+                              </td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="text"
+                                  value={row.designation || ''}
+                                  onChange={(e) => handleBulkFieldChange(idx, 'designation', e.target.value)}
+                                  className="w-full p-1.5 rounded border text-sm border-gray-300 bg-white focus:outline-none focus:ring-1 focus:ring-primary/50"
+                                  placeholder="Optional designation"
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <button
+                                  onClick={() => deleteBulkRow(idx)}
+                                  className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                                  title="Delete this row"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              </td>
                             </tr>
                           );
                         })}
                       </tbody>
                     </table>
                   </div>
-                  <div className="flex justify-end gap-3">
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium">*</span> Required fields
+                    </div>
+                    <div className="flex gap-3">
                     <button
                       type="button"
-                      className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition font-medium"
+                        className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition font-medium"
                       onClick={() => {
                         setShowBulkModal(false);
                         setBulkFile(null);
@@ -1485,13 +1832,56 @@ const HRDashboard = () => {
                     </button>
                     <button
                       type="button"
-                      className="px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark transition font-medium"
+                        className="px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={handleBulkRegister}
                       disabled={bulkLoading || !isBulkValid}
                     >
-                      {bulkLoading ? 'Registering...' : `Register ${bulkEditableData.filter((_, idx) => isRowValid(bulkErrors[idx])).length} Valid Records`}
+                        {bulkLoading ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Registering...
+                          </div>
+                        ) : (
+                          `Register ${bulkEditableData.filter((_, idx) => isRowValid(bulkErrors[idx])).length} Valid Records`
+                        )}
                     </button>
                   </div>
+                  </div>
+
+                  {/* Results Section */}
+                  {bulkResults.length > 0 && (
+                    <div className="mt-6 p-4 bg-white rounded-lg border border-gray-200">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4">Registration Results</h4>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-3 py-2 text-left">Row</th>
+                              <th className="px-3 py-2 text-left">Employee ID</th>
+                              <th className="px-3 py-2 text-left">Email</th>
+                              <th className="px-3 py-2 text-left">Status</th>
+                              <th className="px-3 py-2 text-left">Message</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {bulkResults.map((result, idx) => (
+                              <tr key={idx} className={result.success ? 'bg-green-50' : 'bg-red-50'}>
+                                <td className="px-3 py-2 font-medium">{result.row}</td>
+                                <td className="px-3 py-2">{result.employeeId}</td>
+                                <td className="px-3 py-2">{result.email}</td>
+                                <td className="px-3 py-2">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${result.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                    {result.success ? 'Success' : 'Failed'}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2 text-sm">{result.error || 'Registered successfully'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>

@@ -128,13 +128,15 @@ exports.registerEmployee = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!name || !email || !password || !employeeId || !department || !role) {
+    if (!name || !password || !employeeId || !department) {
       return res.status(400).json({ msg: 'Please provide all required fields' });
     }
 
-    // Validate email format
-    if (!validateEmail(email)) {
-      return res.status(400).json({ msg: 'Please provide a valid email address' });
+    // Validate email format only if email is provided
+    if (email && email.trim() !== '') {
+      if (!validateEmail(email)) {
+        return res.status(400).json({ msg: 'Please provide a valid email address' });
+      }
     }
 
     // Check if employee ID already exists
@@ -143,10 +145,12 @@ exports.registerEmployee = async (req, res) => {
       return res.status(400).json({ msg: 'Employee ID already exists' });
     }
 
-    // Check if email already exists
-    const existingEmail = await Employee.findOne({ email: email.toLowerCase() });
-    if (existingEmail) {
-      return res.status(400).json({ msg: 'Email already exists' });
+    // Check if email already exists only if email is provided
+    if (email && email.trim() !== '') {
+      const existingEmail = await Employee.findOne({ email: email.toLowerCase() });
+      if (existingEmail) {
+        return res.status(400).json({ msg: 'Email already exists' });
+      }
     }
 
     // Get HR's campus
@@ -155,32 +159,39 @@ exports.registerEmployee = async (req, res) => {
       return res.status(404).json({ msg: 'HR not found' });
     }
 
-    // Validate role for campus using static method before creating the employee
-    try {
-      Employee.validateRoleForCampus(hr.campus.name.toLowerCase(), role);
-    } catch (error) {
-      return res.status(400).json({ msg: error.message });
+    // Validate role for campus only if role is provided
+    if (role && role.trim() !== '') {
+      try {
+        Employee.validateRoleForCampus(hr.campus.name.toLowerCase(), role);
+      } catch (error) {
+        return res.status(400).json({ msg: error.message });
+      }
     }
 
     // Determine roleDisplayName
     let roleDisplayName = '';
-    if (role === 'other') {
-      if (!customRole || !customRole.trim()) {
-        return res.status(400).json({ msg: 'Please provide a custom role name.' });
+    if (role && role.trim() !== '') {
+      if (role === 'other') {
+        if (!customRole || !customRole.trim()) {
+          return res.status(400).json({ msg: 'Please provide a custom role name.' });
+        }
+        roleDisplayName = customRole.trim();
+      } else {
+        // Find the label for the selected role
+        const campusRoles = getCampusRoles(hr.campus.name.toLowerCase());
+        const found = campusRoles.find(r => r.value === role);
+        roleDisplayName = found ? found.label : role;
       }
-      roleDisplayName = customRole.trim();
     } else {
-      // Find the label for the selected role
-      const campusRoles = getCampusRoles(hr.campus.name.toLowerCase());
-      const found = campusRoles.find(r => r.value === role);
-      roleDisplayName = found ? found.label : role;
+      // Default role if none provided
+      roleDisplayName = 'Faculty';
     }
 
     // Create new employee
     const leaveBalanceExpNum = typeof leaveBalanceByExperience === 'number' ? leaveBalanceByExperience : (leaveBalanceByExperience ? Number(leaveBalanceByExperience) : 0);
     const employee = new Employee({
       name,
-      email: email.toLowerCase(),
+      email: email && email.trim() !== '' ? email.toLowerCase().trim() : null,
       password,
       phoneNumber,
       employeeId,
@@ -197,17 +208,19 @@ exports.registerEmployee = async (req, res) => {
 
     await employee.save();
 
-    // Send credentials email to the employee
-    try {
-      await sendEmployeeCredentials(employee, password);
-      console.log('Employee credentials email sent to:', employee.email);
-    } catch (emailError) {
-      console.error('Error sending employee credentials email:', emailError);
-      // Don't fail the registration if email fails
+    // Send credentials email to the employee only if email is provided
+    if (email && email.trim() !== '') {
+      try {
+        await sendEmployeeCredentials(employee, password);
+        console.log('Employee credentials email sent to:', employee.email);
+      } catch (emailError) {
+        console.error('Error sending employee credentials email:', emailError);
+        // Don't fail the registration if email fails
+      }
     }
 
     res.status(201).json({
-      msg: 'Employee registered successfully',
+      msg: email && email.trim() !== '' ? 'Employee registered successfully and credentials sent via email' : 'Employee registered successfully (no email provided)',
       employee: {
         id: employee._id,
         name: employee.name,
@@ -471,23 +484,40 @@ exports.bulkRegisterEmployees = async (req, res) => {
       // Prepare result object for this row
       const result = { row: index + 1, employeeId, email };
 
-      // Validate required fields
-      if (!name || !email || !employeeId || !phoneNumber || !role || !department || !branchCode) {
+      // Validate required fields with specific error messages
+      const missingFields = [];
+      if (!name || String(name).trim() === '') missingFields.push('Name');
+      if (!employeeId || String(employeeId).trim() === '') missingFields.push('Employee ID');
+      if (!phoneNumber || String(phoneNumber).trim() === '') missingFields.push('Phone Number');
+      if (!branchCode || String(branchCode).trim() === '') missingFields.push('Branch');
+
+      if (missingFields.length > 0) {
         result.success = false;
-        result.error = 'Missing required fields';
+        result.error = `Missing required fields: ${missingFields.join(', ')}`;
         results.push(result);
         continue;
       }
 
-      // Validate email format
-      if (!validateEmail(email)) {
-        result.success = false;
-        result.error = 'Invalid email format';
-        results.push(result);
-        continue;
+      // Validate email format only if email is provided
+      if (email && email.trim() !== '') {
+        if (!validateEmail(email)) {
+          result.success = false;
+          result.error = 'Invalid email format';
+          results.push(result);
+          continue;
+        }
+
+        // Check for unique email only if email is provided
+        const existingEmail = await Employee.findOne({ email: email.toLowerCase() });
+        if (existingEmail) {
+          result.success = false;
+          result.error = 'Email already exists';
+          results.push(result);
+          continue;
+        }
       }
 
-      // Check for unique employeeId and email
+      // Check for unique employeeId
       const existingEmployeeId = await Employee.findOne({ employeeId });
       if (existingEmployeeId) {
         result.success = false;
@@ -495,27 +525,23 @@ exports.bulkRegisterEmployees = async (req, res) => {
         results.push(result);
         continue;
       }
-      const existingEmail = await Employee.findOne({ email: email.toLowerCase() });
-      if (existingEmail) {
-        result.success = false;
-        result.error = 'Email already exists';
-        results.push(result);
-        continue;
-      }
 
-      // Validate role for campus
-      try {
-        Employee.validateRoleForCampus(campus, role);
-      } catch (error) {
-        result.success = false;
-        result.error = error.message;
-        results.push(result);
-        continue;
+      // Validate role for campus only if role is provided
+      if (role && role.trim() !== '') {
+        try {
+          Employee.validateRoleForCampus(campus, role);
+        } catch (error) {
+          result.success = false;
+          result.error = error.message;
+          results.push(result);
+          continue;
+        }
       }
 
       // Handle custom role
       let roleDisplayName = '';
-      if (role === 'other') {
+      let finalRole = role && role.trim() !== '' ? role : 'faculty'; // Default to faculty if no role provided
+      if (finalRole === 'other') {
         if (!customRole || !customRole.trim()) {
           result.success = false;
           result.error = 'Custom role required for role "other"';
@@ -526,28 +552,28 @@ exports.bulkRegisterEmployees = async (req, res) => {
       } else {
         // Find the label for the selected role
         const campusRoles = getCampusRoles(campus);
-        const found = campusRoles.find(r => r.value === role);
-        roleDisplayName = found ? found.label : role;
+        const found = campusRoles.find(r => r.value === finalRole);
+        roleDisplayName = found ? found.label : finalRole;
       }
 
       // Generate password: employeeId + first 4 digits of phoneNumber
       const password = employeeId + (phoneNumber ? String(phoneNumber).slice(0, 4) : '0000');
 
-      // Create new employee
-      const leaveBalanceExpNum = typeof leaveBalanceByExperience === 'number' ? leaveBalanceByExperience : (leaveBalanceByExperience ? Number(leaveBalanceByExperience) : 0);
+      // Create new employee with proper field mapping
+      const leaveBalanceExpNum = typeof leaveBalanceByExperience === 'number' ? leaveBalanceByExperience : (leaveBalanceByExperience ? Number(leaveBalanceByExperience) : 12);
       const employee = new Employee({
-        name,
-        email: email.toLowerCase(),
+        name: name ? String(name).trim() : '',
+        email: email && email.trim() !== '' ? email.toLowerCase().trim() : null, // Make email optional
         password,
-        phoneNumber,
-        employeeId,
-        department,
-        branchCode: branchCode.toUpperCase(),
-        role,
+        phoneNumber: phoneNumber ? String(phoneNumber).trim() : '',
+        employeeId: employeeId ? String(employeeId).trim() : '',
+        department: branchCode ? String(branchCode).trim() : '', // Use branchCode as department
+        branchCode: branchCode ? String(branchCode).trim().toUpperCase() : '',
+        role: finalRole,
         roleDisplayName,
         campus,
         status,
-        designation,
+        designation: designation ? String(designation).trim() : '',
         leaveBalance: leaveBalanceExpNum > 0 ? leaveBalanceExpNum : 12,
         cclBalance: 0,
         leaveBalanceByExperience: leaveBalanceExpNum
@@ -555,12 +581,17 @@ exports.bulkRegisterEmployees = async (req, res) => {
 
       try {
         await employee.save();
-        // Send credentials email
-        await sendEmployeeCredentials(employee, password);
+        // Send credentials email only if email is provided
+        if (email && email.trim() !== '') {
+          await sendEmployeeCredentials(employee, password);
+          result.message = 'Employee registered successfully and credentials sent via email';
+        } else {
+          result.message = 'Employee registered successfully (no email provided)';
+        }
         result.success = true;
       } catch (err) {
         result.success = false;
-        result.error = err.message;
+        result.error = err.message || 'Failed to save employee';
       }
       results.push(result);
     }
