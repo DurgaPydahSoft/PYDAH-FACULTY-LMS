@@ -4,7 +4,7 @@ require('dotenv').config();
 
 const BRANCH_CODES = {
   Engineering: ['CSE', 'ECE', 'MECH', 'AGRI', 'CIVIL', 'CSE_AI', 'HBS'],
-  Diploma: ['DCSE', 'DECE', 'DAIML', 'DME', 'DAP', 'D_FISHERIES', 'D_ANIMAL_HUSBANDRY'],
+  Diploma: ['DCSE', 'DECE', 'DAIML', 'DME', 'DAP','DHBS', 'D_FISHERIES', 'D_ANIMAL_HUSBANDRY'],
   Pharmacy: ['B_PHARMACY', 'PHARM_D', 'PHARM_PB_D', 'PHARMACEUTICAL_ANALYSIS', 'PHARMACEUTICS', 'PHARMA_QUALITY_ASSURANCE'],
   Degree: ['AGRICULTURE', 'HORTICULTURE', 'FOOD_TECHNOLOGY', 'FISHERIES', 'FOOD_SCIENCE_NUTRITION']
 };
@@ -22,6 +22,7 @@ const BRANCH_NAMES = {
   DAIML: 'Diploma in AI and Machine Learning',
   DME: 'Diploma in Mechanical Engineering',
   DAP: 'Diploma in Agricultural Production',
+  DHBS: 'Diploma in Humanities and Basic Sciences',
   D_FISHERIES: 'Diploma in Fisheries',
   D_ANIMAL_HUSBANDRY: 'Diploma in Animal Husbandry',
   B_PHARMACY: 'Bachelor of Pharmacy',
