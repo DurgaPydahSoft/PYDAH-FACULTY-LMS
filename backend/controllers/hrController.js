@@ -93,7 +93,7 @@ const getCampusRoles = (campus) => {
     ],
     diploma: [
       { value: 'senior_lecturer', label: 'Senior Lecturer' },
-      { value: 'junior_lecturer', label: 'Junior Lecturer' },
+      { value: 'lecturer', label: 'Lecturer' },
       { value: 'lab_incharge', label: 'Lab Incharge' }
     ],
     pharmacy: [

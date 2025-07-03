@@ -1681,7 +1681,7 @@ exports.getCampusEmployees = async (req, res) => {
           'technician',
           // Diploma roles
           'senior_lecturer',
-          'junior_lecturer',
+          'lecturer',
           // Common roles
           'faculty',
           'employee'
