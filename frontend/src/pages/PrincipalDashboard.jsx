@@ -56,6 +56,7 @@ const PrincipalDashboard = () => {
   });
   const [hods, setHods] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [allEmployees, setAllEmployees] = useState([]); // Store all employees for client-side filtering
   const [employeeFilters, setEmployeeFilters] = useState({
     search: '',
     department: '',
@@ -188,7 +189,9 @@ const PrincipalDashboard = () => {
         data: response.data,
         hasBranches: !!response.data.branches,
         isArray: Array.isArray(response.data),
-        length: response.data.branches?.length || (Array.isArray(response.data) ? response.data.length : 0)
+        length: response.data.branches?.length || (Array.isArray(response.data) ? response.data.length : 0),
+        status: response.status,
+        statusText: response.statusText
       });
       
       if (response.data.branches) {
@@ -202,7 +205,12 @@ const PrincipalDashboard = () => {
         setBranches([]);
       }
     } catch (error) {
-      console.error('Error fetching branches:', error.response?.data || error.message);
+      console.error('Error fetching branches:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText
+      });
       toast.error('Failed to fetch branches');
       setBranches([]);
     } finally {
@@ -229,17 +237,88 @@ const PrincipalDashboard = () => {
   const fetchEmployees = async () => {
     try {
       setLoading(prev => ({ ...prev, employees: true }));
+      
+      // Always fetch all employees first
       const response = await axiosInstance.get('/principal/employees');
-      console.log('Employees response:', response.data);
+      console.log('All employees response:', {
+        data: response.data,
+        count: Array.isArray(response.data) ? response.data.length : 0,
+        status: response.status
+      });
+      
       if (Array.isArray(response.data)) {
-        setEmployees(response.data);
+        setAllEmployees(response.data);
+        applyEmployeeFilters(response.data);
       }
     } catch (error) {
-      console.error('Error fetching employees:', error.response?.data || error.message);
+      console.error('Error fetching employees:', {
+        error: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       toast.error('Failed to fetch employees');
     } finally {
       setLoading(prev => ({ ...prev, employees: false }));
     }
+  };
+
+  const applyEmployeeFilters = (employeeData = allEmployees) => {
+    console.log('applyEmployeeFilters called with:', {
+      employeeDataLength: employeeData.length,
+      filters: employeeFilters
+    });
+    
+    // Apply client-side filtering
+    let filteredEmployees = [...employeeData];
+    
+    // Debug: Log first employee to see field structure
+    if (employeeData.length > 0) {
+      console.log('First employee structure:', employeeData[0]);
+    }
+    
+    // Apply search filter
+    if (employeeFilters.search) {
+      const searchTerm = employeeFilters.search.toLowerCase();
+      filteredEmployees = filteredEmployees.filter(emp => 
+        emp.name?.toLowerCase().includes(searchTerm) ||
+        emp.email?.toLowerCase().includes(searchTerm) ||
+        emp.employeeId?.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // Apply department filter
+    if (employeeFilters.department) {
+      console.log('Applying department filter for:', employeeFilters.department);
+      const beforeFilter = filteredEmployees.length;
+      filteredEmployees = filteredEmployees.filter(emp => {
+        const empDept = emp.branchCode || emp.department;
+        const matches = empDept === employeeFilters.department;
+        console.log('Employee department comparison:', {
+          employee: emp.name,
+          empDept,
+          filterDept: employeeFilters.department,
+          matches
+        });
+        return matches;
+      });
+      console.log(`Department filter: ${beforeFilter} -> ${filteredEmployees.length} employees`);
+    }
+    
+    // Apply status filter
+    if (employeeFilters.status) {
+      filteredEmployees = filteredEmployees.filter(emp => 
+        emp.status === employeeFilters.status
+      );
+    }
+    
+    console.log('Filtered employees:', {
+      total: employeeData.length,
+      filtered: filteredEmployees.length,
+      filters: employeeFilters
+    });
+    
+    console.log('Setting employees state with:', filteredEmployees.length, 'employees');
+    setEmployees(filteredEmployees);
   };
 
   const fetchForwardedLeaves = async () => {
@@ -1188,34 +1267,60 @@ const PrincipalDashboard = () => {
           <div className="p-6 mt-4">
             <h2 className="text-2xl font-bold text-primary mb-6">Employee Management</h2>
             <div className="bg-secondary rounded-neumorphic shadow-outerRaised p-6">
+
               {/* Employee filters */}
-              <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <input
-                  type="text"
-                  placeholder="Search by name, email, or ID..."
-                  value={employeeFilters.search}
-                  onChange={(e) => setEmployeeFilters({ ...employeeFilters, search: e.target.value })}
-                  className="p-2 rounded-neumorphic shadow-innerSoft bg-background"
-                />
-                <select
-                  value={employeeFilters.department}
-                  onChange={(e) => setEmployeeFilters({ ...employeeFilters, department: e.target.value })}
-                  className="p-2 rounded-neumorphic shadow-innerSoft bg-background"
-                >
-                  <option value="">All Departments</option>
-                  {branches.map((branch) => (
-                    <option key={branch.code} value={branch.code}>{branch.name}</option>
-                  ))}
-                </select>
-                <select
-                  value={employeeFilters.status}
-                  onChange={(e) => setEmployeeFilters({ ...employeeFilters, status: e.target.value })}
-                  className="p-2 rounded-neumorphic shadow-innerSoft bg-background"
-                >
-                  <option value="">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
+              <div className="mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+                  <input
+                    type="text"
+                    placeholder="Search by name, email, or ID..."
+                    value={employeeFilters.search}
+                    onChange={(e) => {
+                      console.log('Search filter changed to:', e.target.value);
+                      setEmployeeFilters({ ...employeeFilters, search: e.target.value });
+                    }}
+                    className="p-2 rounded-neumorphic shadow-innerSoft bg-background"
+                  />
+                  <select
+                    value={employeeFilters.department}
+                    onChange={(e) => {
+                      console.log('Department filter changed to:', e.target.value);
+                      setEmployeeFilters({ ...employeeFilters, department: e.target.value });
+                    }}
+                    className="p-2 rounded-neumorphic shadow-innerSoft bg-background"
+                  >
+                    <option value="">All Departments</option>
+                    {branches && branches.length > 0 ? (
+                      branches.map((branch) => (
+                        <option key={branch.code} value={branch.code}>{branch.name}</option>
+                      ))
+                    ) : (
+                      <option value="" disabled>Loading departments...</option>
+                    )}
+                  </select>
+                  <select
+                    value={employeeFilters.status}
+                    onChange={(e) => {
+                      console.log('Status filter changed to:', e.target.value);
+                      setEmployeeFilters({ ...employeeFilters, status: e.target.value });
+                    }}
+                    className="p-2 rounded-neumorphic shadow-innerSoft bg-background"
+                  >
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+                {(employeeFilters.search || employeeFilters.department || employeeFilters.status) && (
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => setEmployeeFilters({ search: '', department: '', status: '' })}
+                      className="text-sm text-blue-600 hover:text-blue-800 underline"
+                    >
+                      Clear Filters
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Employee list: Table only on md+ screens */}
@@ -2029,6 +2134,21 @@ const PrincipalDashboard = () => {
       fetchInitialData();
     }
   }, [user?.token]);
+
+  // Apply filters when filters change
+  useEffect(() => {
+    console.log('Filter change detected:', employeeFilters);
+    const token = localStorage.getItem('token');
+    if (token && allEmployees.length > 0) {
+      console.log('Applying filters to', allEmployees.length, 'employees');
+      applyEmployeeFilters();
+    } else {
+      console.log('Cannot apply filters:', { 
+        hasToken: !!token, 
+        allEmployeesLength: allEmployees.length 
+      });
+    }
+  }, [employeeFilters.search, employeeFilters.department, employeeFilters.status, allEmployees.length]);
 
   const exportToPDF = (pdfIncludeCCL = true, pdfIncludeSummary = true) => {
     if (!forwardedLeaves.length && !cclWorkRequests.length) {
