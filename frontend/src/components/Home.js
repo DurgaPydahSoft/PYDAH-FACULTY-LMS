@@ -239,7 +239,7 @@ const LandingPage = () => {
               <Slider {...sliderSettings}>
                 <div className="relative h-48 sm:h-48 md:h-80 lg:h-80">
                   <img
-                    src="https://static.wixstatic.com/media/bfee2e_a361f3557fc440c98d1d2edf8c1f0d1f~mv2.jpg/v1/fill/w_1891,h_783,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/bfee2e_a361f3557fc440c98d1d2edf8c1f0d1f~mv2.jpg"
+                    src="https://img.freepik.com/premium-photo/group-happy-smiling-business-people-standing-vector-illustration-cartoon-style_941097-22130.jpg"
                     alt="College Campus"
                     className="w-full h-full object-cover"
                   />
@@ -247,7 +247,7 @@ const LandingPage = () => {
                 </div>
                 <div className="relative h-48 sm:h-48 md:h-80 lg:h-80">
                   <img
-                    src="https://www.vidyavision.com/CollegeUploads/Photos/2019-30-3-15-05-13_Screenshot%20(160).png"
+                    src="https://media.istockphoto.com/id/1471444483/photo/customer-satisfaction-survey-concept-users-rate-service-experiences-on-online-application.jpg?s=612x612&w=0&k=20&c=HFh1o4JU68KWv7PXgbLdIZT0_qepmgePEkvbsLJr5p0="
                     alt="College Campus"
                     className="w-full h-full object-cover"
                   />
