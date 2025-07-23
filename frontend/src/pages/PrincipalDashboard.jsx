@@ -165,6 +165,7 @@ const PrincipalDashboard = () => {
 
     // Fetch initial data
     const fetchData = async () => {
+      console.log('Starting initial data fetch...');
       try {
         await Promise.all([
           fetchBranches(),
@@ -173,6 +174,9 @@ const PrincipalDashboard = () => {
           fetchForwardedLeaves(),
           fetchCCLWorkRequests()
         ]);
+        // Reset initial load flag after data is loaded
+        isInitialLoad.current = false;
+        console.log('Initial data fetch completed, isInitialLoad set to false');
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       }
@@ -322,6 +326,7 @@ const PrincipalDashboard = () => {
   };
 
   const fetchForwardedLeaves = async (filters = {}) => {
+    console.log('fetchForwardedLeaves called with filters:', filters);
     try {
       setLoading(prev => ({ ...prev, leaves: true }));
       
@@ -354,6 +359,7 @@ const PrincipalDashboard = () => {
         });
         
         setForwardedLeaves(response.data);
+        console.log('Set forwardedLeaves with', response.data.length, 'items');
       }
     } catch (error) {
       console.error('Error fetching leaves:', error.response?.data || error.message);
@@ -2146,31 +2152,7 @@ const PrincipalDashboard = () => {
     }
   };
 
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      setLoading(true);
-      try {
-        await Promise.all([
-          fetchBranches(),
-          fetchHods(),
-          fetchEmployees(),
-          fetchForwardedLeaves(),
-          fetchCCLWorkRequests()
-        ]);
-        // Reset initial load flag after data is loaded
-        isInitialLoad.current = false;
-      } catch (error) {
-        console.error('Error fetching initial data:', error);
-        toast.error('Failed to load dashboard data');
-      } finally {
-        setLoading(false);
-      }
-    };
 
-    if (user?.token) {
-      fetchInitialData();
-    }
-  }, [user?.token]);
 
   // Apply employee filters when filters change
   useEffect(() => {
@@ -2190,6 +2172,13 @@ const PrincipalDashboard = () => {
   // Apply leave filters when filters change
   useEffect(() => {
     console.log('Leave filter change detected:', leaveFilters);
+    console.log('Current state:', {
+      hasToken: !!localStorage.getItem('token'),
+      isInitialLoad: isInitialLoad.current,
+      leavesLength: forwardedLeaves.length,
+      filterValues: leaveFilters
+    });
+    
     const token = localStorage.getItem('token');
     if (token && !isInitialLoad.current) {
       console.log('Fetching leaves with filters:', leaveFilters);
