@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axiosInstance from '../utils/axiosConfig';
-import { validateEmail } from '../utils/validators';
 import { toast } from 'react-toastify';
 import HodPasswordResetModal from '../components/HodPasswordResetModal';
 import RemarksModal from '../components/RemarksModal';
@@ -127,6 +126,7 @@ const PrincipalDashboard = () => {
   const [filteredCCLWorkRequests, setFilteredCCLWorkRequests] = useState([]);
   // 1. Add state for modal and options
   const [showExportModal, setShowExportModal] = useState(false);
+  const isInitialLoad = useRef(true);
   const [exportIncludeCCL, setExportIncludeCCL] = useState(true);
   const [exportIncludeSummary, setExportIncludeSummary] = useState(true);
 
@@ -321,10 +321,21 @@ const PrincipalDashboard = () => {
     setEmployees(filteredEmployees);
   };
 
-  const fetchForwardedLeaves = async () => {
+  const fetchForwardedLeaves = async (filters = {}) => {
     try {
       setLoading(prev => ({ ...prev, leaves: true }));
-      const response = await axiosInstance.get('/principal/campus-leaves');
+      
+      // Build query parameters for filtering
+      const queryParams = new URLSearchParams();
+      if (filters.department) queryParams.append('department', filters.department);
+      if (filters.leaveType) queryParams.append('leaveType', filters.leaveType);
+      if (filters.startDate) queryParams.append('startDate', filters.startDate);
+      if (filters.endDate) queryParams.append('endDate', filters.endDate);
+      
+      const url = `/principal/campus-leaves${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      console.log('Fetching leaves with URL:', url);
+      
+      const response = await axiosInstance.get(url);
       console.log('Leaves response:', response.data);
       
       // Debug: Check for modification data in the response
@@ -430,12 +441,6 @@ const PrincipalDashboard = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-
-    if (!validateEmail(formData.email)) {
-      setError('Please enter a valid email address');
-      setLoading(false);
-      return;
-    }
 
     // Get campus type with proper capitalization
     const campusType = campus.charAt(0).toUpperCase() + campus.slice(1);
@@ -626,8 +631,9 @@ const PrincipalDashboard = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
+      // Get fresh token from localStorage
+      const freshToken = localStorage.getItem('token');
+      if (!freshToken) {
         console.error('No token found in localStorage');
         toast.error('Authentication token missing. Please login again.');
         setShouldRedirect(true);
@@ -638,7 +644,9 @@ const PrincipalDashboard = () => {
         requestId: selectedRequestId,
         action: selectedAction,
         remarks,
-        token: token ? 'Present' : 'Missing',
+        token: freshToken ? 'Present' : 'Missing',
+        tokenLength: freshToken ? freshToken.length : 0,
+        tokenStart: freshToken ? freshToken.substring(0, 20) + '...' : 'None',
         campus
       });
 
@@ -647,12 +655,6 @@ const PrincipalDashboard = () => {
         {
           action: selectedAction,
           remarks: remarks || `${selectedAction === 'approve' ? 'Approved' : 'Rejected'} by Principal`
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
         }
       );
 
@@ -714,11 +716,6 @@ const PrincipalDashboard = () => {
         {
           status,
           remarks: cclRemarks || `${status} by Principal`
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
         }
       );
 
@@ -1420,9 +1417,20 @@ const PrincipalDashboard = () => {
         );
 
       case 'leaves':
+        // Apply client-side filtering for status and combine with backend-filtered data
+        const filteredLeaves = forwardedLeaves.filter(leave => {
+          // Apply status filter (client-side only)
+          if (leaveFilters.status && leaveFilters.status !== 'All') {
+            if (leave.status !== leaveFilters.status) {
+              return false;
+            }
+          }
+          return true;
+        });
+
         // Calculate paginated leaves and CCLs
         const allLeaveRows = [
-          ...forwardedLeaves.map(leave => ({ ...leave, _isLeave: true })),
+          ...filteredLeaves.map(leave => ({ ...leave, _isLeave: true })),
           ...cclWorkRequests.map(ccl => ({ ...ccl, _isLeave: false }))
         ];
         const totalLeavePages = Math.ceil(allLeaveRows.length / LEAVES_PER_PAGE) || 1;
@@ -1447,50 +1455,60 @@ const PrincipalDashboard = () => {
             </div>
             <div className="bg-secondary rounded-neumorphic shadow-outerRaised p-6">
               {/* Filter UI for leaves */}
-              <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
-                  <input
-                    type="date"
-                    value={leaveFilters.startDate}
-                    onChange={e => setLeaveFilters({ ...leaveFilters, startDate: e.target.value })}
-                    className="w-full p-2 rounded-neumorphic shadow-innerSoft bg-background border border-gray-300"
-                  />
+              <div className="mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+                    <input
+                      type="date"
+                      value={leaveFilters.startDate}
+                      onChange={e => setLeaveFilters({ ...leaveFilters, startDate: e.target.value })}
+                      className="w-full p-2 rounded-neumorphic shadow-innerSoft bg-background border border-gray-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+                    <input
+                      type="date"
+                      value={leaveFilters.endDate}
+                      onChange={e => setLeaveFilters({ ...leaveFilters, endDate: e.target.value })}
+                      className="w-full p-2 rounded-neumorphic shadow-innerSoft bg-background border border-gray-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                    <select
+                      value={leaveFilters.department}
+                      onChange={e => setLeaveFilters({ ...leaveFilters, department: e.target.value })}
+                      className="w-full p-2 rounded-neumorphic shadow-innerSoft bg-background border border-gray-300"
+                    >
+                      <option value="">All Departments</option>
+                      {branches.map(branch => (
+                        <option key={branch.code} value={branch.code}>{branch.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select
+                      value={leaveFilters.status}
+                      onChange={e => setLeaveFilters({ ...leaveFilters, status: e.target.value })}
+                      className="w-full p-2 rounded-neumorphic shadow-innerSoft bg-background border border-gray-300"
+                    >
+                      <option value="Forwarded by HOD">Forwarded by HOD</option>
+                      <option value="Approved">Approved</option>
+                      <option value="Rejected">Rejected</option>
+                      <option value="All">All Status</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
-                  <input
-                    type="date"
-                    value={leaveFilters.endDate}
-                    onChange={e => setLeaveFilters({ ...leaveFilters, endDate: e.target.value })}
-                    className="w-full p-2 rounded-neumorphic shadow-innerSoft bg-background border border-gray-300"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                  <select
-                    value={leaveFilters.department}
-                    onChange={e => setLeaveFilters({ ...leaveFilters, department: e.target.value })}
-                    className="w-full p-2 rounded-neumorphic shadow-innerSoft bg-background border border-gray-300"
+                <div className="flex justify-end">
+                  <button
+                    onClick={clearLeaveFilters}
+                    className="bg-gray-500 text-white px-4 py-2 rounded shadow hover:bg-gray-600 transition"
                   >
-                    <option value="">All Departments</option>
-                    {branches.map(branch => (
-                      <option key={branch.code} value={branch.code}>{branch.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={leaveFilters.status}
-                    onChange={e => setLeaveFilters({ ...leaveFilters, status: e.target.value })}
-                    className="w-full p-2 rounded-neumorphic shadow-innerSoft bg-background border border-gray-300"
-                  >
-                    <option value="Forwarded by HOD">Forwarded by HOD</option>
-                    <option value="Approved">Approved</option>
-                    <option value="Rejected">Rejected</option>
-                    <option value="All">All Status</option>
-                  </select>
+                    Clear Filters
+                  </button>
                 </div>
               </div>
               {/* Responsive Table for md+ screens, Cards for small screens */}
@@ -1743,15 +1761,30 @@ const PrincipalDashboard = () => {
                           </span>
                         )}
                       </div>
-                      <button
-                        className="bg-primary text-white px-3 py-1 rounded-md text-xs hover:bg-primary-dark transition-colors"
-                        onClick={() => {
-                          setSelectedLeave(leave);
-                          setShowLeaveDetailsModal(true);
-                        }}
-                      >
-                        View
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          className="bg-primary text-white px-3 py-1 rounded-md text-xs hover:bg-primary-dark transition-colors"
+                          onClick={() => {
+                            setSelectedLeave(leave);
+                            setShowLeaveDetailsModal(true);
+                          }}
+                        >
+                          View
+                        </button>
+                        {(leave.status === 'Forwarded by HOD' || leave.status === 'Approved') && (
+                          <button
+                            className="bg-red-500 text-white px-3 py-1 rounded-md text-xs hover:bg-red-600 transition-colors"
+                            onClick={() => {
+                              setSelectedRequestId(leave._id);
+                              setSelectedAction('reject');
+                              setShowRemarksModal(true);
+                            }}
+                            title={leave.status === 'Approved' ? 'Reject Approved Request' : 'Reject Request'}
+                          >
+                            Reject
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1973,18 +2006,20 @@ const PrincipalDashboard = () => {
                     )}
 
                     {/* Action Buttons */}
-                    {selectedLeave.status === 'Forwarded by HOD' && (
+                    {(selectedLeave.status === 'Forwarded by HOD' || selectedLeave.status === 'Approved') && (
                       <div className="flex justify-end space-x-4 mt-6">
-                        <button
-                          onClick={() => {
-                            setShowLeaveDetailsModal(false);
-                            setSelectedLeaveForEdit(selectedLeave);
-                            setShowDateEditModal(true);
-                          }}
-                          className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors"
-                        >
-                          Review & Approve
-                        </button>
+                        {selectedLeave.status === 'Forwarded by HOD' && (
+                          <button
+                            onClick={() => {
+                              setShowLeaveDetailsModal(false);
+                              setSelectedLeaveForEdit(selectedLeave);
+                              setShowDateEditModal(true);
+                            }}
+                            className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors"
+                          >
+                            Review & Approve
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             setShowLeaveDetailsModal(false);
@@ -1993,7 +2028,7 @@ const PrincipalDashboard = () => {
                           }}
                           className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition-colors"
                         >
-                          Review & Reject
+                          {selectedLeave.status === 'Approved' ? 'Reject Approved Request' : 'Review & Reject'}
                         </button>
                       </div>
                     )}
@@ -2122,6 +2157,8 @@ const PrincipalDashboard = () => {
           fetchForwardedLeaves(),
           fetchCCLWorkRequests()
         ]);
+        // Reset initial load flag after data is loaded
+        isInitialLoad.current = false;
       } catch (error) {
         console.error('Error fetching initial data:', error);
         toast.error('Failed to load dashboard data');
@@ -2135,20 +2172,36 @@ const PrincipalDashboard = () => {
     }
   }, [user?.token]);
 
-  // Apply filters when filters change
+  // Apply employee filters when filters change
   useEffect(() => {
-    console.log('Filter change detected:', employeeFilters);
+    console.log('Employee filter change detected:', employeeFilters);
     const token = localStorage.getItem('token');
     if (token && allEmployees.length > 0) {
-      console.log('Applying filters to', allEmployees.length, 'employees');
+      console.log('Applying employee filters to', allEmployees.length, 'employees');
       applyEmployeeFilters();
     } else {
-      console.log('Cannot apply filters:', { 
+      console.log('Cannot apply employee filters:', { 
         hasToken: !!token, 
         allEmployeesLength: allEmployees.length 
       });
     }
   }, [employeeFilters.search, employeeFilters.department, employeeFilters.status, allEmployees.length]);
+
+  // Apply leave filters when filters change
+  useEffect(() => {
+    console.log('Leave filter change detected:', leaveFilters);
+    const token = localStorage.getItem('token');
+    if (token && !isInitialLoad.current) {
+      console.log('Fetching leaves with filters:', leaveFilters);
+      fetchForwardedLeaves(leaveFilters);
+    } else {
+      console.log('Cannot fetch leaves:', { 
+        hasToken: !!token, 
+        leavesLength: forwardedLeaves.length,
+        isInitialLoad: isInitialLoad.current
+      });
+    }
+  }, [leaveFilters.startDate, leaveFilters.endDate, leaveFilters.department, leaveFilters.status]);
 
   const exportToPDF = (pdfIncludeCCL = true, pdfIncludeSummary = true) => {
     if (!forwardedLeaves.length && !cclWorkRequests.length) {
@@ -2554,6 +2607,15 @@ const PrincipalDashboard = () => {
       setSelectedCCLWork(ccl);
       setShowCCLRemarksModal(true);
     }
+  };
+
+  const clearLeaveFilters = () => {
+    setLeaveFilters({
+      startDate: '',
+      endDate: '',
+      department: '',
+      status: 'Forwarded by HOD'
+    });
   };
 
   if (shouldRedirect) {
