@@ -98,10 +98,10 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
     return maxEnd.toISOString().split('T')[0];
   };
 
-  // Calculate min selectable date (2 days before today)
+  // Calculate min selectable date (15 days before today)
   const getMinStartDate = () => {
     const today = new Date();
-    today.setDate(today.getDate() - 2);
+    today.setDate(today.getDate() - 15);
     return today.toISOString().split('T')[0];
   };
 
