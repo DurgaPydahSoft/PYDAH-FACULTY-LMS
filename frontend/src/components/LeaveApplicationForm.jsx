@@ -98,7 +98,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
     return maxEnd.toISOString().split('T')[0];
   };
 
-  // Calculate min selectable date (15 days before today)
+  // Calculate min selectable date (2 days before today)
   const getMinStartDate = () => {
     const today = new Date();
     today.setDate(today.getDate() - 2);
@@ -477,7 +477,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     name="leaveType"
                     value={formData.leaveType}
                     onChange={handleInputChange}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base"
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2"
                     required
                   >
                     <option value="">Select Leave Type</option>
@@ -542,7 +542,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     name="session"
                     value={formData.session}
                     onChange={handleInputChange}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base"
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2"
                     required
                   >
                     <option value="">Select Session</option>
@@ -567,7 +567,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     value={formData.startDate}
                     onChange={handleInputChange}
                     min={getMinStartDate()}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base"
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2"
                     required
                   />
                 </div>
@@ -586,7 +586,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                       onChange={handleInputChange}
                       min={formData.startDate || new Date().toISOString().split('T')[0]}
                       max={getMaxEndDate(formData.startDate)}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2"
                       required
                       disabled={!formData.startDate}
                     />
@@ -619,7 +619,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                   value={formData.reason}
                   onChange={handleInputChange}
                   rows="3"
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base"
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2"
                   placeholder="Please provide detailed reason for your leave request"
                   required
                 />
@@ -736,7 +736,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                       name="periodNumber"
                       value={currentPeriod.periodNumber}
                       onChange={handlePeriodInputChange}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2"
                       required
                     >
                       <option value="">Select Period</option>
@@ -756,7 +756,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     <div className="relative">
                       <div 
                         onClick={() => setShowFacultySearch(!showFacultySearch)}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base cursor-pointer bg-white p-2 flex items-center justify-between"
+                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base cursor-pointer bg-white p-2.5 sm:p-2 flex items-center justify-between"
                       >
                         <span className="flex items-center">
                           <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -780,7 +780,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                               value={facultySearchQuery}
                               onChange={(e) => setFacultySearchQuery(e.target.value)}
                               placeholder="Search faculty..."
-                              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 text-sm"
+                              className="w-full p-2.5 sm:p-2 border rounded-md focus:ring-2 focus:ring-blue-500 text-sm"
                               onClick={(e) => e.stopPropagation()}
                             />
                           </div>
@@ -794,14 +794,14 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                                     setShowFacultySearch(false);
                                     setFacultySearchQuery('');
                                   }}
-                                  className="p-2 hover:bg-gray-100 cursor-pointer text-sm"
+                                  className="p-2.5 sm:p-2 hover:bg-gray-100 cursor-pointer text-sm"
                                 >
                                   <div className="font-medium">{faculty.name}</div>
                                   <div className="text-gray-500 text-xs">{faculty.department}</div>
                                 </div>
                               ))
                             ) : (
-                              <div className="p-2 text-gray-500 text-sm text-center">No faculty found</div>
+                              <div className="p-2.5 sm:p-2 text-gray-500 text-sm text-center">No faculty found</div>
                             )}
                           </div>
                         </div>
@@ -821,7 +821,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                       name="assignedClass"
                       value={currentPeriod.assignedClass}
                       onChange={handlePeriodInputChange}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2"
                       placeholder="Enter class (e.g. CSE-A)"
                       required
                     />
