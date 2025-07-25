@@ -1268,7 +1268,15 @@ const PrincipalDashboard = () => {
       case 'employees':
         return (
           <div className="p-6 mt-4">
-            <h2 className="text-2xl font-bold text-primary mb-6">Employee Management</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-primary">Employee Management</h2>
+              <button
+                className="bg-primary text-white px-4 py-2 rounded shadow hover:bg-primary-dark transition"
+                onClick={exportEmployeesToPDF}
+              >
+                Export to PDF
+              </button>
+            </div>
             <div className="bg-secondary rounded-neumorphic shadow-outerRaised p-6">
 
               {/* Employee filters */}
@@ -2192,6 +2200,150 @@ const PrincipalDashboard = () => {
     }
   }, [leaveFilters.startDate, leaveFilters.endDate, leaveFilters.department, leaveFilters.status]);
 
+  const exportEmployeesToPDF = () => {
+    if (!employees.length) {
+      alert('No employees to export.');
+      return;
+    }
+
+    // Sort employees by department, then by name
+    const sortedEmployees = [...employees].sort((a, b) => {
+      const deptA = (a.branchCode || a.department || '').toLowerCase();
+      const deptB = (b.branchCode || b.department || '').toLowerCase();
+      if (deptA < deptB) return -1;
+      if (deptA > deptB) return 1;
+      // If departments are equal, sort by employee name
+      const nameA = (a.name || '').toLowerCase();
+      const nameB = (b.name || '').toLowerCase();
+      if (nameA < nameB) return -1;
+      if (nameA > nameB) return 1;
+      return 0;
+    });
+
+    // Prepare employee data for PDF (removed status column)
+    const employeeData = sortedEmployees.map((emp, idx) => [
+      idx + 1,
+      emp.employeeId || 'N/A',
+      emp.name || 'N/A',
+      emp.email || 'N/A',
+      emp.branchCode || emp.department || 'N/A',
+      emp.role ? emp.role.charAt(0).toUpperCase() + emp.role.slice(1) : 'N/A',
+      emp.phoneNumber || 'N/A'
+    ]);
+
+    const employeeHeaders = [[
+      'S. No', 'Employee ID', 'Name', 'Email', 'Department', 'Designation', 'Phone'
+    ]];
+
+    // Use portrait orientation for better vertical space
+    const doc = new jsPDF('portrait', 'mm', 'a4');
+    const collegeName = 'Pydah College of Engineering';
+    const collegeAddress = 'An Autonomous Institution Kakinada | Andhra Pradesh | INDIA';
+    const contactNumber = 'Contact: +91 99513 54444';
+    const now = new Date();
+    const month = now.toLocaleString('en-US', { month: 'long' });
+    const year = now.getFullYear();
+    
+    // Create title based on applied filters
+    let title = `Employee Directory - ${month} - ${year}`;
+    let fileName = `Employee_Directory_${month}_${year}.pdf`;
+    
+    if (employeeFilters.department) {
+      const branchName = branches.find(b => b.code === employeeFilters.department)?.name || employeeFilters.department;
+      const branchCode = employeeFilters.department;
+      title = `Employee Directory - ${branchName} - ${month} - ${year}`;
+      fileName = `Employee_Directory_${branchCode}_${month}_${year}.pdf`;
+    } else if (employeeFilters.status) {
+      title = `Employee Directory - ${employeeFilters.status.charAt(0).toUpperCase() + employeeFilters.status.slice(1)} Employees - ${month} - ${year}`;
+      fileName = `Employee_Directory_${employeeFilters.status}_${month}_${year}.pdf`;
+    }
+    
+    const logoUrl = window.location.origin + '/PYDAH_LOGO_PHOTO.jpg';
+
+    // Helper to draw the PDF (with or without logo)
+    const drawPDF = (logoImg) => {
+      if (logoImg) doc.addImage(logoImg, 'PNG', 15, 10, 40, 20);
+      doc.setFont('times', 'bold');
+      doc.setTextColor('#333');
+      doc.setFontSize(20);
+      doc.text(collegeName, doc.internal.pageSize.width / 2, 20, { align: 'center' });
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.text(collegeAddress, doc.internal.pageSize.width / 2, 28, { align: 'center' });
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor('#D35400');
+      doc.text(title, doc.internal.pageSize.width / 2, 40, { align: 'center' });
+
+      // Draw Employee Directory table
+      doc.setFontSize(12);
+      doc.setTextColor('#333');
+      doc.text('Employee Directory', 15, 50);
+      autoTable(doc, {
+        startY: 55,
+        head: employeeHeaders,
+        body: employeeData,
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: {
+          fillColor: [255, 213, 128],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+        },
+        theme: 'grid',
+        margin: { left: 15, right: 15 },
+        tableWidth: 'auto',
+        columnStyles: {
+          0: { cellWidth: 12 }, // S. No
+          1: { cellWidth: 25 }, // Employee ID
+          2: { cellWidth: 35 }, // Name
+          3: { cellWidth: 40 }, // Email
+          4: { cellWidth: 25 }, // Department
+          5: { cellWidth: 25 }, // Designation
+          6: { cellWidth: 25 }, // Phone
+        },
+        didDrawPage: function (data) {
+          // Add footer
+          let pageHeight = doc.internal.pageSize.height;
+          doc.setFontSize(10);
+          doc.setTextColor('#333');
+          doc.text(collegeName, 15, pageHeight - 15);
+          doc.text(contactNumber, doc.internal.pageSize.width / 2, pageHeight - 15, { align: 'center' });
+          let pageNumber = doc.internal.getNumberOfPages();
+          doc.text(`Page ${pageNumber}`, doc.internal.pageSize.width - 20, pageHeight - 15);
+
+          // Add signatures - HOD on left, Principal on right
+          let signatureY = data.cursor.y + 25;
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          
+          // HOD Signature on the left
+          doc.text('HOD Signature', 30, signatureY);
+          
+          // Principal Signature on the right
+          doc.text('Principal Signature', doc.internal.pageSize.width - 70, signatureY);
+
+          // Add timestamp at the bottom center
+          let timestamp = new Date().toLocaleString('en-US', {
+            day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
+          });
+          doc.setFontSize(10);
+          doc.setTextColor('#333');
+          doc.text(`Generated on: ${timestamp}`, doc.internal.pageSize.width / 2, signatureY + 10, { align: 'center' });
+        }
+      });
+
+      // Save the PDF
+      doc.save(fileName);
+    };
+
+    // Try to load the logo, then draw the PDF
+    const logoImg = new window.Image();
+    logoImg.crossOrigin = 'Anonymous';
+    logoImg.src = logoUrl;
+    logoImg.onload = () => drawPDF(logoImg);
+    logoImg.onerror = () => drawPDF(null);
+  };
+
   const exportToPDF = (pdfIncludeCCL = true, pdfIncludeSummary = true) => {
     if (!forwardedLeaves.length && !cclWorkRequests.length) {
       alert('No requests to export for the current filters.');
@@ -2425,8 +2577,8 @@ const PrincipalDashboard = () => {
       let pageHeight = doc.internal.pageSize.height;
       doc.setFontSize(10);
       doc.setTextColor('#333');
-      doc.text(collegeName, 10, pageHeight - 10);
-      doc.text(contactNumber, doc.internal.pageSize.width / 2, pageHeight - 10, { align: 'center' });
+      // doc.text(collegeName, 10, pageHeight - 10);
+      // doc.text(contactNumber, doc.internal.pageSize.width / 2, pageHeight - 10, { align: 'center' });
       let pageNumber = doc.internal.getNumberOfPages();
       doc.text(`Page ${pageNumber}`, doc.internal.pageSize.width - 20, pageHeight - 10);
 
