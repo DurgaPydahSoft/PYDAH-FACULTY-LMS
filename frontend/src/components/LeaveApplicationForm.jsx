@@ -373,6 +373,9 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
       return;
     }
 
+    // Set loading state to true when starting submission
+    if (loading) return; // Prevent multiple submissions
+
     try {
       const token = localStorage.getItem('token');
       
@@ -477,7 +480,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     name="leaveType"
                     value={formData.leaveType}
                     onChange={handleInputChange}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2"
+                    disabled={loading}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     required
                   >
                     <option value="">Select Leave Type</option>
@@ -518,7 +522,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     name="isHalfDay"
                     checked={formData.isHalfDay}
                     onChange={handleInputChange}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    disabled={loading}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                   <label htmlFor="isHalfDay" className="ml-2 block text-sm text-gray-700 flex items-center">
                     <svg className="w-4 h-4 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -542,7 +547,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     name="session"
                     value={formData.session}
                     onChange={handleInputChange}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2"
+                    disabled={loading}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     required
                   >
                     <option value="">Select Session</option>
@@ -567,7 +573,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     value={formData.startDate}
                     onChange={handleInputChange}
                     min={getMinStartDate()}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2"
+                    disabled={loading}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     required
                   />
                 </div>
@@ -586,9 +593,9 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                       onChange={handleInputChange}
                       min={formData.startDate || new Date().toISOString().split('T')[0]}
                       max={getMaxEndDate(formData.startDate)}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2"
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       required
-                      disabled={!formData.startDate}
+                      disabled={!formData.startDate || loading}
                     />
                     {formData.startDate && (
                       <p className="text-xs text-gray-500 mt-1 flex items-center">
@@ -619,7 +626,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                   value={formData.reason}
                   onChange={handleInputChange}
                   rows="3"
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2"
+                  disabled={loading}
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="Please provide detailed reason for your leave request"
                   required
                 />
@@ -630,7 +638,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
               <button
                   type="button"
                   onClick={handleNextStep}
-                  className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 flex items-center justify-center"
+                  disabled={loading}
+                  className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next: Alternate Schedule
                   <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -640,7 +649,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                 <button
                   type="button"
                   onClick={onClose}
-                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 flex items-center justify-center"
+                  disabled={loading}
+                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -701,7 +711,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     <button
                       type="button"
                       onClick={() => handleRemovePeriod(period.periodNumber)}
-                      className="text-red-600 hover:text-red-800 transition-colors p-1"
+                      disabled={loading}
+                      className="text-red-600 hover:text-red-800 transition-colors p-1 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -716,7 +727,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                 <button
                   type="button"
                   onClick={() => setShowPeriodForm(true)}
-                  className="w-full py-2 px-4 border border-dashed border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center"
+                  disabled={loading}
+                  className="w-full py-2 px-4 border border-dashed border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -736,7 +748,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                       name="periodNumber"
                       value={currentPeriod.periodNumber}
                       onChange={handlePeriodInputChange}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2"
+                      disabled={loading}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       required
                     >
                       <option value="">Select Period</option>
@@ -775,14 +788,15 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                       {showFacultySearch && (
                         <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200">
                           <div className="p-2 border-b border-gray-200">
-                            <input
-                              type="text"
-                              value={facultySearchQuery}
-                              onChange={(e) => setFacultySearchQuery(e.target.value)}
-                              placeholder="Search faculty..."
-                              className="w-full p-2.5 sm:p-2 border rounded-md focus:ring-2 focus:ring-blue-500 text-sm"
-                              onClick={(e) => e.stopPropagation()}
-                            />
+                                                  <input
+                        type="text"
+                        value={facultySearchQuery}
+                        onChange={(e) => setFacultySearchQuery(e.target.value)}
+                        placeholder="Search faculty..."
+                        disabled={loading}
+                        className="w-full p-2.5 sm:p-2 border rounded-md focus:ring-2 focus:ring-blue-500 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={(e) => e.stopPropagation()}
+                      />
                           </div>
                           <div className="max-h-60 overflow-y-auto">
                             {filteredFacultyList.length > 0 ? (
@@ -821,7 +835,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                       name="assignedClass"
                       value={currentPeriod.assignedClass}
                       onChange={handlePeriodInputChange}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2"
+                      disabled={loading}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder="Enter class (e.g. CSE-A)"
                       required
                     />
@@ -831,7 +846,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     <button
                       type="button"
                       onClick={handleAddPeriod}
-                      className="w-full sm:w-auto flex-1 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center"
+                      disabled={loading}
+                      className="w-full sm:w-auto flex-1 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -848,7 +864,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                           assignedClass: ''
                         });
                       }}
-                      className="w-full sm:w-auto flex-1 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center"
+                      disabled={loading}
+                      className="w-full sm:w-auto flex-1 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -865,7 +882,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 flex items-center justify-center"
+                    disabled={loading}
+                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -878,7 +896,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     <button
                       type="button"
                       onClick={handlePreviousDay}
-                      className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 flex items-center justify-center"
+                      disabled={loading}
+                      className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -890,7 +909,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     <button
                       type="button"
                       onClick={handleNextDay}
-                      className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 flex items-center justify-center"
+                      disabled={loading}
+                      className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Next Day
                       <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
