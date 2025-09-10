@@ -5,6 +5,9 @@ It eliminates manual paperwork, ensures transparency, and provides a faster leav
 
 ---
 
+<img width="1896" height="879" alt="image" src="https://github.com/user-attachments/assets/7dc9acef-3154-4889-b3bf-361b590aa70f" />
+
+
 ## 📖 Overview
 The **Faculty Leave Management System (FLMS)** allows:
 - Faculty to apply for leave online.  
