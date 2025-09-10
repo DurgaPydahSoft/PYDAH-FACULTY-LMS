@@ -107,44 +107,73 @@ Faculty → Submit Request → HOD → Forward/Reject → Principal → Approve/
 
 ## 🛠️ Installation & Setup
 
-### 1️⃣ Clone the Repository
+**1️⃣ Clone the Repository**
 ```bash
 git clone https://github.com/your-username/pydah-flms.git
-
-###2️⃣ Navigate to Project Folder
+```
+## 2️⃣ Navigate to Project Folder
+```bash
 cd pydah-flms
-### 3️⃣ Install Dependencies
-For ## backend:
+```
+## 3️⃣ Install Dependencies
+For backend:
+```bash
 cd backend
 npm install
-For ## frontend:
+```
+
+For frontend:
+```bash
 cd frontend
 npm install
-### 4️⃣ Configure Environment
+```
+## 4️⃣ Configure Environment
+
 Create a .env file in the backend folder with details like:
+```bash
 PORT=5000
 DB_URI=your_database_connection_url
 JWT_SECRET=your_jwt_secret
-### 5️⃣ Run the Application
-## Run backend:
+```
+## 5️⃣ Run the Application
+
+Run backend:
+```bash
 cd backend
-## npm start
+npm start
+```
+
 Run frontend:
+```bash
 cd frontend
 npm start
+```
+
 App will be available at:
 👉 http://localhost:3000 (Frontend)
 👉 http://localhost:5000 (Backend API)
-________________________________________
-### 📊 Contribution Guidelines
+
+📊 Contribution Guidelines
+
 We welcome contributions! 🚀
-1.	Fork the repository.
-2.	Create a new branch.
-3.	Commit changes and push.
-4.	Open a Pull Request.
-________________________________________
-### 📜 License
+
+Fork the repository.
+
+Create a new branch (feature-xyz).
+
+Commit changes and push.
+
+Open a Pull Request.
+
+## 📜 License
+
 This project is licensed under the MIT License – you are free to use, modify, and distribute.
+
+## 🙌 Acknowledgements
+
+Thanks to Pydah Institutions for supporting the initiative.
+
+Inspired by the need for transparent academic leave management.
 ________________________________________
 ## 🏢 About PydahSoft
 **PydahSoft** is the in-house software development team of **Pydah Institutions**, dedicated to building innovative digital solutions that simplify academic and administrative workflows.  
