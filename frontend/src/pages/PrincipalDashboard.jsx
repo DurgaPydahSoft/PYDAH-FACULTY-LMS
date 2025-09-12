@@ -64,6 +64,7 @@ const PrincipalDashboard = () => {
   const [selectedHod, setSelectedHod] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
   const [editForm, setEditForm] = useState({
     name: '',
     email: '',
@@ -445,7 +446,7 @@ const PrincipalDashboard = () => {
 
   const handleCreateHOD = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setLoading(prev => ({ ...prev, createHOD: true }));
     setError('');
 
     // Get campus type with proper capitalization
@@ -492,7 +493,7 @@ const PrincipalDashboard = () => {
       setError(errorMsg);
       toast.error(errorMsg);
     } finally {
-      setLoading(false);
+      setLoading(prev => ({ ...prev, createHOD: false }));
     }
   };
 
@@ -2985,8 +2986,8 @@ const PrincipalDashboard = () => {
         }}
         hod={selectedHod}
         token={token}
-        loading={loading}
-        setLoading={setLoading}
+        loading={resetPasswordLoading}
+        setLoading={setResetPasswordLoading}
       />
 
       {/* Remarks Modal */}
