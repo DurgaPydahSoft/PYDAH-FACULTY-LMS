@@ -5,7 +5,7 @@ const API_BASE_URL = config.API_BASE_URL;
 
 // Create axios instance with base URL
 const axiosInstance = axios.create({
-  baseURL: 'https://pydah-faculty-lms-backend.onrender.com/api' || API_BASE_URL,
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
