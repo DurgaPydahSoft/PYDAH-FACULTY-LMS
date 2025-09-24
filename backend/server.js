@@ -7,6 +7,7 @@ const hodRoutes = require("./routes/hodRoutes"); // Import HOD routes
 const superAdminRoutes = require("./routes/superAdminRoutes"); // Import Super Admin routes
 const principalRoutes = require("./routes/principalRoutes"); // Import Principal routes
 const hrRoutes = require("./routes/hrRoutes");
+const path = require("path");
 
 const cors = require("cors");
 
@@ -93,18 +94,10 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date() });
 });
 
-// // Debug middleware to log all registered routes
-// app._router.stack.forEach(function(r){
-//   if (r.route && r.route.path){
-//     console.log('Registered route:', r.route.stack[0].method.toUpperCase(), r.route.path);
-//   } else if (r.name === 'router') {
-//     r.handle.stack.forEach(function(layer) {
-//       if (layer.route) {
-//         console.log('Registered route:', layer.route.stack[0].method.toUpperCase(), r.regexp, layer.route.path);
-//       }
-//     });
-//   }
-// });
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "templates", "index.html"));
+});
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {
