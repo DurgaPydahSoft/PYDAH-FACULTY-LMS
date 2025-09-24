@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pydah LMS Backend</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #e0f7f1; /* very light pastel mint */
+      color: #064e3b; /* dark teal text */
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background-color: #0d9488; /* soft teal */
+      color: white;
+      text-align: center;
+      padding: 1.5vh 2vw;
+      font-size: 2vw;
+      font-weight: bold;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+      flex-shrink: 0;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 1vw;
+      /* calculate available height minus header and footer */
+      height: calc(100% - 2 * 60px); /* adjust if header/footer height changes */
+    }
+
+    .dashboard-card {
+      background-color: #ffffff; /* off-white */
+      border-radius: 20px;
+      width: 90%;
+      height: 90%; /* fill available main area */
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
+      align-items: center;
+      padding: 2vw;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+      text-align: center;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      overflow: hidden;
+    }
+
+    .dashboard-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 30px rgba(0,0,0,0.25);
+    }
+
+    .dashboard-card h2 {
+      color: #065f46; /* dark teal header */
+      font-size: 2vw;
+      margin-bottom: 1vh;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .dashboard-card p {
+      font-size: 0.95vw;
+      line-height: 1.5;
+      margin-bottom: 0.8vh;
+    }
+
+    .endpoint-list {
+      margin-top: 1vh;
+      text-align: left;
+      width: 85%;
+    }
+
+    .endpoint-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #d1fae5; /* light mint */
+      border-radius: 10px;
+      padding: 0.8vh 1vw;
+      margin-bottom: 1vh;
+      font-size: 0.9vw;
+      font-weight: 500;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      transition: transform 0.2s ease, background-color 0.2s ease;
+    }
+
+    .endpoint-item:hover {
+      transform: translateX(5px);
+      background-color: #a7f3d0; /* brighter mint on hover */
+    }
+
+    .endpoint-item span {
+      font-weight: bold;
+      color: #065f46;
+    }
+
+    .badge {
+      background-color: #06b6d4; /* bright cyan */
+      color: white;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.8vw;
+      font-weight: bold;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+
+    footer {
+      background-color: #0d9488; /* same as header */
+      color: white;
+      text-align: center;
+      padding: 1vh 1vw;
+      font-size: 0.9vw;
+      flex-shrink: 0;
+      height: 60px; /* reference height for calc in main */
+    }
+
+    @media (max-width: 768px) {
+      header { font-size: 4vw; }
+      .dashboard-card h2 { font-size: 4vw; }
+      .dashboard-card p { font-size: 3vw; }
+      .endpoint-item { font-size: 2.5vw; }
+      .badge { font-size: 2vw; padding: 3px 10px; }
+      footer { font-size: 3vw; }
+    }
+  </style>
+</head>
+<body>
+  <header>Pydah LMS Backend</header>
+
+  <main>
+    <div class="dashboard-card">
+      <h2>Welcome to Pydah LMS Backend Page</h2>
+
+      <p>This page represents the backend system of Pydah LMS. It handles all data management, calculations, and operations behind the scenes, ensuring the LMS works smoothly for students and faculty.</p>
+
+      <p>Backend endpoints are like “doors” to access different system functions. Each endpoint has a specific purpose, like fetching student details, updating attendance, or generating reports.</p>
+
+      <p>Here are some important backend endpoints used by Pydah LMS:</p>
+
+      <div class="endpoint-list">
+        <div class="endpoint-item">
+          <span>Health Check:</span> <span class="badge">/api/health</span>
+        </div>
+        <div class="endpoint-item">
+          <span>Employee List:</span> <span class="badge">/api/employee</span>
+        </div>
+        <div class="endpoint-item">
+          <span>Student Dashboard:</span> <span class="badge">/api/student</span>
+        </div>
+        <div class="endpoint-item">
+          <span>Attendance Records:</span> <span class="badge">/api/attendance</span>
+        </div>
+        <div class="endpoint-item">
+          <span>Admin Panel:</span> <span class="badge">/api/admin</span>
+        </div>
+      </div>
+
+      <p>This page provides a professional, clean overview of the backend, making it understandable for everyone while looking modern and attractive.</p>
+    </div>
+  </main>
+
+  <footer>&copy; 2025 Pydah LMS</footer>
+</body>
+</html>
