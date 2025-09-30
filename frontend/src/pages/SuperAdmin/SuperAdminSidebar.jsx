@@ -1,29 +1,23 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaHome, FaUsers, FaUserTie, FaCalendarAlt, FaClipboardList, FaUser, FaBars, FaTimes } from 'react-icons/fa';
-import { FaDiagramProject } from "react-icons/fa6";
+import { FaHome, FaUniversity, FaUserTie, FaUsers, FaCog, FaBars, FaTimes, FaUserFriends } from 'react-icons/fa';
 
-const PrincipalSidebar = ({ activeSection, onSectionChange }) => {
+const SuperAdminSidebar = ({ activeSection, onSectionChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
-  const campus = localStorage.getItem('campus');
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: <FaHome />, path: `/principal/${campus}/dashboard` },
-    { id: 'hods', label: 'HOD Management', icon: <FaUserTie />, path: `/principal/${campus}/hods` },
-    { id: 'employees', label: 'Employees', icon: <FaUsers />, path: `/principal/${campus}/employees` },
-    { id: 'leaves', label: 'Leave Requests', icon: <FaCalendarAlt />, path: `/principal/${campus}/leaves` },
-    { id: 'ccl-work', label: 'CCL Work Requests', icon: <FaClipboardList />, path: `/principal/${campus}/ccl-work` },
-    { id: 'branches', label: 'Branch Management', icon: <FaDiagramProject />, path: `/principal/${campus}/branches` },
-    
-    
-    
-  ];
+    const menuItems = [
+      { id: 'dashboard', label: 'Dashboard', icon: <FaHome /> },
+      { id: 'campuses', label: 'Campuses', icon: <FaUniversity /> },
+      { id: 'principals', label: "Principals", icon: <FaUserTie /> },
+      { id: 'employees', label: 'Employees', icon: <FaUserFriends /> },
+      { id: 'hr-management', label: 'HR Management', icon: <FaUsers /> },
+      { id: 'system-settings', label: 'System Settings', icon: <FaCog /> },
+    ];
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('role');
-    localStorage.removeItem('campus');
     navigate('/');
   };
 
@@ -50,12 +44,21 @@ const PrincipalSidebar = ({ activeSection, onSectionChange }) => {
       )}
 
       {/* Sidebar */}
-      <div className={`fixed top-0 left-0 h-full bg-secondary text-white w-64 transform transition-transform duration-300 ease-in-out z-50
+      <div className={`fixed top-0 left-0 h-full bg-gray-200 text-white w-64 transform transition-transform duration-300 ease-in-out z-50 flex flex-col
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-        <div className="p-6">
-          <h2 className="text-2xl font-bold mb-8 text-primary">
-            {campus ? campus.charAt(0).toUpperCase() + campus.slice(1) : 'Principal'} Dashboard
-          </h2>
+        {/* Logo Section */}
+        <div className="p-2 border-b border-gray-300 ">
+          <div className="flex items-center justify-center w-full h-20">
+            <img 
+              src="/PYDAH_LOGO_PHOTO.jpg" 
+              alt="PYDAH Group Logo" 
+              className="max-w-full max-h-full object-contain rounded-lg"
+            />
+          </div>
+        </div>
+        
+        {/* Navigation Section */}
+        <div className="p-6 flex-1">
           <nav>
             <ul className="space-y-4">
               {menuItems.map((item) => (
@@ -78,9 +81,16 @@ const PrincipalSidebar = ({ activeSection, onSectionChange }) => {
               ))}
             </ul>
           </nav>
+        </div>
+        
+        {/* Bottom Section with Heading and Logout */}
+        <div className="p-6 border-t border-gray-300 space-y-4">
+          <h2 className="text-xl font-bold text-primary text-center">
+            Super Admin 
+          </h2>
           <button
             onClick={handleLogout}
-            className="w-full mt-8 p-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+            className="w-full p-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
           >
             Logout
           </button>
@@ -90,4 +100,4 @@ const PrincipalSidebar = ({ activeSection, onSectionChange }) => {
   );
 };
 
-export default PrincipalSidebar; 
+export default SuperAdminSidebar;

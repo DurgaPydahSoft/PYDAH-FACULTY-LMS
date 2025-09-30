@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import "font-awesome/css/font-awesome.min.css"; // Importing Font Awesome
-import { validateEmail } from '../utils/validators';
-import config from '../config';
-import Loading from '../components/Loading';
+import { validateEmail } from '../../utils/validators';
+import config from '../../config';
+import Loading from '../../components/Loading';
 
 const API_BASE_URL = config.API_BASE_URL;
 

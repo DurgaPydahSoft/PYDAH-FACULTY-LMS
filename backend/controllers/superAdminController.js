@@ -1,4 +1,4 @@
-const { User, Campus, SuperAdmin, Principal, HR } = require('../models');
+const { User, Campus, SuperAdmin, Principal, HR, Employee } = require('../models');
 const jwt = require('jsonwebtoken');
 const { validateEmail, validatePassword } = require('../utils/validators');
 const bcrypt = require('bcryptjs');
@@ -566,6 +566,222 @@ exports.updateHR = async (req, res) => {
     });
   } catch (error) {
     console.error('Update HR Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// ==================== EMPLOYEE MANAGEMENT ====================
+
+// Get all employees from all campuses
+exports.getAllEmployees = async (req, res) => {
+  try {
+    const { search, campus, department, status, page = 1, limit = 50 } = req.query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build query
+    let query = {};
+
+    // Add search filter
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { employeeId: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Add campus filter
+    if (campus && campus !== 'all') {
+      query.campus = campus.toLowerCase();
+    }
+
+    // Add department filter
+    if (department && department !== 'all') {
+      query.department = department;
+    }
+
+    // Add status filter
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    // Get total count for pagination
+    const totalEmployees = await Employee.countDocuments(query);
+
+    // Get employees with pagination
+    const employees = await Employee.find(query)
+      .select('name email employeeId department campus status phoneNumber designation role roleDisplayName branchCode leaveBalance leaveBalanceByExperience profilePicture createdAt')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
+
+    // Get unique campuses and departments for filters
+    const campuses = await Employee.distinct('campus');
+    const departments = await Employee.distinct('department');
+
+    res.json({
+      employees,
+      pagination: {
+        currentPage: pageNum,
+        totalPages: Math.ceil(totalEmployees / limitNum),
+        totalEmployees,
+        hasNext: pageNum < Math.ceil(totalEmployees / limitNum),
+        hasPrev: pageNum > 1
+      },
+      filters: {
+        campuses: campuses.sort(),
+        departments: departments.sort()
+      }
+    });
+  } catch (error) {
+    console.error('Get All Employees Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// Get employee by ID
+exports.getEmployee = async (req, res) => {
+  try {
+    const employee = await Employee.findById(req.params.id)
+      .select('-password');
+
+    if (!employee) {
+      return res.status(404).json({ msg: 'Employee not found' });
+    }
+
+    res.json(employee);
+  } catch (error) {
+    console.error('Get Employee Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// Update employee details
+exports.updateEmployee = async (req, res) => {
+  try {
+    const { name, email, phoneNumber, department, role, roleDisplayName, status, specialPermission, specialLeaveMaxDays, leaveBalance } = req.body;
+
+    const employee = await Employee.findById(req.params.id);
+    if (!employee) {
+      return res.status(404).json({ msg: 'Employee not found' });
+    }
+
+    // Update fields
+    if (name) employee.name = name;
+    if (email) employee.email = email.toLowerCase();
+    if (phoneNumber) employee.phoneNumber = phoneNumber;
+    if (department) employee.department = department;
+    if (role) employee.role = role;
+    if (roleDisplayName) employee.roleDisplayName = roleDisplayName;
+    if (status) employee.status = status;
+    if (specialPermission !== undefined) employee.specialPermission = specialPermission;
+    if (specialLeaveMaxDays !== undefined) employee.specialLeaveMaxDays = specialLeaveMaxDays;
+    if (leaveBalance !== undefined) employee.leaveBalance = leaveBalance;
+
+    await employee.save();
+
+    res.json({
+      msg: 'Employee updated successfully',
+      employee: {
+        id: employee._id,
+        name: employee.name,
+        email: employee.email,
+        employeeId: employee.employeeId,
+        department: employee.department,
+        campus: employee.campus,
+        role: employee.role,
+        status: employee.status
+      }
+    });
+  } catch (error) {
+    console.error('Update Employee Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// Update employee status (activate/deactivate)
+exports.updateEmployeeStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const employee = await Employee.findById(req.params.id);
+
+    if (!employee) {
+      return res.status(404).json({ msg: 'Employee not found' });
+    }
+
+    employee.status = status;
+    await employee.save();
+
+    res.json({
+      msg: `Employee ${status === 'active' ? 'activated' : 'deactivated'} successfully`,
+      employee: {
+        id: employee._id,
+        name: employee.name,
+        employeeId: employee.employeeId,
+        status: employee.status
+      }
+    });
+  } catch (error) {
+    console.error('Update Employee Status Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// Reset employee password
+exports.resetEmployeePassword = async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    const employee = await Employee.findById(req.params.id);
+
+    if (!employee) {
+      return res.status(404).json({ msg: 'Employee not found' });
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ msg: 'Password must be at least 6 characters long' });
+    }
+
+    // Update password
+    employee.password = newPassword;
+    await employee.save();
+
+    res.json({
+      msg: 'Employee password reset successfully',
+      employee: {
+        id: employee._id,
+        name: employee.name,
+        employeeId: employee.employeeId
+      }
+    });
+  } catch (error) {
+    console.error('Reset Employee Password Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// Delete employee
+exports.deleteEmployee = async (req, res) => {
+  try {
+    const employee = await Employee.findById(req.params.id);
+
+    if (!employee) {
+      return res.status(404).json({ msg: 'Employee not found' });
+    }
+
+    await Employee.findByIdAndDelete(req.params.id);
+
+    res.json({
+      msg: 'Employee deleted successfully',
+      employee: {
+        id: employee._id,
+        name: employee.name,
+        employeeId: employee.employeeId
+      }
+    });
+  } catch (error) {
+    console.error('Delete Employee Error:', error);
     res.status(500).json({ msg: 'Server error' });
   }
 }; 

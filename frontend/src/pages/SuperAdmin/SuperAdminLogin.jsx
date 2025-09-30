@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import config from '../config';
+import config from '../../config';
 import axios from 'axios';
-import Loading from '../components/Loading';
+import Loading from '../../components/Loading';
 
 const API_BASE_URL = config.API_BASE_URL;
 

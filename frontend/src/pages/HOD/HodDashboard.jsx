@@ -2,13 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-import PasswordResetModal from "../components/PasswordResetModal";
-import RemarksModal from "../components/RemarksModal";
+import PasswordResetModal from "../../components/PasswordResetModal";
+import RemarksModal from "../../components/RemarksModal";
 import { toast } from 'react-toastify';
-import { createAuthAxios } from '../utils/authAxios';
-import config from '../config';
-import HodSidebar from '../components/HodSidebar';
-import Loading from '../components/Loading';
+import { createAuthAxios } from '../../utils/authAxios';
+import config from '../../config';
+import HodSidebar from '../../components/HodSidebar';
+import Loading from '../../components/Loading';
 
 const API_BASE_URL = config.API_BASE_URL;
 

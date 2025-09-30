@@ -37,4 +37,12 @@ router.put('/hrs/status', SuperAdminController.updateHRStatus);
 router.post('/hrs/reset-password', SuperAdminController.resetHRPassword);
 router.put('/hrs/:id', SuperAdminController.updateHR);
 
+// Employee management routes
+router.get('/employees', SuperAdminController.getAllEmployees);
+router.get('/employees/:id', SuperAdminController.getEmployee);
+router.put('/employees/:id', SuperAdminController.updateEmployee);
+router.put('/employees/:id/status', SuperAdminController.updateEmployeeStatus);
+router.post('/employees/:id/reset-password', SuperAdminController.resetEmployeePassword);
+router.delete('/employees/:id', SuperAdminController.deleteEmployee);
+
 module.exports = router; 

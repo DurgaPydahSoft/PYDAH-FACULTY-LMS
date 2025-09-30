@@ -1,19 +1,18 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import axiosInstance from '../utils/axiosConfig';
+import axiosInstance from '../../utils/axiosConfig';
 import { toast } from 'react-toastify';
-import HodPasswordResetModal from '../components/HodPasswordResetModal';
-import RemarksModal from '../components/RemarksModal';
-import PrincipalSidebar from '../components/PrincipalSidebar';
-import config from '../config';
-import Loading from '../components/Loading';
+import HodPasswordResetModal from '../../components/HodPasswordResetModal';
+import RemarksModal from '../../components/RemarksModal';
+import PrincipalSidebar from './PrincipalSidebar';
+import Loading from '../../components/Loading';
 import { FaUserTie, FaUsers, FaClipboardList, FaArrowRight, FaBuilding } from 'react-icons/fa';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import LeaveDateEditModal from '../components/LeaveDateEditModal';
-import { createAuthAxios } from '../utils/authAxios';
-import { API_BASE_URL } from '../config';
+import LeaveDateEditModal from '../../components/LeaveDateEditModal';
+import { createAuthAxios } from '../../utils/authAxios';
+import { API_BASE_URL } from '../../config';
 
 // const API_BASE_URL = config.API_BASE_URL;
 

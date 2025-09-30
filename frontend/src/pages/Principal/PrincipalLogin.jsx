@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import axiosInstance from '../utils/axiosConfig';
-import { API_BASE_URL } from '../config';
+import axiosInstance from '../../utils/axiosConfig';
+import { API_BASE_URL } from '../../config';
 
 const PrincipalLogin = () => {
   const navigate = useNavigate();

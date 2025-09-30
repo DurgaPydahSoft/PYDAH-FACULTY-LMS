@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from 'axios';
-import config from '../config';
-import Loading from '../components/Loading';
+import config from '../../config';
+import Loading from '../../components/Loading';
 
 // Base URL for all API calls
 const API_BASE_URL = config.API_BASE_URL;

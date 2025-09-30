@@ -5,15 +5,15 @@ import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from './context/AuthContext';
 import LandingPage from "./components/Home";
 import Home from "./components/Home.jsx";
-import SuperAdminLogin from "./pages/SuperAdminLogin";
-import SuperAdminDashboard from "./pages/SuperAdminDashboard";
-import PrincipalLogin from "./pages/PrincipalLogin";
-import PrincipalDashboard from "./pages/PrincipalDashboard";
-import EmployeeLogin from "./pages/EmployeeLogin";
-import EmployeeRegister from "./pages/EmployeeRegister";
-import EmployeeDashboard from "./pages/EmployeeDashboard";
-import HodLogin from "./pages/HodLogin";
-import HodDashboard from "./pages/HodDashboard";
+import SuperAdminLogin from "./pages/SuperAdmin/SuperAdminLogin";
+import SuperAdminDashboard from "./pages/SuperAdmin/SuperAdminDashboard";
+import PrincipalLogin from "./pages/Principal/PrincipalLogin";
+import PrincipalDashboard from "./pages/Principal/PrincipalDashboard";
+import EmployeeLogin from "./pages/Employee/EmployeeLogin";
+// import EmployeeRegister from "./pages/Employee/EmployeeRegister";
+import EmployeeDashboard from "./pages/Employee/EmployeeDashboard";
+import HodLogin from "./pages/HOD/HodLogin";
+import HodDashboard from "./pages/HOD/HodDashboard";
 
 // Import HR components
 import HRLogin from './pages/HR/HRLogin';
@@ -64,7 +64,7 @@ const App = () => {
 
             {/* Employee Routes */}
             <Route path="/employee-login" element={<EmployeeLogin />} />
-            <Route path="/employee-register" element={<EmployeeRegister />} />
+            {/* <Route path="/employee-register" element={<EmployeeRegister />} /> */}
             <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
             
             {/* HOD Routes */}
