@@ -202,15 +202,15 @@ const HRLogin = () => {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-        <button
-          onClick={() => navigate('/')}
-          className="mt-3 sm:mt-4 w-full text-primary hover:text-blue-800 text-center text-xs sm:text-base border border-primary rounded-neumorphic py-2 hover:bg-primary hover:text-white transition-all duration-300 flex items-center justify-center gap-2"
+        <div
+         onClick={() => navigate(-1)}
+          className="absolute top-2 left-2 text-primary text-center text-xs sm:text-base py-2  transition-all duration-300 flex items-center justify-center gap-2"
         >
-          <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg className="w-6 h-6 sm:w-8 sm:h-8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M20 11H7.83L13.42 5.41L12 4L4 12L12 20L13.41 18.59L7.83 13H20V11Z" fill="currentColor"/>
           </svg>
-          Back to Home
-        </button>
+          
+        </div>
       </div>
     </div>
   );
