@@ -1,45 +1,66 @@
-import React, { useState } from 'react';
-import { FaClipboardList, FaCheck, FaTimes, FaEye } from 'react-icons/fa';
+import  { useState } from 'react';
+import { FaCheck, FaTimes, FaEye } from 'react-icons/fa';
 import { MdEmail, MdPhone, MdPerson } from 'react-icons/md';
 
 const LeaveRequestsSection = ({
   leaveRequests,
   handleApproveLeave,
   handleRejectLeave,
-  showRemarksModal,
-  setShowRemarksModal,
-  selectedLeave,
-  setSelectedLeave,
-  remarks,
-  setRemarks,
-  handleRemarksSubmit,
 }) => {
   // Ensure arrays are properly initialized
   const safeLeaveRequests = Array.isArray(leaveRequests) ? leaveRequests : [];
-  
+
   const [showLeaveDetailsModal, setShowLeaveDetailsModal] = useState(false);
   const [selectedLeaveForDetails, setSelectedLeaveForDetails] = useState(null);
+
+  // Modal state for approve/reject
+  const [showRemarksModal, setShowRemarksModal] = useState(false);
+  const [selectedLeave, setSelectedLeave] = useState(null);
+  const [remarks, setRemarks] = useState('');
+  const [actionType, setActionType] = useState(''); // 'approve' or 'reject'
 
   const handleViewDetails = (leave) => {
     setSelectedLeaveForDetails(leave);
     setShowLeaveDetailsModal(true);
   };
 
+  // Unified handler for both approve and reject
+  const openRemarksModal = (leave, type) => {
+    setSelectedLeave(leave);
+    setActionType(type);
+    setRemarks('');
+    setShowRemarksModal(true);
+  };
+
+  const handleRemarksSubmit = (e) => {
+    e.preventDefault();
+    if (!selectedLeave) return;
+    if (actionType === 'approve') {
+      handleApproveLeave(selectedLeave._id, remarks);
+    } else if (actionType === 'reject') {
+      handleRejectLeave(selectedLeave._id, remarks);
+    }
+    setShowRemarksModal(false);
+    setSelectedLeave(null);
+    setRemarks('');
+    setActionType('');
+  };
+
   return (
-    <div className="p-6 mt-4">
+    <div className="p-4 sm:p-6 mt-4">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-primary">Leave Requests</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-primary">Leave Requests</h2>
       </div>
 
       {/* Department Leave Requests */}
       <div className="mb-8">
-        <h3 className="text-xl font-semibold text-primary mb-4">Department Leave Requests</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <h3 className="text-lg sm:text-xl font-semibold text-primary mb-4">Department Leave Requests</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {safeLeaveRequests.map((leave) => (
-            <div key={leave._id} className="bg-white rounded-xl shadow p-6">
+            <div key={leave._id} className="bg-white rounded-xl shadow p-4 sm:p-6">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h4 className="text-lg font-semibold text-primary">{leave.employeeName}</h4>
+                  <h4 className="text-md sm:text-lg font-semibold text-primary">{leave.employeeName}</h4>
                   <p className="text-sm text-gray-600 flex items-center gap-1">
                     <MdEmail className="text-primary" /> {leave.employeeEmail}
                   </p>
@@ -74,7 +95,7 @@ const LeaveRequestsSection = ({
               <div className="flex justify-end space-x-2">
                 <button
                   onClick={() => handleViewDetails(leave)}
-                  className="p-2 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="p-2 sm:p-2 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
                   title="View Details"
                 >
                   <FaEye />
@@ -82,18 +103,15 @@ const LeaveRequestsSection = ({
                 {leave.status === 'Pending' && (
                   <>
                     <button
-                      onClick={() => handleApproveLeave(leave._id)}
-                      className="p-2 rounded-full bg-green-100 hover:bg-green-200 text-green-600 focus:outline-none focus:ring-2 focus:ring-green-400"
-                      title="Approve"
+                      onClick={() => openRemarksModal(leave, 'approve')}
+                      className="p-2 sm:p-2 rounded-full bg-green-100 hover:bg-green-200 text-green-600 focus:outline-none focus:ring-2 focus:ring-green-400"
+                      title="Approve/Forward"
                     >
                       <FaCheck />
                     </button>
                     <button
-                      onClick={() => {
-                        setSelectedLeave(leave);
-                        setShowRemarksModal(true);
-                      }}
-                      className="p-2 rounded-full bg-red-100 hover:bg-red-200 text-red-600 focus:outline-none focus:ring-2 focus:ring-red-400"
+                      onClick={() => openRemarksModal(leave, 'reject')}
+                      className="p-2 sm:p-2 rounded-full bg-red-100 hover:bg-red-200 text-red-600 focus:outline-none focus:ring-2 focus:ring-red-400"
                       title="Reject"
                     >
                       <FaTimes />
@@ -109,7 +127,7 @@ const LeaveRequestsSection = ({
       {/* Leave Details Modal */}
       {showLeaveDetailsModal && selectedLeaveForDetails && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md md:max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-start mb-4">
               <h2 className="text-xl font-bold text-primary">Leave Request Details</h2>
               <button
@@ -189,12 +207,14 @@ const LeaveRequestsSection = ({
         </div>
       )}
 
-      {/* Reject with Remarks Modal */}
+      {/* Approve/Reject with Remarks Modal */}
       {showRemarksModal && selectedLeave && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm md:max-w-md">
             <div className="flex justify-between items-start mb-4">
-              <h2 className="text-xl font-bold text-primary">Reject Leave Request</h2>
+              <h2 className="text-xl font-bold text-primary">
+                {actionType === 'approve' ? 'Forward/Approve Leave Request' : 'Reject Leave Request'}
+              </h2>
               <button
                 onClick={() => setShowRemarksModal(false)}
                 className="text-gray-500 hover:text-gray-700"
@@ -203,7 +223,9 @@ const LeaveRequestsSection = ({
               </button>
             </div>
             <p className="text-gray-700 mb-4">
-              Please provide a reason for rejecting this leave request.
+              {actionType === 'approve'
+                ? 'You may add remarks before forwarding/approving this leave request (optional).'
+                : 'Please provide a reason for rejecting this leave request.'}
             </p>
             <form onSubmit={handleRemarksSubmit} className="space-y-4">
               <div>
@@ -213,7 +235,8 @@ const LeaveRequestsSection = ({
                   onChange={(e) => setRemarks(e.target.value)}
                   className="w-full p-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary"
                   rows="3"
-                  required
+                  placeholder={actionType === 'approve' ? 'Optional remarks...' : 'Required remarks...'}
+                  required={actionType === 'reject'}
                 />
               </div>
               <div className="flex justify-end space-x-3 mt-6">
@@ -226,9 +249,9 @@ const LeaveRequestsSection = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                  className={`px-4 py-2 text-sm font-medium text-white rounded-md ${actionType === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
                 >
-                  Reject Leave
+                  {actionType === 'approve' ? 'Forward/Approve Leave' : 'Reject Leave'}
                 </button>
               </div>
             </form>

@@ -213,7 +213,7 @@ const HodDashboard = () => {
 
       await axios.put(
         `${API_BASE_URL}/hod/leaves/${leaveRequest.employeeId}/${leaveId}`,
-        { status: 'Approved' },
+        { status: 'Approved' , remarks},
         {
           headers: { 
             'Authorization': `Bearer ${token}`,
