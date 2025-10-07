@@ -336,7 +336,7 @@ exports.updateEmployee = async (req, res) => {
           return res.status(400).json({ msg: 'Please provide a custom role name.' });
         }
         employee.roleDisplayName = updates.customRole.trim();
-      } else {
+} else {
         // Find the label for the selected role
         const campusRoles = getCampusRoles(req.user.campus.name.toLowerCase());
         const found = campusRoles.find(r => r.value === updates.role);
@@ -463,8 +463,10 @@ exports.bulkRegisterEmployees = async (req, res) => {
     if (!hr) {
       return res.status(404).json({ msg: 'HR not found' });
     }
-    const campus = hr.campus.name.toLowerCase();
-
+    const campus =
+  typeof req.user.campus === 'string'
+    ? req.user.campus.toLowerCase()
+    : (req.user.campus?.name ? req.user.campus.name.toLowerCase() : '');
     const results = [];
     for (const [index, emp] of employeesData.entries()) {
       const {
@@ -678,4 +680,90 @@ exports.deleteEmployeeProfilePicture = async (req, res) => {
     console.error('Profile picture deletion error:', error);
     res.status(500).json({ message: 'Failed to delete profile picture' });
   }
-}; 
+};
+
+// Get all leave requests for HR's campus (with filtering, pagination, search)
+exports.getCampusLeaveRequests = async (req, res) => {
+  try {
+    const campus =
+      typeof req.user.campus === 'string'
+        ? req.user.campus.toLowerCase()
+        : (req.user.campus?.name ? req.user.campus.name.toLowerCase() : '');
+    const {
+      search = '',
+      status,
+      department,
+      leaveType,
+      startDate,
+      endDate,
+      page = 1,
+      limit = 10
+    } = req.query;
+
+    // Find all employees in the campus
+    let employeeQuery = { campus };
+    if (department) {
+      employeeQuery.department = department;
+    }
+    if (search) {
+      employeeQuery.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { employeeId: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const employees = await Employee.find(employeeQuery)
+      .select('name email department employeeId leaveRequests')
+      .lean();
+
+    // Aggregate all leave requests
+    let leaveRequests = [];
+    employees.forEach(employee => {
+      if (Array.isArray(employee.leaveRequests)) {
+        employee.leaveRequests.forEach(request => {
+          leaveRequests.push({
+            ...request,
+            employeeId: employee._id,
+            employeeName: employee.name,
+            employeeEmail: employee.email,
+            employeeEmployeeId: employee.employeeId,
+            employeeDepartment: employee.department
+          });
+        });
+      }
+    });
+
+    // Filter by status, leaveType, date range
+    if (status) {
+      leaveRequests = leaveRequests.filter(lr => lr.status === status);
+    }
+    if (leaveType) {
+      leaveRequests = leaveRequests.filter(lr => lr.leaveType === leaveType);
+    }
+    if (startDate && endDate) {
+      leaveRequests = leaveRequests.filter(lr =>
+        !(new Date(lr.endDate) < new Date(startDate) || new Date(lr.startDate) > new Date(endDate))
+      );
+    }
+
+    // Sort by appliedOn (most recent first)
+    leaveRequests.sort((a, b) => new Date(b.appliedOn) - new Date(a.appliedOn));
+
+    // Pagination
+    const total = leaveRequests.length;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const paginated = leaveRequests.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+
+    res.json({
+      total,
+      page: pageNum,
+      limit: limitNum,
+      data: paginated
+    });
+  } catch (error) {
+    console.error('HR Get Campus Leave Requests Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};

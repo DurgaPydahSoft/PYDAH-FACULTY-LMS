@@ -23,8 +23,11 @@ router.post('/employees/:id/reset-password', hrController.resetEmployeePassword)
 router.get('/roles', hrController.getCampusRoles);
 router.post('/employees/bulk', hrController.bulkRegisterEmployees);
 
+// HR Leave Requests
+router.get('/leave-requests', hrController.getCampusLeaveRequests);
+
 // Profile picture management for employees
 router.post('/employees/:id/upload-profile-picture', upload.single('profilePicture'), hrController.uploadEmployeeProfilePicture);
 router.delete('/employees/:id/delete-profile-picture', hrController.deleteEmployeeProfilePicture);
 
-module.exports = router; 
+module.exports = router;

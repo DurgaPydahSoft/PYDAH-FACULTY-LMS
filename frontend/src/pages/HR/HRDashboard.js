@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import PasswordResetModal from '../../components/PasswordResetModal';
 import { FaUserTie, FaUsers, FaRegCalendarCheck, FaCamera, FaTrash, FaUserCircle } from 'react-icons/fa';
-import { MdOutlineLogout } from 'react-icons/md';
 import * as XLSX from 'xlsx';
 import config from '../../config';
 import Loading from '../../components/Loading';
@@ -13,6 +12,7 @@ import HRDashboardSection from './HRDashboardSection';
 import EmployeeManagementSection from './EmployeeManagementSection';
 import EmployeeOperationsSection from './EmployeeOperationsSection';
 import ProfileSection from './ProfileSection';
+import HRLeaveRequestsSection from './HRLeaveRequestsSection';
 
 const API_BASE_URL = config.API_BASE_URL;
 
@@ -578,7 +578,7 @@ const HRDashboard = () => {
       for (const header in row) {
         const normalizedHeader = normalizeHeader(header);
         for (const variation of targetVariations) {
-          if (normalizedHeader.length >= 3 && variation.length >= 3) {
+if (normalizedHeader.length >= 3 && variation.length >= 3) {
             if (normalizedHeader.includes(variation.substring(0, 3)) || 
                 variation.includes(normalizedHeader.substring(0, 3))) {
               return row[header];
@@ -873,14 +873,13 @@ const HRDashboard = () => {
   const renderContent = () => {
     switch (activeSection) {
       case 'dashboard':
-  return (
+        return (
           <HRDashboardSection
             hr={user}
             stats={stats}
             onNavigateToSection={setActiveSection}
           />
         );
-      
       case 'employees':
         return (
           <EmployeeManagementSection
@@ -896,9 +895,9 @@ const HRDashboard = () => {
             branches={branches}
             onEditEmployee={handleEditClick}
             onResetPassword={(employee) => {
-                            setSelectedEmployeeForReset(employee);
-                            setShowPasswordResetModal(true);
-                          }}
+              setSelectedEmployeeForReset(employee);
+              setShowPasswordResetModal(true);
+            }}
             onUploadProfilePicture={handleProfilePictureUpload}
             onDeleteProfilePicture={handleDeleteProfilePicture}
             uploadingProfile={uploadingProfile}
@@ -911,11 +910,10 @@ const HRDashboard = () => {
             fileInputRef={fileInputRef}
           />
         );
-
       case 'operations':
         return (
           <EmployeeOperationsSection
-            // Single Employee Registration Props
+            // ...existing props...
             showRegisterModal={showRegisterModal}
             setShowRegisterModal={setShowRegisterModal}
             newEmployee={newEmployee}
@@ -925,8 +923,6 @@ const HRDashboard = () => {
             branches={branches}
             getCampusRoles={getCampusRoles}
             user={user}
-            
-            // Bulk Operations Props
             showBulkModal={showBulkModal}
             setShowBulkModal={setShowBulkModal}
             bulkFile={bulkFile}
@@ -959,7 +955,8 @@ const HRDashboard = () => {
             isRowValid={isRowValid}
           />
         );
-
+      case 'leaves':
+        return <HRLeaveRequestsSection />;
       case 'profile':
         return (
           <ProfileSection
@@ -969,7 +966,6 @@ const HRDashboard = () => {
             }}
           />
         );
-
       default:
         return (
           <HRDashboardSection
@@ -1224,4 +1220,4 @@ const HRDashboard = () => {
   );
 };
 
-export default HRDashboard; 
+export default HRDashboard;

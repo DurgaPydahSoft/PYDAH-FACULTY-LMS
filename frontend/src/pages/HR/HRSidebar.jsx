@@ -8,9 +8,11 @@ const HRSidebar = ({ activeSection, onSectionChange, hr }) => {
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <FaHome /> },
-    { id: 'employees', label: 'Employee Management', icon: <FaUsers /> },
-    { id: 'operations', label: 'Employee Operations', icon: <FaUserPlus /> },
-    { id: 'profile', label: 'Profile', icon: <FaUserCircle /> },
+    { id: 'employees', label: 'Employees', icon: <FaUsers /> },
+    { id: 'operations', label: 'Register Employee ', icon: <FaUserPlus /> },
+    { id: 'leaves', label: 'Leave Requests', icon: <FaTasks />},
+    { id: 'profile', label: 'Profile', icon: <FaUserCircle /> }
+    
   ];
 
   const handleLogout = () => {
