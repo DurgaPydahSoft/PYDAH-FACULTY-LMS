@@ -50,7 +50,7 @@ const SuperAdminLogin = () => {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="max-w-md w-full bg-secondary rounded-neumorphic shadow-outerRaised p-8">
+      <div className="max-w-md w-full bg-secondary rounded-neumorphic shadow-outerRaised p-8 relative">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-primary">Super Admin Login</h2>
           <p className="text-gray-600 mt-2">Access the master control panel</p>
@@ -104,15 +104,18 @@ const SuperAdminLogin = () => {
           </button>
         </form>
 
-        <button
-          onClick={() => navigate('/')}
-          className="mt-4 w-full text-primary hover:text-blue-800 text-center"
+        <div
+         onClick={() => navigate(-1)}
+          className="absolute top-4 left-4 text-primary cursor-pointer p-2 rounded-full hover:bg-gray-200 transition-colors duration-300 flex items-center justify-center"
         >
-          Back to Home
-        </button>
-      </div>
+           <svg className="w-6 h-6 sm:w-8 sm:h-8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 11H7.83L13.42 5.41L12 4L4 12L12 20L13.41 18.59L7.83 13H20V11Z" fill="currentColor"/>
+          </svg>
+          </div>
+        </div>
     </div>
   );
 };
+
 
 export default SuperAdminLogin; 
