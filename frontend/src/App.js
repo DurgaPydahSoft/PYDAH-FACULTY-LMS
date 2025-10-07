@@ -18,8 +18,6 @@ import HodDashboard from "./pages/HOD/HodDashboard";
 // Import HR components
 import HRLogin from './pages/HR/HRLogin';
 import HRDashboard from './pages/HR/HRDashboard';
-import RegisterEmployee from './pages/HR/RegisterEmployee';
-import ManageEmployees from './pages/HR/ManageEmployees';
 
 // Campus Principal Login Component
 const CampusPrincipalLogin = () => {
@@ -74,8 +72,6 @@ const App = () => {
             {/* HR Routes */}
             <Route path="/hr/login" element={<HRLogin />} />
             <Route path="/hr/dashboard" element={<HRDashboard />} />
-            <Route path="/hr/register-employee" element={<RegisterEmployee />} />
-            <Route path="/hr/manage-employees" element={<ManageEmployees />} />
 
             {/* Fallback Route */}
             <Route path="*" element={<Navigate to="/" replace />} />

@@ -617,13 +617,13 @@ const getDashboard = async (req, res) => {
         role: 'hod',
         campus: req.user.campus,
         branchCode: req.user.branchCode
-      }).select('-password');
+      }).select('-password').populate('campus');
     } else {
       hod = await HOD.findOne({
         _id: req.user.id,
         'department.code': req.user.branchCode,
         'department.campusType': req.user.campus.charAt(0).toUpperCase() + req.user.campus.slice(1)
-      }).select('-password');
+      }).select('-password').populate('campus');
     }
 
     if (!hod) {
@@ -667,6 +667,7 @@ const getDashboard = async (req, res) => {
         employeeEmail: employee.email,
         employeeDepartment: employee.department,
         employeeEmployeeId: employee.employeeId,
+        employeePhoneNumber: employee.phoneNumber,
         alternateSchedule: leave.alternateSchedule.map(schedule => ({
           date: schedule.date,
           periods: schedule.periods.map(period => ({
@@ -957,7 +958,8 @@ const getCCLWorkRequests = async (req, res) => {
         employeeName: employee.name,
         employeeEmail: employee.email,
         employeeDepartment: employee.department,
-        employeeEmployeeId: employee.employeeId
+        employeeEmployeeId: employee.employeeId,
+        employeePhoneNumber: employee.phoneNumber
       }));
       
       console.log(`Found ${employeeRequests.length} pending CCL work requests for employee ${employee.employeeId}`);
