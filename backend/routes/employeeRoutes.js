@@ -5,6 +5,7 @@ const employeeAuthController = require('../controllers/employeeAuthController');
 const employeeDashboardController = require('../controllers/employeeDashboardController');
 const employeeController = require("../controllers/employeeController.js");
 const { Employee, Campus } = require('../models');
+const taskController = require('../controllers/taskController');
 const { upload, deleteProfilePicture } = require('../utils/s3Upload');
 
 // Debug middleware for employee routes
@@ -74,6 +75,10 @@ router.get('/leave-balance', authEmployee, async (req, res) => {
 router.get('/ccl-history', authEmployee, employeeController.getCCLHistory);
 router.get('/ccl-work-history', authEmployee, employeeController.getCCLWorkHistory);
 router.post('/ccl-work', authEmployee, employeeController.submitCCLWorkRequest);
+
+
+// Task fetch route for employees
+router.get('/tasks', authEmployee, taskController.listTasksForEmployee);
 
 // Leave request routes
 router.post('/leave-request', authEmployee, employeeController.addLeaveRequest);
