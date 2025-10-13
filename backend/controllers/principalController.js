@@ -1000,17 +1000,32 @@ exports.updateLeaveRequest = async (req, res) => {
         );
       } else if (leaveRequest.leaveType === 'CL') {
         // For CL, deduct from regular leave balance
-        employee.leaveBalance -= finalNumberOfDays;
-        // Add to leave history
-        employee.leaveHistory = employee.leaveHistory || [];
-        employee.leaveHistory.push({
-          type: 'used',
-          date: new Date(),
-          days: finalNumberOfDays,
-          reference: leaveRequest._id,
-          referenceModel: 'LeaveRequest',
-          remarks: `CL leave approved by Principal${isModified ? ' (Dates modified)' : ''}`
-        });
+        if (employee.leaveBalance < finalNumberOfDays) {
+          // Allow approval, deduct all available, set to zero, note excess
+          leaveRequest.excessLeaveDays = finalNumberOfDays - employee.leaveBalance;
+          leaveRequest.warning = `Requested ${finalNumberOfDays} days, but only ${employee.leaveBalance} available. Excess: ${finalNumberOfDays - employee.leaveBalance} days.`;
+          employee.leaveHistory = employee.leaveHistory || [];
+          employee.leaveHistory.push({
+            type: 'used',
+            date: new Date(),
+            days: employee.leaveBalance,
+            reference: leaveRequest._id,
+            referenceModel: 'LeaveRequest',
+            remarks: `CL leave approved by Principal (Excess applied)`
+          });
+          employee.leaveBalance = 0;
+        } else {
+          employee.leaveBalance -= finalNumberOfDays;
+          employee.leaveHistory = employee.leaveHistory || [];
+          employee.leaveHistory.push({
+            type: 'used',
+            date: new Date(),
+            days: finalNumberOfDays,
+            reference: leaveRequest._id,
+            referenceModel: 'LeaveRequest',
+            remarks: `CL leave approved by Principal${isModified ? ' (Dates modified)' : ''}`
+          });
+        }
       }
 
       // Save the employee (which will save the embedded leave request)
@@ -2197,4 +2212,4 @@ exports.deleteEmployee = async (req, res) => {
     console.error('Delete Employee Error:', error);
     res.status(500).json({ msg: error.message || 'Server error' });
   }
-}; 
+};
