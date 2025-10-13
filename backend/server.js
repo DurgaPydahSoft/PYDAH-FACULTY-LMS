@@ -25,13 +25,6 @@ connectDB();
 
 const app = express();
 
-// // Debug logging middleware
-// app.use((req, res, next) => {
-//   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-//   console.log('Request Headers:', req.headers);
-//   next();
-// });
-
 // CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {

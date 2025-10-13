@@ -504,18 +504,23 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                           )}
                         </div>
                       ) : formData.leaveType === 'CL' ? (
-                        <div className={`text-xs sm:text-sm ${leaveBalance.leaveBalance <= 0 ? 'text-red-500' : leaveBalance.leaveBalance < 4 ? 'text-yellow-500' : 'text-green-500'} flex items-center`}>
-                          <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Available Casual Leave Balance: <strong>{leaveBalance.leaveBalance}</strong> days
+                        <div className={`text-xs sm:text-sm ${leaveBalance.leaveBalance <= 0 ? 'text-red-500' : leaveBalance.leaveBalance < 4 ? 'text-yellow-500' : 'text-green-500'} flex flex-col items-start`}>
+                          <div className="flex items-center">
+                            <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Available Casual Leave Balance: <strong>{leaveBalance.leaveBalance}</strong> days
+                          </div>
+                          <div className="text-xs sm:text-sm text-blue-600 mt-2">
+                            Note: Only one CL day per month is allowed. If you request more than one day, only one will be counted as CL and the rest as LOP.
+                          </div>
                         </div>
                       ) : null}
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center">
+                <div className="flex items-center mt-4 sm:mt-0">
                   <input
                     type="checkbox"
                     id="isHalfDay"
@@ -533,8 +538,6 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                   </label>
                 </div>
               </div>
-
-              {/* Session Selection for Half Day */}
               {formData.isHalfDay && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">

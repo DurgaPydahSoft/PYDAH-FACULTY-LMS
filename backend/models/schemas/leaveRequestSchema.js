@@ -190,6 +190,15 @@ const leaveRequestSchema = new mongoose.Schema({
   principalModificationReason: {
     type: String,
     default: ''
+  },
+  // New fields for CL/LOP split
+  clDays: {
+    type: Number,
+    default: 0
+  },
+  lopDays: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true
@@ -364,4 +373,4 @@ leaveRequestSchema.pre('validate', function(next) {
     }
   });
 });
-module.exports = leaveRequestSchema;  
+module.exports = leaveRequestSchema;

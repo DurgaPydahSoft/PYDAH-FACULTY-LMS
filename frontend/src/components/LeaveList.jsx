@@ -19,6 +19,12 @@ const LeaveList = ({ leaveRequests }) => {
             <p>
               <strong>Status:</strong> {request.status}
             </p>
+            {request.leaveType === 'CL' && (
+              <p>
+                <strong>CL Days:</strong> {request.clDays ?? 0} &nbsp;
+                <strong>LOP Days:</strong> {request.lopDays ?? 0}
+              </p>
+            )}
           </div>
         );
       })}

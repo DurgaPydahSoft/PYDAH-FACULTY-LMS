@@ -84,6 +84,7 @@ router.get('/tasks', authEmployee, taskController.listTasksForEmployee);
 router.post('/leave-request', authEmployee, employeeController.addLeaveRequest);
 router.get('/leave-request/:id', authEmployee, employeeController.getEmployeeById);
 router.put('/leave-request/:id', authEmployee, employeeController.updateEmployee);
+router.delete('/leave-request/:leaveRequestId', authEmployee, employeeController.deleteLeaveRequest);
 
 // Validate leave request dates
 router.post('/validate-dates', authEmployee, async (req, res) => {

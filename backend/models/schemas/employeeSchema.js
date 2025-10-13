@@ -306,6 +306,15 @@ const employeeSchema = new mongoose.Schema({
     principalModificationReason: {
       type: String,
       default: ''
+    },
+    // CL/LOP split fields (used when leaveType === 'CL')
+    clDays: {
+      type: Number,
+      default: 0
+    },
+    lopDays: {
+      type: Number,
+      default: 0
     }
   }],
   createdAt: {
@@ -406,7 +415,8 @@ employeeSchema.pre('save', async function(next) {
 
     // Validate leave balance
     if (latestLeaveRequest.leaveType === 'CL') {
-      if (this.leaveBalance < latestLeaveRequest.numberOfDays) {
+      const clDaysToUse = typeof latestLeaveRequest.clDays === 'number' ? latestLeaveRequest.clDays : latestLeaveRequest.numberOfDays;
+      if (this.leaveBalance < clDaysToUse) {
         throw new Error(`Insufficient leave balance. Available: ${this.leaveBalance} days`);
       }
     } else if (latestLeaveRequest.leaveType === 'CCL') {

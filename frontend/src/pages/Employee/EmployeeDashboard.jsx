@@ -120,6 +120,52 @@ const EmployeeDashboard = () => {
     setShowLeaveForm(false);
   };
 
+  const handleDeleteLeave = async (leave) => {
+    try {
+      if (!leave || !leave._id) return;
+      if (leave.status !== 'Pending') {
+        toast.error('Only pending leave requests can be deleted');
+        return;
+      }
+
+      const confirmed = window.confirm('Delete this leave request? This cannot be undone.');
+      if (!confirmed) return;
+
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/employee/leave-request/${leave._id}` , {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      // Try to parse JSON; fallback to text to avoid HTML parse errors
+      const contentType = response.headers.get('content-type') || '';
+      let payload = null;
+      if (contentType.includes('application/json')) {
+        try {
+          payload = await response.json();
+        } catch (_) {
+          payload = null;
+        }
+      } else {
+        // Consume body to avoid stream lock; ignore content
+        try { await response.text(); } catch (_) {}
+      }
+      if (!response.ok) {
+        const message = (payload && (payload.msg || payload.message)) || 'Failed to delete leave request';
+        throw new Error(message);
+      }
+
+      setLeaveHistory(prev => prev.filter(l => l._id !== leave._id));
+      setSelectedLeave(prev => (prev && prev._id === leave._id ? null : prev));
+      toast.success('Leave request deleted');
+    } catch (error) {
+      console.error('Delete leave error:', error);
+      toast.error(error.message || 'Failed to delete leave request');
+    }
+  };
+
   const handleCCLSubmit = async (newCCLWork) => {
     try {
       // Close the form
@@ -444,6 +490,7 @@ const EmployeeDashboard = () => {
                   <th className="px-4 py-2 text-left">Days</th>
                   <th className="px-4 py-2 text-left">Status</th>
                   <th className="px-4 py-2 text-left">Applied On</th>
+                  <th className="px-4 py-2 text-left">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -497,6 +544,18 @@ const EmployeeDashboard = () => {
                       </span>
                     </td>
                     <td className="px-4 py-2">{new Date(leave.appliedOn).toLocaleDateString()}</td>
+                    <td className="px-4 py-2">
+                      {leave.status === 'Pending' && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleDeleteLeave(leave); }}
+                          className="text-red-600 hover:text-red-800 transition-colors"
+                          title="Delete Leave Request"
+                        >
+                          <FaTrash />
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -525,6 +584,17 @@ const EmployeeDashboard = () => {
                       )}
                     </span>
                   </div>
+                  {leave.status === 'Pending' && (
+                    <div className="mb-3">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteLeave(leave); }}
+                        className="inline-flex items-center gap-2 text-xs text-red-600 hover:text-red-800"
+                      >
+                        <FaTrash /> Delete request
+                      </button>
+                    </div>
+                  )}
                   <div className="space-y-2">
                   {leave.isModifiedByPrincipal ? (
                       <div>
@@ -630,6 +700,22 @@ const EmployeeDashboard = () => {
                         <p className="text-sm text-gray-600">Half Day Leave</p>
                       </div>
                     )}
+
+                    {/* CL/LOP Split Display */}
+    {selectedLeave.leaveType === 'CL' && (
+      <>
+        <div>
+          <p className="text-sm text-gray-600">CL Days</p>
+          <p className="font-medium break-words">{selectedLeave.clDays ?? 0}</p>
+        </div>
+        <div>
+          <p className="text-sm text-gray-600">LOP Days</p>
+          <p className="font-medium break-words">{selectedLeave.lopDays ?? 0}</p>
+        </div>
+      </>
+    )}
+
+
                     
                     {selectedLeave.isModifiedByPrincipal ? (
                       <div className="col-span-1 sm:col-span-2">

@@ -718,7 +718,7 @@ exports.updateLeaveRequest = async (req, res) => {
       remarks,
       approvedStartDate,
       approvedEndDate,
-      approvedNumberOfDays,
+approvedNumberOfDays,
       modificationReason,
       user: {
         id: req.user.id,
@@ -961,13 +961,25 @@ exports.updateLeaveRequest = async (req, res) => {
           });
         }
       } else if (leaveRequest.leaveType === 'CL') {
-        // For CL, check if employee has sufficient balance
-        if (employee.leaveBalance < finalNumberOfDays) {
-          return res.status(400).json({ 
-            msg: `Insufficient leave balance. Available: ${employee.leaveBalance} days, Required: ${finalNumberOfDays} days`
-          });
-        }
-      }
+  // Deduct only clDays from CL balance
+  if (employee.leaveBalance < leaveRequest.clDays) {
+    return res.status(400).json({ 
+      msg: `Insufficient CL balance. Available: ${employee.leaveBalance} days, Required: ${leaveRequest.clDays} days`
+    });
+  }
+  employee.leaveBalance -= leaveRequest.clDays;
+  // Add to leave history
+  employee.leaveHistory = employee.leaveHistory || [];
+  employee.leaveHistory.push({
+    type: 'used',
+    date: new Date(),
+    days: leaveRequest.clDays,
+    reference: leaveRequest._id,
+    referenceModel: 'LeaveRequest',
+    remarks: `Leave approved (CL: ${leaveRequest.clDays}, LOP: ${leaveRequest.lopDays})`
+  });
+  // LOP days are not deducted from CL balance
+}
       // For OD, no balance check needed
 
       // Update leave request status and approved dates

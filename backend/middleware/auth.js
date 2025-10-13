@@ -239,16 +239,14 @@ exports.authHOD = async (req, res, next) => {
 // Employee authentication
 exports.authEmployee = async (req, res, next) => {
   try {
-    console.log('Auth Headers:', req.headers);
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    console.log('Extracted Token:', token);
+   const token = req.header('Authorization')?.replace('Bearer ', '');
     
     if (!token) {
       return res.status(401).json({ msg: 'No token, authorization denied' });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('Decoded Token:', decoded);
+  
     
     // Find employee by MongoDB _id from token
     const employee = await Employee.findById(decoded.id);

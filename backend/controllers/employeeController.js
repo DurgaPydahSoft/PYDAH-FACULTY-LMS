@@ -65,6 +65,64 @@ const deleteEmployee = async (req, res) => {
   }
 };
 
+// Delete a leave request (only if Pending and belongs to current employee)
+const deleteLeaveRequest = async (req, res) => {
+  try {
+    const employeeId = req.user.id;
+    const { leaveRequestId } = req.params;
+
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      return res.status(404).json({ msg: 'Employee not found' });
+    }
+
+    // Try by subdocument _id first
+    let leaveRequest = employee.leaveRequests.id(leaveRequestId);
+
+    // Fallback: try match by business leaveRequestId field
+    if (!leaveRequest) {
+      leaveRequest = (employee.leaveRequests || []).find(lr => lr.leaveRequestId === leaveRequestId);
+    }
+
+    if (!leaveRequest) {
+      return res.status(404).json({ msg: 'Leave request not found' });
+    }
+
+    if (leaveRequest.status !== 'Pending') {
+      return res.status(400).json({ msg: 'Only pending leave requests can be deleted' });
+    }
+
+    // Remove the subdocument and save
+    try {
+      if (typeof leaveRequest.remove === 'function') {
+        leaveRequest.remove();
+      } else {
+        // Fallback: remove by index
+        const idx = employee.leaveRequests.findIndex(lr => String(lr._id) === String(leaveRequest._id));
+        if (idx !== -1) {
+          employee.leaveRequests.splice(idx, 1);
+        } else {
+          // As an extra fallback, try by leaveRequestId
+          const idxByBusinessId = employee.leaveRequests.findIndex(lr => lr.leaveRequestId === leaveRequest.leaveRequestId);
+          if (idxByBusinessId !== -1) {
+            employee.leaveRequests.splice(idxByBusinessId, 1);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error removing leave subdocument:', e);
+      return res.status(500).json({ msg: 'Failed to delete leave request' });
+    }
+
+    await employee.save();
+
+    return res.json({ msg: 'Leave request deleted successfully' });
+  } catch (error) {
+    console.error('Delete Leave Request Error:', error);
+    return res.status(500).json({ msg: 'Server error' });
+  }
+};
+
 // Add Leave Request
 const addLeaveRequest = async (req, res) => {
   try {
@@ -156,6 +214,26 @@ const addLeaveRequest = async (req, res) => {
       }
     };
 
+    if (leaveType === 'CL') {
+      // Monthly CL rule: at most 1 CL day approved per calendar month
+      const reqStart = new Date(startDate);
+      const requestedMonth = reqStart.getMonth();
+      const requestedYear = reqStart.getFullYear();
+      const approvedCLThisMonth = (employee.leaveRequests || []).filter(lr => (
+        lr.leaveType === 'CL' &&
+        lr.status === 'Approved' &&
+        new Date(lr.startDate).getMonth() === requestedMonth &&
+        new Date(lr.startDate).getFullYear() === requestedYear
+      ));
+      const allowedCLDays = approvedCLThisMonth.length === 0 ? 1 : 0;
+
+      const requestedDays = numberOfDays;
+      const clDays = Math.min(allowedCLDays, requestedDays);
+      const lopDays = Math.max(0, requestedDays - clDays);
+      newLeaveRequest.clDays = clDays;
+      newLeaveRequest.lopDays = lopDays;
+    }
+
     // Add alternate schedule if provided
     if (alternateSchedule && Array.isArray(alternateSchedule)) {
       newLeaveRequest.alternateSchedule = alternateSchedule.map(schedule => ({
@@ -213,6 +291,32 @@ const updateLeaveRequestStatus = async (req, res) => {
     // Store previous status for balance adjustment
     const previousStatus = leaveRequest.status;
 
+    // Add this logic inside your leave request creation function, after validating input and before saving the leave request
+    
+    if (leaveType === 'CL') {
+    // Get the month and year of the requested leave
+    const requestedMonth = new Date(startDate).getMonth();
+    const requestedYear = new Date(startDate).getFullYear();
+    
+    // Find existing CL requests for this employee in the same month and year
+    const existingCLThisMonth = employee.leaveRequests.filter(lr =>
+    lr.leaveType === 'CL' &&
+    lr.status === 'Approved' &&
+    new Date(lr.startDate).getMonth() === requestedMonth &&
+    new Date(lr.startDate).getFullYear() === requestedYear
+    );
+    
+    // Determine allowed CL days
+    let allowedCLDays = existingCLThisMonth.length === 0 ? 1 : 0;
+    let requestedDays = numberOfDays;
+    let clDays = Math.min(allowedCLDays, requestedDays);
+    let lopDays = requestedDays - clDays;
+    
+    // Set the split in the leave request
+    leaveRequest.clDays = clDays;
+    leaveRequest.lopDays = lopDays;
+    }
+
     // Update leave request status
     leaveRequest.status = status;
     if (remarks) {
@@ -232,22 +336,23 @@ const updateLeaveRequestStatus = async (req, res) => {
     if (status === 'Approved' && previousStatus !== 'Approved') {
       // Check balance before approving
       if (leaveRequest.leaveType === 'CL') {
-        if (employee.leaveBalance < leaveRequest.numberOfDays) {
+        const clDaysToDeduct = typeof leaveRequest.clDays === 'number' ? leaveRequest.clDays : leaveRequest.numberOfDays;
+        if (employee.leaveBalance < clDaysToDeduct) {
           return res.status(400).json({ 
-            msg: `Insufficient leave balance. Available: ${employee.leaveBalance} days, Required: ${leaveRequest.numberOfDays} days`
+            msg: `Insufficient CL balance. Available: ${employee.leaveBalance} days, Required: ${clDaysToDeduct} days`
           });
         }
-        // Deduct balance only if not previously approved
-        employee.leaveBalance -= leaveRequest.numberOfDays;
+        // Deduct only CL portion
+        employee.leaveBalance -= clDaysToDeduct;
         // Add to leave history
         employee.leaveHistory = employee.leaveHistory || [];
         employee.leaveHistory.push({
           type: 'used',
           date: new Date(),
-          days: leaveRequest.numberOfDays,
+          days: clDaysToDeduct,
           reference: leaveRequest._id,
           referenceModel: 'LeaveRequest',
-          remarks: 'Leave approved'
+          remarks: `Leave approved (CL: ${clDaysToDeduct}, LOP: ${leaveRequest.lopDays || 0})`
         });
       } else if (leaveRequest.leaveType === 'CCL') {
         // For CCL, ensure we're using the correct number of days (0.5 for half-day)
@@ -272,16 +377,17 @@ const updateLeaveRequestStatus = async (req, res) => {
     } else if (status === 'Rejected' && previousStatus === 'Approved') {
       // Restore balance if previously approved
       if (leaveRequest.leaveType === 'CL') {
-        employee.leaveBalance += leaveRequest.numberOfDays;
+        const clDaysToRestore = typeof leaveRequest.clDays === 'number' ? leaveRequest.clDays : leaveRequest.numberOfDays;
+        employee.leaveBalance += clDaysToRestore;
         // Add to leave history
         employee.leaveHistory = employee.leaveHistory || [];
         employee.leaveHistory.push({
           type: 'restored',
           date: new Date(),
-          days: leaveRequest.numberOfDays,
+          days: clDaysToRestore,
           reference: leaveRequest._id,
           referenceModel: 'LeaveRequest',
-          remarks: 'Leave rejected after approval'
+          remarks: `Leave rejected after approval (CL: ${clDaysToRestore}, LOP: ${leaveRequest.lopDays || 0})`
         });
       } else if (leaveRequest.leaveType === 'CCL') {
         // For CCL, ensure we're using the correct number of days (0.5 for half-day)
@@ -526,5 +632,6 @@ module.exports = {
   updateLeaveRequestStatus,
   submitCCLWorkRequest,
   getCCLHistory,
-  getCCLWorkHistory
+  getCCLWorkHistory,
+  deleteLeaveRequest
 };
