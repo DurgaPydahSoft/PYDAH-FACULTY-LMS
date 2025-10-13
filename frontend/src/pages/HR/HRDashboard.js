@@ -13,6 +13,7 @@ import EmployeeManagementSection from './EmployeeManagementSection';
 import EmployeeOperationsSection from './EmployeeOperationsSection';
 import ProfileSection from './ProfileSection';
 import HRLeaveRequestsSection from './HRLeaveRequestsSection';
+import HRTaskManagementSection from './HRTaskManagementSection';
 
 const API_BASE_URL = config.API_BASE_URL;
 
@@ -966,6 +967,8 @@ if (normalizedHeader.length >= 3 && variation.length >= 3) {
             }}
           />
         );
+      case 'tasks':
+        return <HRTaskManagementSection />;
       default:
         return (
           <HRDashboardSection

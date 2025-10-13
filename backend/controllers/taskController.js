@@ -27,3 +27,28 @@ exports.listTasksForEmployee = asyncHandler(async (req, res) => {
   const tasks = await Task.find().sort({ createdAt: -1 });
   res.json(tasks);
 });
+
+// HR: Update a task
+exports.updateTask = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { title, description } = req.body;
+  const task = await Task.findById(id);
+  if (!task) {
+    return res.status(404).json({ msg: 'Task not found.' });
+  }
+  if (title) task.title = title;
+  if (description) task.description = description;
+  await task.save();
+  res.json({ msg: 'Task updated successfully.', task });
+});
+
+// HR: Delete a task
+exports.deleteTask = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const task = await Task.findById(id);
+  if (!task) {
+    return res.status(404).json({ msg: 'Task not found.' });
+  }
+  await task.deleteOne();
+  res.json({ msg: 'Task deleted successfully.' });
+});

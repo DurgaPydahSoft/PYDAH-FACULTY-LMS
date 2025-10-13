@@ -8,6 +8,7 @@ import config from '../../config';
 import { FaUserCircle, FaRegCalendarCheck, FaHistory, FaCamera, FaTrash } from 'react-icons/fa';
 import { MdOutlineLogout, MdOutlineWorkHistory } from 'react-icons/md';
 import Loading from '../../components/Loading';
+import EmployeeTasksSection from "./EmployeeTasksSection";
 
 const API_BASE_URL = config.API_BASE_URL;
 
@@ -334,6 +335,8 @@ const EmployeeDashboard = () => {
           </button>
         </div>
 
+        {/* Employee Tasks Section */}
+        <EmployeeTasksSection />
         {/* CCL Work History */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
           <div className="flex items-center gap-2 mb-4 sm:mb-6">

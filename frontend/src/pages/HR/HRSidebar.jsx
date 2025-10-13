@@ -11,6 +11,7 @@ const HRSidebar = ({ activeSection, onSectionChange, hr }) => {
     { id: 'employees', label: 'Employees', icon: <FaUsers /> },
     { id: 'operations', label: 'Register Employee ', icon: <FaUserPlus /> },
     { id: 'leaves', label: 'Leave Requests', icon: <FaTasks />},
+    { id: 'tasks', label: 'Task Management', icon: <FaTasks /> },
     { id: 'profile', label: 'Profile', icon: <FaUserCircle /> }
     
   ];

@@ -31,6 +31,8 @@ router.get('/leave-requests', hrController.getCampusLeaveRequests);
 // HR Task Management
 router.post('/tasks', taskController.createTask);
 router.get('/tasks', taskController.listTasks);
+router.put('/tasks/:id', taskController.updateTask);
+router.delete('/tasks/:id', taskController.deleteTask);
 
 // Profile picture management for employees
 router.post('/employees/:id/upload-profile-picture', upload.single('profilePicture'), hrController.uploadEmployeeProfilePicture);
