@@ -6,15 +6,21 @@ import CCLWorkRequestForm from '../../components/CCLWorkRequestForm';
 import { createAuthAxios } from '../../utils/authAxios';
 import config from '../../config';
 import { FaUserCircle, FaRegCalendarCheck, FaHistory, FaCamera, FaTrash } from 'react-icons/fa';
-import { MdOutlineLogout, MdOutlineWorkHistory } from 'react-icons/md';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import Loading from '../../components/Loading';
 import EmployeeTasksSection from "./EmployeeTasksSection";
+import EmployeeSidebar from './EmployeeSidebar';
+import EmployeeDashboardSection from './EmployeeDashboardSection';
+import EmployeeCCLWorkHistorySection from './EmployeeCCLWorkHistorySection';
+import EmployeeLeaveHistorySection from './EmployeeLeaveHistorySection';
+import EmployeeProfileSection from './EmployeeProfileSection';
 
 const API_BASE_URL = config.API_BASE_URL;
 
 const EmployeeDashboard = () => {
   const [employee, setEmployee] = useState(null);
   const [showLeaveForm, setShowLeaveForm] = useState(false);
+  const [activeSection, setActiveSection] = useState('dashboard');
   const [showCCLForm, setShowCCLForm] = useState(false);
   const [loading, setLoading] = useState(true); 
   const [error, setError] = useState('');
@@ -268,14 +274,25 @@ const EmployeeDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen py-2 px-3 sm:py-4 sm:px-6 bg-gray-50">
-      <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
+    <div className="min-h-screen  bg-gradient-to-t from-green-50 via-blue-100 to-blue-300">
+      <EmployeeSidebar activeSection={activeSection} onSectionChange={setActiveSection} employee={employee} />
+      <div className="lg:pl-64 py-2 px-3 sm:py-4 sm:px-6">
+      <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6  lg:space-y-8">
         {/* Header */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+        <div className="bg-gray-100 rounded-xl shadow-sm border hidden border-gray-100 p-4 sm:p-6">
+          <div className="flex justify-center ">
+            <DotLottieReact 
+              src="https://lottie.host/e6ff0b4d-b519-4509-a423-1ff4a4c520d3/1g7wwRt38G.lottie" 
+              loop 
+              autoplay 
+              style={{ width: '150px', height: '150px' }}
+            />
+          </div>
+          
           {/* Profile Section */}
-          <div className="flex flex-col items-center sm:flex-row sm:justify-between sm:items-center gap-4">
+          <div className="flex flex-col items-center sm:flex-row sm:justify-between sm:items-center  gap-4">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
-              <div className="relative rounded-full overflow-hidden border-4 border-white shadow-lg w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 group mx-auto sm:mx-0">
+              <div className="relative rounded-full overflow-hidden hidden border-4 border-white shadow-lg w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 group mx-auto sm:mx-0">
               {previewImage || employee?.profilePicture ? (
                 <img
                   src={previewImage || employee?.profilePicture || ''}
@@ -285,7 +302,7 @@ const EmployeeDashboard = () => {
                 />
               ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                    <FaUserCircle className="text-gray-400 text-4xl sm:text-5xl lg:text-6xl" />
+                    <FaUserCircle className="text-green-400 text-4xl sm:text-5xl lg:text-6xl" />
                 </div>
               )}
               {/* Overlay for actions */}
@@ -308,7 +325,7 @@ const EmployeeDashboard = () => {
                       <FaTrash className="text-white text-sm sm:text-lg lg:text-xl" />
                   </button>
                 )}
-              </div>
+              </div> 
               <input
                 type="file"
                 ref={fileInputRef}
@@ -330,312 +347,55 @@ const EmployeeDashboard = () => {
               </p>
             </div>
           </div>
-          <button
+          {/* <button
             onClick={handleLogout}
               className="w-full sm:w-auto px-4 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2 justify-center text-sm sm:text-base font-medium shadow-sm"
           >
             <MdOutlineLogout className="text-lg" /> Logout
-          </button>
+          </button> */}
         </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="bg-primary/10 rounded-full p-2.5 sm:p-3 flex items-center justify-center">
-                <FaRegCalendarCheck className="text-primary text-2xl sm:text-3xl" />
-              </div>
-              <div className="flex-1">
-                <h2 className="text-sm sm:text-base font-semibold text-primary mb-1">Leave Balance</h2>
-                <div className="text-xl sm:text-2xl font-bold text-gray-800">{employee?.leaveBalance || 0} days</div>
-            </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="bg-green-500/10 rounded-full p-2.5 sm:p-3 flex items-center justify-center">
-                <MdOutlineWorkHistory className="text-green-600 text-2xl sm:text-3xl" />
-              </div>
-              <div className="flex-1">
-                <h2 className="text-sm sm:text-base font-semibold text-green-600 mb-1">CCL Balance</h2>
-                <div className="text-xl sm:text-2xl font-bold text-gray-800">{employee?.cclBalance || 0} days</div>
-            </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <button
-            onClick={() => setShowLeaveForm(true)}
-            className="w-full px-4 py-3.5 bg-primary text-white rounded-xl shadow-sm hover:bg-primary-dark transition-colors text-base sm:text-lg font-semibold flex items-center justify-center gap-3"
-          >
-            <FaRegCalendarCheck className="text-xl" /> Apply for Leave
-          </button>
-          <button
-            onClick={() => setShowCCLForm(true)}
-            className="w-full px-4 py-3.5 bg-green-500 text-white rounded-xl shadow-sm hover:bg-green-600 transition-colors text-base sm:text-lg font-semibold flex items-center justify-center gap-3"
-          >
-            <MdOutlineWorkHistory className="text-xl" /> Submit CCL Work
-          </button>
-        </div>
-
-        {/* Employee Tasks Section */}
-        <EmployeeTasksSection />
+        {/* Dashboard Section */}
+        {activeSection === 'dashboard' && (
+          <EmployeeDashboardSection
+            employee={employee}
+            onApplyLeave={() => setShowLeaveForm(true)}
+            onSubmitCCL={() => setShowCCLForm(true)}
+          />
+        )}
+        {activeSection === 'ccl' && (
+          <>
+            {/* CCL Work History only */}
+            {/* We reuse existing CCL work history block below */}
+          </>
+        )}
         {/* CCL Work History */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-          <div className="flex items-center gap-2 mb-4 sm:mb-6">
-            <MdOutlineWorkHistory className="text-primary text-xl" />
-            <h2 className="text-lg sm:text-xl font-semibold text-primary">CCL Work History</h2>
-          </div>
-          {/* Desktop Table */}
-          <div className="overflow-x-auto hidden sm:block">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Assigned By</th>
-                  <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Reason</th>
-                  <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">HOD Remarks</th>
-                  <th className="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Principal Remarks</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {cclWorkHistory && cclWorkHistory.length > 0 ? (
-                  cclWorkHistory.map((work) => (
-                    <tr key={work._id}>
-                      <td className="px-6 py-4 whitespace-nowrap">{work.date ? new Date(work.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{work.assignedTo || '-'}</td>
-                      <td className="px-6 py-4">{work.reason || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                          ${work.status === 'Approved' ? 'bg-green-100 text-green-800' : 
-                            work.status === 'Rejected' ? 'bg-red-100 text-red-800' : 
-                            'bg-yellow-100 text-yellow-800'}`}>{work.status || 'Pending'}</span>
-                      </td>
-                      <td className="px-6 py-4">{work.hodRemarks || '-'}</td>
-                      <td className="px-6 py-4">{work.principalRemarks || '-'}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="6" className="px-6 py-4 text-center text-gray-500">No CCL work history found</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          {/* Mobile Card View */}
-          <div className="sm:hidden space-y-3">
-            {cclWorkHistory && cclWorkHistory.length > 0 ? (
-              cclWorkHistory.map((work) => (
-                <div key={work._id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-primary text-sm mb-1">{work.assignedTo || 'Unassigned'}</h3>
-                      <p className="text-xs text-gray-500 mb-2">
-                        {work.date ? new Date(work.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'No date'}
-                      </p>
-                    </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ml-2 flex-shrink-0
-                      ${work.status === 'Approved' ? 'bg-green-100 text-green-800' : 
-                        work.status === 'Rejected' ? 'bg-red-100 text-red-800' : 
-                        'bg-yellow-100 text-yellow-800'}`}>{work.status || 'Pending'}</span>
-                  </div>
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-xs font-medium text-gray-600 mb-1">Reason</p>
-                      <p className="text-sm text-gray-800">{work.reason || 'No reason provided'}</p>
-                    </div>
-                    {work.hodRemarks && (
-                      <div>
-                        <p className="text-xs font-medium text-gray-600 mb-1">HOD Remarks</p>
-                        <p className="text-sm text-gray-800">{work.hodRemarks}</p>
-                      </div>
-                    )}
-                    {work.principalRemarks && (
-                      <div>
-                        <p className="text-xs font-medium text-gray-600 mb-1">Principal Remarks</p>
-                        <p className="text-sm text-gray-800">{work.principalRemarks}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8">
-                <MdOutlineWorkHistory className="text-gray-300 text-4xl mx-auto mb-2" />
-                <p className="text-gray-500 text-sm">No CCL work history found</p>
-              </div>
-            )}
-          </div>
-        </div>
+        {(activeSection === 'dashboard' || activeSection === 'ccl') && (
+          <EmployeeCCLWorkHistorySection cclWorkHistory={cclWorkHistory} />
+        )}
 
         {/* Leave History */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-          <div className="flex items-center gap-2 mb-4 sm:mb-6">
-            <FaHistory className="text-primary text-xl" />
-            <h2 className="text-lg sm:text-xl font-semibold text-primary">Leave History</h2>
-          </div>
-          {/* Desktop Table */}
-          <div className="overflow-x-auto hidden sm:block">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left">Leave Type</th>
-                  <th className="px-4 py-2 text-left">Start Date</th>
-                  <th className="px-4 py-2 text-left">End Date</th>
-                  <th className="px-4 py-2 text-left">Days</th>
-                  <th className="px-4 py-2 text-left">Status</th>
-                  <th className="px-4 py-2 text-left">Applied On</th>
-                  <th className="px-4 py-2 text-left">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leaveHistory.map((leave) => (
-                  <tr
-                    key={leave._id}
-                    className="border-t cursor-pointer hover:bg-blue-50 transition"
-                    onClick={() => setSelectedLeave(leave)}
-                  >
-                    <td className="px-4 py-2">{leave.leaveType}</td>
-                    <td className="px-4 py-2">
-                      {leave.isModifiedByPrincipal ? (
-                        <div>
-                          <div className="text-xs text-gray-500 line-through">{new Date(leave.startDate).toLocaleDateString()}</div>
-                          <div className="font-medium">{new Date(leave.approvedStartDate).toLocaleDateString()}</div>
-                        </div>
-                      ) : (
-                        new Date(leave.startDate).toLocaleDateString()
-                      )}
-                    </td>
-                    <td className="px-4 py-2">
-                      {leave.isModifiedByPrincipal ? (
-                        <div>
-                          <div className="text-xs text-gray-500 line-through">{new Date(leave.endDate).toLocaleDateString()}</div>
-                          <div className="font-medium">{new Date(leave.approvedEndDate).toLocaleDateString()}</div>
-                        </div>
-                      ) : (
-                        new Date(leave.endDate).toLocaleDateString()
-                      )}
-                    </td>
-                    <td className="px-4 py-2">
-                      {leave.isModifiedByPrincipal ? (
-                        <div>
-                          <div className="text-xs text-gray-500 line-through">{leave.numberOfDays}</div>
-                          <div className="font-medium">{leave.approvedNumberOfDays}</div>
-                        </div>
-                      ) : (
-                        leave.numberOfDays
-                      )}
-                    </td>
-                    <td className="px-4 py-2">
-                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold
-                        ${leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                          leave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                          leave.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
-                          'bg-yellow-100 text-yellow-800'}`}>
-                        {leave.status}
-                        {leave.isModifiedByPrincipal && leave.status === 'Approved' && (
-                          <span className="ml-1 text-yellow-600">✏️</span>
-                        )}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2">{new Date(leave.appliedOn).toLocaleDateString()}</td>
-                    <td className="px-4 py-2">
-                      {leave.status === 'Pending' && (
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); handleDeleteLeave(leave); }}
-                          className="text-red-600 hover:text-red-800 transition-colors"
-                          title="Delete Leave Request"
-                        >
-                          <FaTrash />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {/* Mobile Card View */}
-          <div className="sm:hidden space-y-3">
-            {leaveHistory.length > 0 ? (
-              leaveHistory.map((leave) => (
-                <div key={leave._id} className="bg-gray-50 rounded-lg p-4 border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => setSelectedLeave(leave)}>
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-primary text-sm mb-1">{leave.leaveType}</h3>
-                      <p className="text-xs text-gray-500 mb-2">
-                        Applied: {new Date(leave.appliedOn).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ml-2 flex-shrink-0
-                      ${leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                        leave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                        leave.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
-                        'bg-yellow-100 text-yellow-800'}`}>
-                      {leave.status}
-                      {leave.isModifiedByPrincipal && leave.status === 'Approved' && (
-                        <span className="ml-1 text-yellow-600">✏️</span>
-                      )}
-                    </span>
-                  </div>
-                  {leave.status === 'Pending' && (
-                    <div className="mb-3">
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); handleDeleteLeave(leave); }}
-                        className="inline-flex items-center gap-2 text-xs text-red-600 hover:text-red-800"
-                      >
-                        <FaTrash /> Delete request
-                      </button>
-                    </div>
-                  )}
-                  <div className="space-y-2">
-                  {leave.isModifiedByPrincipal ? (
-                      <div>
-                        <p className="text-xs font-medium text-gray-600 mb-1">Duration</p>
-                        <div className="text-sm">
-                          <div className="text-gray-500 line-through text-xs">
-                            {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()} ({leave.numberOfDays} days)
-                          </div>
-                          <div className="font-medium text-gray-800">
-                            {new Date(leave.approvedStartDate).toLocaleDateString()} - {new Date(leave.approvedEndDate).toLocaleDateString()} ({leave.approvedNumberOfDays} days)
-                          </div>
-                        </div>
-                    </div>
-                  ) : (
-                      <div>
-                        <p className="text-xs font-medium text-gray-600 mb-1">Duration</p>
-                        <p className="text-sm text-gray-800">
-                          {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()} ({leave.numberOfDays} days)
-                        </p>
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-xs font-medium text-gray-600 mb-1">Reason</p>
-                      <p className="text-sm text-gray-800 line-clamp-2">{leave.reason || 'No reason provided'}</p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8">
-                <FaHistory className="text-gray-300 text-4xl mx-auto mb-2" />
-                <p className="text-gray-500 text-sm">No leave history available</p>
-              </div>
-            )}
-          </div>
-        </div>
+        {(activeSection === 'dashboard' || activeSection === 'leaves') && (
+          <EmployeeLeaveHistorySection
+            leaveHistory={leaveHistory}
+            onSelect={(leave) => setSelectedLeave(leave)}
+            onDelete={handleDeleteLeave}
+          />
+        )}
+
+        {activeSection === 'tasks' && (
+          <EmployeeTasksSection />
+        )}
+
+        {activeSection === 'profile' && (
+          <EmployeeProfileSection employee={employee} />
+        )}
 
         {/* Leave Details Modal */}
         {selectedLeave && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
-            <div className="bg-white rounded-xl shadow-xl p-4 sm:p-6 max-w-2xl w-full max-h-[95vh] overflow-y-auto relative">
+            <div className="bg-gray-100 rounded-xl shadow-xl p-4 sm:p-6 max-w-2xl w-full max-h-[95vh] overflow-y-auto relative">
               <button
                 onClick={() => setSelectedLeave(null)}
                 className="absolute top-3 right-3 text-gray-400 bg-gray-100 rounded-full p-1.5 hover:bg-gray-200 hover:text-gray-600 transition-colors z-10"
@@ -821,6 +581,7 @@ const EmployeeDashboard = () => {
             </div>
           </div>
         )}
+      </div>
       </div>
 
       {/* Leave Application Form Modal */}
