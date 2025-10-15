@@ -121,6 +121,23 @@ const HRTaskManagementSection = () => {
       <h2 className="text-2xl font-bold text-primary mb-6 flex items-center gap-3">
         <FaTasks /> Task Management
       </h2>
+      
+      {/* Information Banner */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0">
+            <FaRegCalendarCheck className="text-blue-600 text-lg mt-0.5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-blue-800 mb-1">Task Visibility</h3>
+            <p className="text-sm text-blue-700">
+              Tasks created here will be automatically displayed to all employees in their Employee Dashboard under the "Tasks" section. 
+              Employees can view these tasks but cannot edit or delete them.
+            </p>
+          </div>
+        </div>
+      </div>
+      
       <button
         className="bg-primary text-white px-4 py-2 rounded-lg mb-4 flex items-center gap-2 hover:bg-primary-dark"
         onClick={() => setShowCreateModal(true)}
