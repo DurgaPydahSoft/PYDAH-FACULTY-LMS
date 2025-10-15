@@ -13,7 +13,7 @@ const LEAVE_TYPES = [
 
 const PERIODS = [1, 2, 3, 4, 5, 6, 7];
 
-const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
+const LeaveApplicationForm = ({ onSubmit, onClose, employee }) => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     leaveType: '',
@@ -41,6 +41,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
   });
   const [showFacultySearch, setShowFacultySearch] = useState(false);
   const [facultySearchQuery, setFacultySearchQuery] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch leave balance
   useEffect(() => {
@@ -373,10 +374,11 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
       return;
     }
 
-    // Set loading state to true when starting submission
-    if (loading) return; // Prevent multiple submissions
+    // Prevent multiple submissions
+    if (isSubmitting) return;
 
     try {
+      setIsSubmitting(true);
       const token = localStorage.getItem('token');
       
       // Calculate number of days
@@ -427,6 +429,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
     } catch (error) {
       console.error('Error submitting leave request:', error);
       toast.error(error.message || 'Failed to submit leave request');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -480,7 +484,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     name="leaveType"
                     value={formData.leaveType}
                     onChange={handleInputChange}
-                    disabled={loading}
+                    disabled={isSubmitting}
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     required
                   >
@@ -527,7 +531,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     name="isHalfDay"
                     checked={formData.isHalfDay}
                     onChange={handleInputChange}
-                    disabled={loading}
+                    disabled={isSubmitting}
                     className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                   <label htmlFor="isHalfDay" className="ml-2 block text-sm text-gray-700 flex items-center">
@@ -550,7 +554,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     name="session"
                     value={formData.session}
                     onChange={handleInputChange}
-                    disabled={loading}
+                    disabled={isSubmitting}
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     required
                   >
@@ -576,7 +580,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     value={formData.startDate}
                     onChange={handleInputChange}
                     min={getMinStartDate()}
-                    disabled={loading}
+                    disabled={isSubmitting}
                     className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     required
                   />
@@ -598,7 +602,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                       max={getMaxEndDate(formData.startDate)}
                       className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       required
-                      disabled={!formData.startDate || loading}
+                      disabled={!formData.startDate || isSubmitting}
                     />
                     {formData.startDate && (
                       <p className="text-xs text-gray-500 mt-1 flex items-center">
@@ -629,7 +633,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                   value={formData.reason}
                   onChange={handleInputChange}
                   rows="3"
-                  disabled={loading}
+                  disabled={isSubmitting}
                   className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   placeholder="Please provide detailed reason for your leave request"
                   required
@@ -640,8 +644,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
               <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4">
               <button
                   type="button"
-                  onClick={handleNextStep}
-                  disabled={loading}
+                  onClick={handleNextStep}                  
+                  disabled={isSubmitting}
                   className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next: Alternate Schedule
@@ -652,7 +656,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                 <button
                   type="button"
                   onClick={onClose}
-                  disabled={loading}
+                  disabled={isSubmitting}
                   className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -714,7 +718,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     <button
                       type="button"
                       onClick={() => handleRemovePeriod(period.periodNumber)}
-                      disabled={loading}
+                      disabled={isSubmitting}
                       className="text-red-600 hover:text-red-800 transition-colors p-1 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -730,7 +734,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                 <button
                   type="button"
                   onClick={() => setShowPeriodForm(true)}
-                  disabled={loading}
+                  disabled={isSubmitting}
                   className="w-full py-2 px-4 border border-dashed border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -751,7 +755,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                       name="periodNumber"
                       value={currentPeriod.periodNumber}
                       onChange={handlePeriodInputChange}
-                      disabled={loading}
+                      disabled={isSubmitting}
                       className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       required
                     >
@@ -795,8 +799,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                         type="text"
                         value={facultySearchQuery}
                         onChange={(e) => setFacultySearchQuery(e.target.value)}
-                        placeholder="Search faculty..."
-                        disabled={loading}
+                        placeholder="Search faculty..."                        
+                        disabled={isSubmitting}
                         className="w-full p-2.5 sm:p-2 border rounded-md focus:ring-2 focus:ring-blue-500 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={(e) => e.stopPropagation()}
                       />
@@ -838,7 +842,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                       name="assignedClass"
                       value={currentPeriod.assignedClass}
                       onChange={handlePeriodInputChange}
-                      disabled={loading}
+                      disabled={isSubmitting}
                       className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 text-sm sm:text-base py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       placeholder="Enter class (e.g. CSE-A)"
                       required
@@ -849,7 +853,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     <button
                       type="button"
                       onClick={handleAddPeriod}
-                      disabled={loading}
+                      disabled={isSubmitting}
                       className="w-full sm:w-auto flex-1 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -867,7 +871,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                           assignedClass: ''
                         });
                       }}
-                      disabled={loading}
+                      disabled={isSubmitting}
                       className="w-full sm:w-auto flex-1 py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -885,7 +889,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    disabled={loading}
+                    disabled={isSubmitting}
                     className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -899,7 +903,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     <button
                       type="button"
                       onClick={handlePreviousDay}
-                      disabled={loading}
+                      disabled={isSubmitting}
                       className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -912,7 +916,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                     <button
                       type="button"
                       onClick={handleNextDay}
-                      disabled={loading}
+                      disabled={isSubmitting}
                       className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Next Day
@@ -923,12 +927,12 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, loading }) => {
                   ) : (
                     <button
                       type="submit"
-                      disabled={loading}
+                      disabled={isSubmitting}
                       className={`w-full sm:w-auto px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 flex items-center justify-center ${
-                        loading ? 'opacity-50 cursor-not-allowed' : ''
+                        isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
                       }`}
                     >
-                      {loading ? (
+                      {isSubmitting ? (
                         <>
                           <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
