@@ -26,7 +26,7 @@ const CCLWorkSection = ({
   };
 
   return (
-    <div className="p-6 mt-4">
+    <div className="p-2 mt-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-primary">CCL Work Requests</h2>
       </div>
@@ -38,25 +38,20 @@ const CCLWorkSection = ({
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h4 className="text-lg font-semibold text-primary">{cclWork.employeeName}</h4>
-                <p className="text-sm text-gray-600 flex items-center gap-1">
+                <span className={`ml-2 px-3 py-1 rounded-full text-sm font-medium ${
+                  cclWork.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                  cclWork.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {cclWork.status}
+                </span>
+                <p className="text-sm text-gray-600 flex items-center gap-1 mt-2">
                   <MdEmail className="text-primary" /> {cclWork.employeeEmail}
                 </p>
                 <p className="text-sm text-gray-600 flex items-center gap-1">
                   <MdPerson className="text-primary" /> {cclWork.employeeEmployeeId}
                 </p>
-                {cclWork.employeePhoneNumber && (
-                  <p className="text-sm text-gray-600 flex items-center gap-1">
-                    <MdPhone className="text-primary" /> {cclWork.employeePhoneNumber}
-                  </p>
-                )}
               </div>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                cclWork.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                cclWork.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                'bg-yellow-100 text-yellow-800'
-              }`}>
-                {cclWork.status}
-              </span>
             </div>
 
             <div className="space-y-2 mb-4">
@@ -64,42 +59,37 @@ const CCLWorkSection = ({
                 <strong>Date:</strong> {new Date(cclWork.date).toLocaleDateString()}
               </p>
               <p className="text-sm text-gray-600">
-                <strong>Hours:</strong> {cclWork.hours}
+                <strong>Assigned To:</strong> {cclWork.assignedTo}
               </p>
-              <p className="text-sm text-gray-600">
-                <strong>Work Type:</strong> {cclWork.workType}
-              </p>
-              <p className="text-sm text-gray-600">
-                <strong>Description:</strong> {cclWork.description}
-              </p>
+             
             </div>
 
             <div className="flex justify-end space-x-2">
               <button
                 onClick={() => handleViewDetails(cclWork)}
-                className="p-2 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 title="View Details"
               >
-                <FaEye />
+                View
               </button>
               {cclWork.status === 'Pending' && (
                 <>
                   <button
                     onClick={() => handleApproveCCL(cclWork._id)}
-                    className="p-2 rounded-full bg-green-100 hover:bg-green-200 text-green-600 focus:outline-none focus:ring-2 focus:ring-green-400"
+                    className="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400"
                     title="Approve"
                   >
-                    <FaCheck />
+                    Approve
                   </button>
                   <button
                     onClick={() => {
                       setSelectedCCLWork(cclWork);
                       setShowCCLRemarksModal(true);
                     }}
-                    className="p-2 rounded-full bg-red-100 hover:bg-red-200 text-red-600 focus:outline-none focus:ring-2 focus:ring-red-400"
+                    className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400"
                     title="Reject"
                   >
-                    <FaTimes />
+                    Reject
                   </button>
                 </>
               )}
@@ -137,7 +127,7 @@ const CCLWorkSection = ({
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Phone</label>
-                  <p className="text-gray-900">{selectedCCLForDetails.employeePhoneNumber || 'Not provided'}</p>
+                  <p className="text-gray-900">{selectedCCLForDetails.phoneNumber || 'Not provided'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Date</label>
@@ -145,14 +135,7 @@ const CCLWorkSection = ({
                 </div>
               </div>
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Hours</label>
-                  <p className="text-gray-900">{selectedCCLForDetails.hours}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Work Type</label>
-                  <p className="text-gray-900">{selectedCCLForDetails.workType}</p>
-                </div>
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Status</label>
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${
@@ -165,10 +148,7 @@ const CCLWorkSection = ({
                 </div>
               </div>
             </div>
-            <div className="mt-6">
-              <label className="block text-sm font-medium text-gray-700">Description</label>
-              <p className="text-gray-900 mt-1">{selectedCCLForDetails.description}</p>
-            </div>
+            
             {selectedCCLForDetails.remarks && (
               <div className="mt-4">
                 <label className="block text-sm font-medium text-gray-700">Remarks</label>

@@ -1,43 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-const cclWorkSchema = new mongoose.Schema({
-  date: {
-    type: Date,
-    required: true
-  },
-  periods: [{
-    periodNumber: Number,
-    class: String,
-    subject: String,
-    originalFaculty: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Employee'
-    }
-  }],
-  reason: String,
-  status: {
-    type: String,
-    enum: ['Pending', 'Approved', 'Rejected'],
-    default: 'Pending'
-  },
-  approvedBy: {
-    hod: {
-      type: Boolean,
-      default: false
-    },
-    principal: {
-      type: Boolean,
-      default: false
-    }
-  },
-  remarks: String,
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
-});
-
 const employeeSchema = new mongoose.Schema({
   name: {
     type: String,
