@@ -1,17 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import  { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { FaCheck, FaTimes, FaEye, FaComment } from 'react-icons/fa';
 import { FaFilePdf } from 'react-icons/fa';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-
+import Loading from '../../components/Loading';
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
 
 const HRLeaveRequestsSection = ({ branches }) => {
   branches = branches || [];
   const [leaveRequests, setLeaveRequests] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [department, setDepartment] = useState('');
@@ -73,6 +72,13 @@ const HRLeaveRequestsSection = ({ branches }) => {
     }
     setLoading(false);
   };
+
+  if (loading) {
+    return (
+       <Loading />// Use your spinner component if available
+     
+    );
+  }
 
   const handleSearchChange = (e) => setSearch(e.target.value);
   const handleStatusChange = (e) => setStatus(e.target.value);
