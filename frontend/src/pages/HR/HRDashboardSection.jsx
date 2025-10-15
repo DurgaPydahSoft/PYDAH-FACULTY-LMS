@@ -51,8 +51,6 @@ const HRDashboardSection = ({ hr, stats, onNavigateToSection }) => {
         </div>
       </div>
 
-     
-
       {/* Recent Activity or Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
         <div className="bg-white rounded-xl shadow p-6">

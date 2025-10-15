@@ -1,9 +1,9 @@
-
-
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { FaCheck, FaTimes, FaEye, FaComment } from 'react-icons/fa';
+import { FaFilePdf } from 'react-icons/fa';
+import jsPDF from 'jspdf'; // You need to install jsPDF: npm install jspdf
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -25,6 +25,16 @@ const HRLeaveRequestsSection = ({ branches }) => {
   const [actionType, setActionType] = useState(''); // 'approve', 'reject', 'view'
   const [hrRemarks, setHrRemarks] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+
+  // States for Reports Modal
+  const [showReportsModal, setShowReportsModal] = useState(false);
+  const [reportFilters, setReportFilters] = useState({
+    startDate: '',
+    endDate: '',
+    department: '',
+    leaveType: '',
+    status: '',
+  });
 
   useEffect(() => {
     fetchLeaveRequests();
@@ -75,6 +85,50 @@ const HRLeaveRequestsSection = ({ branches }) => {
     setActionType(action);
     setHrRemarks('');
     setShowActionModal(true);
+  };
+
+
+   // Handle report filter changes
+  const handleReportFilterChange = (e) => {
+    setReportFilters({ ...reportFilters, [e.target.name]: e.target.value });
+  };
+
+  // Download PDF function
+  const handleDownloadReportPDF = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const params = {
+        ...reportFilters,
+        page: 1,
+        limit: 1000, // Get all for report
+      };
+      const response = await axios.get(`${API_BASE_URL}/hr/leave-requests`, {
+        params,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = response.data.data || [];
+
+      // Generate PDF
+      const doc = new jsPDF();
+      doc.text('Leave Requests Report', 10, 10);
+      let y = 20;
+      data.forEach((lr, idx) => {
+        doc.text(
+          `${idx + 1}. ${lr.employeeName} | ${lr.employeeEmployeeId} | ${lr.employeeDepartment} | ${lr.leaveType} | ${lr.status} | ${new Date(lr.startDate).toLocaleDateString()} - ${new Date(lr.endDate).toLocaleDateString()}`,
+          10,
+          y
+        );
+        y += 8;
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+      });
+      doc.save('leave-requests-report.pdf');
+      setShowReportsModal(false);
+    } catch (error) {
+      toast.error('Failed to download report. Please try again.');
+    }
   };
 
   const handleSubmitAction = async () => {
@@ -166,6 +220,13 @@ const HRLeaveRequestsSection = ({ branches }) => {
     <div className="p-6 mt-4">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <h2 className="text-2xl font-bold text-primary">Leave Requests</h2>
+        <button
+          onClick={() => setShowReportsModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
+        >
+          <FaFilePdf />
+          Reports
+        </button>
       </div>
       {/* Filters */}
       <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -430,8 +491,103 @@ const HRLeaveRequestsSection = ({ branches }) => {
           </div>
         </div>
       )}
+
+ {/* Reports Modal */}
+  {showReportsModal && (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-xl p-6 max-w-lg w-full mx-4">
+        <h3 className="text-xl font-bold mb-4 text-primary">Download Leave Requests Report</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Start Date</label>
+            <input
+              type="date"
+              name="startDate"
+              value={reportFilters.startDate}
+              onChange={handleReportFilterChange}
+              className="w-full border rounded px-2 py-1"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">End Date</label>
+            <input
+              type="date"
+              name="endDate"
+              value={reportFilters.endDate}
+              onChange={handleReportFilterChange}
+              className="w-full border rounded px-2 py-1"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Department/Branch</label>
+            <select
+              name="department"
+              value={reportFilters.department}
+              onChange={handleReportFilterChange}
+              className="w-full border rounded px-2 py-1"
+            >
+              <option value="">All</option>
+              {branches.map(branch => (
+                <option key={branch.code} value={branch.code}>{branch.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Leave Type</label>
+            <input
+              type="text"
+              name="leaveType"
+              value={reportFilters.leaveType}
+              onChange={handleReportFilterChange}
+              className="w-full border rounded px-2 py-1"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Leave Status</label>
+            <select
+              name="status"
+              value={reportFilters.status}
+              onChange={handleReportFilterChange}
+              className="w-full border rounded px-2 py-1"
+            >
+              <option value="">All</option>
+              <option value="Pending">Pending</option>
+              <option value="Forwarded by HOD">Forwarded by HOD</option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex gap-3 justify-end mt-4">
+          <button
+            onClick={() => setShowReportsModal(false)}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDownloadReportPDF}
+            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-2"
+          >
+            <FaFilePdf />
+            Download PDF
+          </button>
+        </div>
+      </div>
     </div>
+  )}
+
+
+    </div>
+    
   );
+
+ 
+
+ 
+
+  
+   
 };
 
 export default HRLeaveRequestsSection;
