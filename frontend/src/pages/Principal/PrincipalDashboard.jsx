@@ -2402,15 +2402,16 @@ const PrincipalDashboard = () => {
     const leaveData = sortedLeaves.map((lr, idx) => [
       idx + 1,
       lr.employeeName || lr.employee?.name || '',
-      lr.leaveRequestId || '',
       lr.employeeEmployeeId || lr.employee?.employeeId || '',
       lr.employeeDepartment || lr.employee?.department || '',
       lr.leaveType || lr.type || '',
       lr.isModifiedByPrincipal
-        ? `${lr.approvedStartDate ? new Date(lr.approvedStartDate).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' }) : ''} - ${lr.approvedEndDate ? new Date(lr.approvedEndDate).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' }) : ''}`
-        : `${lr.startDate ? new Date(lr.startDate).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' }) : ''} - ${lr.endDate ? new Date(lr.endDate).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' }) : ''}`,
+        ? new Date(lr.approvedStartDate).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })
+        : new Date(lr.startDate).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' }),
+      lr.isModifiedByPrincipal
+        ? new Date(lr.approvedEndDate).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })
+        : new Date(lr.endDate).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' }),
       lr.isModifiedByPrincipal ? lr.approvedNumberOfDays || '' : lr.numberOfDays || '',
-      lr.reason || '',
       lr.status || '',
     ]);
 
@@ -2476,7 +2477,7 @@ const PrincipalDashboard = () => {
     ]);
 
     const leaveHeaders = [[
-      'S. No', 'Name', 'Request ID','Employee ID', 'Dept',  'Leave Type', 'On Leave Period', 'No. of Days', 'Reason', 'Status'
+      'S. No', 'Employee Name', 'Employee ID', 'Department', 'Leave Type', 'Start Date', 'End Date', 'Days', 'Status'
     ]];
 
     const cclHeaders = [[
@@ -2524,19 +2525,17 @@ const PrincipalDashboard = () => {
         },
         theme: 'grid',
         margin: { left: 10, right: 10 },
-        tableWidth: 'auto',
+        tableWidth: doc.internal.pageSize.width - 20,
         columnStyles: {
-          0: { cellWidth: 12 }, // S. No
-          1: { cellWidth: 40 }, // Employee Name
-          2: { cellWidth: 40 }, // Request ID
-          3: { cellWidth: 28 }, // Employee ID
-          4: { cellWidth: 22 }, // Department
-          5: { cellWidth: 22 }, // Leave Type
-          // No. of Days
-          6: { cellWidth: 30 }, // On Leave Period
-          7: { cellWidth: 22, }, // No of days
-          8: { cellWidth: 40, overflow: 'linebreak' }, // Status
-          9: { cellWidth: 22 }, // Status
+          0: { cellWidth: 'auto', halign: 'center' },
+          1: { cellWidth: 'auto', halign: 'left' },
+          2: { cellWidth: 'auto', halign: 'center' },
+          3: { cellWidth: 'auto', halign: 'center' },
+          4: { cellWidth: 'auto', halign: 'center' },
+          5: { cellWidth: 'auto', halign: 'center' },
+          6: { cellWidth: 'auto', halign: 'center' },
+          7: { cellWidth: 'auto', halign: 'center' },
+          8: { cellWidth: 'auto', halign: 'center' },
         },
       });
 
@@ -3293,4 +3292,4 @@ const PrincipalDashboard = () => {
   );
 };
 
-export default PrincipalDashboard; 
+export default PrincipalDashboard;
