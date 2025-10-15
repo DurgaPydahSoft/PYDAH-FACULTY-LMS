@@ -81,11 +81,7 @@ const EmployeeManagementSection = ({
                   </p>
                 )}
               </div>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                employee.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-              }`}>
-                {employee.status}
-              </span>
+              
             </div>
 
             <div className="space-y-2 mb-4">
@@ -123,17 +119,7 @@ const EmployeeManagementSection = ({
               >
                 <FaKey />
               </button>
-              <button
-                onClick={() => handleUpdateEmployeeStatus(employee)}
-                className={`p-2 rounded-full focus:outline-none focus:ring-2 ${
-                  employee.status === 'active'
-                    ? 'bg-red-100 hover:bg-red-200 text-red-600 focus:ring-red-400'
-                    : 'bg-green-100 hover:bg-green-200 text-green-600 focus:ring-green-400'
-                }`}
-                title={employee.status === 'active' ? 'Deactivate' : 'Activate'}
-              >
-                {employee.status === 'active' ? <FaToggleOff /> : <FaToggleOn />}
-              </button>
+              
             </div>
           </div>
         ))}

@@ -111,7 +111,7 @@ const HodDashboard = () => {
           }
         }
       );
-      setCclWorkRequests(response.data);
+      setCclWorkRequests(response.data.data);
     } catch (error) {
       console.error('Error fetching CCL work requests:', error);
       toast.error('Failed to fetch CCL work requests');
