@@ -95,7 +95,23 @@ const HRDashboard = () => {
     fetchEmployeeStats();
     fetchEmployees();
     fetchRoles();
+    fetchHRBranches();
   }, [search, department, status]);
+
+  const fetchHRBranches = async () => {
+    if (!user?.campus?.name) return;
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/employee/branches?campus=${user.campus.name}`
+      );
+      const data = await response.json();
+      const activeBranches = (data.branches || []).filter(b => b.isActive);
+      setBranches(activeBranches);
+    } catch (error) {
+      console.error('Error fetching HR branches:', error);
+      setBranches([]);
+    }
+  };
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -957,7 +973,7 @@ if (normalizedHeader.length >= 3 && variation.length >= 3) {
           />
         );
       case 'leaves':
-        return <HRLeaveRequestsSection />;
+        return <HRLeaveRequestsSection branches={branches} />;
       case 'profile':
         return (
           <ProfileSection

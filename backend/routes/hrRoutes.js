@@ -27,6 +27,7 @@ router.post('/employees/bulk', hrController.bulkRegisterEmployees);
 
 // HR Leave Requests
 router.get('/leave-requests', hrController.getCampusLeaveRequests);
+router.put('/leave-requests/:id/update-status', hrController.updateLeaveRequestStatus);
 
 // HR Task Management
 router.post('/tasks', taskController.createTask);

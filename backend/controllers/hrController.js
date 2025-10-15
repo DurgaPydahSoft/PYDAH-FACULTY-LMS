@@ -682,6 +682,127 @@ exports.deleteEmployeeProfilePicture = async (req, res) => {
   }
 };
 
+// Update leave request status (HR approval/rejection)
+exports.updateLeaveRequestStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, hrRemarks } = req.body;
+
+    if (!status || !['Approved', 'Rejected'].includes(status)) {
+      return res.status(400).json({ 
+        success: false, 
+        msg: 'Invalid status. Must be "Approved" or "Rejected"' 
+      });
+    }
+
+    // Find the employee with the leave request
+    const employee = await Employee.findOne({
+      'leaveRequests._id': id,
+      campus: req.user.campus.name.toLowerCase()
+    });
+
+    if (!employee) {
+      return res.status(404).json({ 
+        success: false, 
+        msg: 'Leave request not found or not in your campus' 
+      });
+    }
+
+    // Find the specific leave request
+    const leaveRequest = employee.leaveRequests.id(id);
+    if (!leaveRequest) {
+      return res.status(404).json({ 
+        success: false, 
+        msg: 'Leave request not found' 
+      });
+    }
+
+    // Check if the request is in the correct status for HR action
+    if (leaveRequest.status !== 'Forwarded by HOD') {
+      return res.status(400).json({ 
+        success: false, 
+        msg: 'Leave request is not in "Forwarded by HOD" status' 
+      });
+    }
+
+    // Update the leave request
+    leaveRequest.status = status;
+    leaveRequest.hrRemarks = hrRemarks || '';
+    leaveRequest.hrApprovedBy = req.user.id;
+    leaveRequest.hrApprovedAt = new Date();
+
+    // If approved, update employee's leave balance
+    if (status === 'Approved' && leaveRequest.leaveType === 'CL') {
+      // For CL, only deduct clDays from leave balance, not lopDays
+      const clDaysToDeduct = leaveRequest.clDays || 0;
+      const lopDays = leaveRequest.lopDays || 0;
+      
+      console.log('CL/LOP Split:', {
+        employeeId: employee._id,
+        employeeName: employee.name,
+        totalDays: leaveRequest.numberOfDays,
+        clDays: clDaysToDeduct,
+        lopDays: lopDays,
+        currentBalance: employee.leaveBalance
+      });
+      
+      // Check if employee has sufficient CL balance for clDays only
+      if (employee.leaveBalance < clDaysToDeduct) {
+        return res.status(400).json({ 
+          success: false, 
+          msg: `Insufficient CL balance. Available: ${employee.leaveBalance} days, Required: ${clDaysToDeduct} days (LOP: ${lopDays} days)` 
+        });
+      }
+      
+      // Deduct only clDays from leave balance
+      employee.leaveBalance -= clDaysToDeduct;
+      
+      // Add to leave history
+      employee.leaveHistory = employee.leaveHistory || [];
+      employee.leaveHistory.push({
+        type: 'used',
+        date: new Date(),
+        days: clDaysToDeduct,
+        reference: leaveRequest._id,
+        referenceModel: 'LeaveRequest',
+        remarks: `Leave approved by HR (CL: ${clDaysToDeduct} days, LOP: ${lopDays} days)`
+      });
+      
+      console.log('Balance updated:', {
+        employeeId: employee._id,
+        employeeName: employee.name,
+        clDaysDeducted: clDaysToDeduct,
+        lopDays: lopDays,
+        newBalance: employee.leaveBalance
+      });
+    }
+
+    await employee.save();
+
+    res.json({ 
+      success: true, 
+      msg: `Leave request ${status.toLowerCase()} successfully`,
+      leaveRequest: {
+        id: leaveRequest._id,
+        status: leaveRequest.status,
+        hrRemarks: leaveRequest.hrRemarks,
+        hrApprovedAt: leaveRequest.hrApprovedAt,
+        clDays: leaveRequest.clDays || 0,
+        lopDays: leaveRequest.lopDays || 0,
+        totalDays: leaveRequest.numberOfDays,
+        newBalance: employee.leaveBalance
+      }
+    });
+
+  } catch (error) {
+    console.error('Update leave request status error:', error);
+    res.status(500).json({ 
+      success: false, 
+      msg: 'Server error while updating leave request status' 
+    });
+  }
+};
+
 // Get all leave requests for HR's campus (with filtering, pagination, search)
 exports.getCampusLeaveRequests = async (req, res) => {
   try {

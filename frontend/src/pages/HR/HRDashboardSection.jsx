@@ -51,24 +51,7 @@ const HRDashboardSection = ({ hr, stats, onNavigateToSection }) => {
         </div>
       </div>
 
-      {/* Welcome Section */}
-      <div className="bg-white rounded-xl shadow p-6">
-        <div className="flex flex-col md:flex-row items-center gap-4">
-          <div className="flex-1">
-            <h3 className="text-xl font-semibold text-primary mb-2">Welcome, {hr?.name || 'HR'}!</h3>
-            <p className="text-gray-700">Campus: <span className="font-medium">{hr?.campus?.name || 'N/A'}</span></p>
-            <p className="text-gray-700">Email: <span className="font-medium">{hr?.email}</span></p>
-            <p className="text-gray-700">Last Login: <span className="font-medium">
-              {hr?.lastLogin ? new Date(hr.lastLogin).toLocaleString() : 'N/A'}
-            </span></p>
-          </div>
-          {/* Decorative SVG */}
-          <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="40" cy="40" r="38" stroke="#3B82F6" strokeWidth="4" fill="#E0E7FF" />
-            <path d="M40 20V40L55 47" stroke="#6366F1" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </div>
-      </div>
+     
 
       {/* Recent Activity or Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
