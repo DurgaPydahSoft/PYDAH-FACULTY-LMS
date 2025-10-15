@@ -3,7 +3,8 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { FaCheck, FaTimes, FaEye, FaComment } from 'react-icons/fa';
 import { FaFilePdf } from 'react-icons/fa';
-import jsPDF from 'jspdf'; // You need to install jsPDF: npm install jspdf
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api';
 
@@ -108,25 +109,179 @@ const HRLeaveRequestsSection = ({ branches }) => {
       });
       const data = response.data.data || [];
 
-      // Generate PDF
-      const doc = new jsPDF();
-      doc.text('Leave Requests Report', 10, 10);
-      let y = 20;
-      data.forEach((lr, idx) => {
-        doc.text(
-          `${idx + 1}. ${lr.employeeName} | ${lr.employeeEmployeeId} | ${lr.employeeDepartment} | ${lr.leaveType} | ${lr.status} | ${new Date(lr.startDate).toLocaleDateString()} - ${new Date(lr.endDate).toLocaleDateString()}`,
-          10,
-          y
-        );
-        y += 8;
-        if (y > 270) {
-          doc.addPage();
-          y = 20;
-        }
+      // If no data found
+      if (!data.length) {
+        toast.error('No data found for the selected filters.');
+        return;
+      }
+
+      // Prepare data for PDF - sort by employee name
+      const sortedData = [...data].sort((a, b) => {
+        const nameA = a.employeeName || '';
+        const nameB = b.employeeName || '';
+        return nameA.localeCompare(nameB);
       });
-      doc.save('leave-requests-report.pdf');
+
+      // Prepare leave data for PDF
+      const leaveData = sortedData.map((lr, idx) => [
+        idx + 1,
+        lr.employeeName || '',
+        lr.employeeEmployeeId || '',
+        lr.employeeDepartment || '',
+        lr.leaveType || '',
+        new Date(lr.startDate).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' }),
+        new Date(lr.endDate).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' }),
+        lr.numberOfDays || '',
+        lr.status || '',
+      ]);
+
+      const leaveHeaders = [[
+        'S. No', 'Employee Name', 'Employee ID', 'Department', 'Leave Type', 'Start Date', 'End Date', 'Days', 'Status'
+      ]];
+
+      const doc = new jsPDF('landscape', 'mm', 'a4');
+      const collegeName = 'Pydah College of Engineering';
+      const collegeAddress = 'An Autonomous Institution Kakinada | Andhra Pradesh | INDIA';
+      const contactNumber = 'Contact: +91 99513 54444';
+      const now = new Date();
+      const month = now.toLocaleString('en-US', { month: 'long' });
+      const year = now.getFullYear();
+
+      // Create title based on filters
+      let title = `Leave Requests Report - ${month} - ${year}`;
+      let fileName = `Leave_Requests_Report_${month}_${year}.pdf`;
+
+      if (reportFilters.department) {
+        const branchName = branches.find(b => b.code === reportFilters.department)?.name || reportFilters.department;
+        title = `Leave Requests Report - ${branchName} - ${month} - ${year}`;
+        fileName = `Leave_Requests_Report_${branchName.replace(/\s+/g, '_')}_${month}_${year}.pdf`;
+      }
+
+      const logoUrl = window.location.origin + '/PYDAH_LOGO_PHOTO.jpg';
+
+      // Helper to draw the PDF (with or without logo)
+      const drawPDF = (logoImg) => {
+        if (logoImg) doc.addImage(logoImg, 'PNG', 10, 5, 60, 30);
+        doc.setFont('times', 'bold');
+        doc.setTextColor('#333');
+        doc.setFontSize(24);
+        doc.text(collegeName, doc.internal.pageSize.width / 2, 15, { align: 'center' });
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'normal');
+        doc.text(collegeAddress, doc.internal.pageSize.width / 2, 22, { align: 'center' });
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor('#D35400');
+        doc.setFontSize(16);
+        doc.text(title, doc.internal.pageSize.width / 2, 35, { align: 'center' });
+
+        // Draw Leave Requests table
+        doc.setFontSize(14);
+        doc.setTextColor('#333');
+        doc.text('Leave Requests', doc.internal.pageSize.width / 2, 45, { align: 'center' });
+        // Split data into chunks of 12 rows per page
+        const rowsPerPage = 12;
+        const dataChunks = [];
+        for (let i = 0; i < leaveData.length; i += rowsPerPage) {
+          dataChunks.push(leaveData.slice(i, i + rowsPerPage));
+        }
+
+        // Process each chunk (page)
+        dataChunks.forEach((chunk, pageIndex) => {
+          if (pageIndex > 0) {
+            doc.addPage();
+            // Re-add header elements for new page
+            if (logoImg) doc.addImage(logoImg, 'PNG', 10, 5, 60, 30);
+            doc.setFont('times', 'bold');
+            doc.setTextColor('#333');
+            doc.setFontSize(24);
+            doc.text(collegeName, doc.internal.pageSize.width / 2, 15, { align: 'center' });
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'normal');
+            doc.text(collegeAddress, doc.internal.pageSize.width / 2, 22, { align: 'center' });
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor('#D35400');
+            doc.setFontSize(16);
+            doc.text(title, doc.internal.pageSize.width / 2, 35, { align: 'center' });
+
+            doc.setFontSize(14);
+            doc.setTextColor('#333');
+            doc.text('Leave Requests', doc.internal.pageSize.width / 2, 45, { align: 'center' });
+          }
+
+          const isLastPage = pageIndex === dataChunks.length - 1;
+
+          autoTable(doc, {
+            startY: pageIndex === 0 ? 50 : 50,
+            head: leaveHeaders,
+            body: chunk,
+            styles: { fontSize: 10, cellPadding: 3, halign: 'center' },
+            headStyles: {
+              fillColor: [255, 213, 128],
+              textColor: [0, 0, 0],
+              fontStyle: 'bold',
+              halign: 'center',
+            },
+            theme: 'grid',
+            margin: { left: 10, right: 10 },
+            tableWidth: doc.internal.pageSize.width - 20,
+            columnStyles: {
+              0: { cellWidth: 'auto', halign: 'center' },
+              1: { cellWidth: 'auto', halign: 'left' },
+              2: { cellWidth: 'auto', halign: 'center' },
+              3: { cellWidth: 'auto', halign: 'center' },
+              4: { cellWidth: 'auto', halign: 'center' },
+              5: { cellWidth: 'auto', halign: 'center' },
+              6: { cellWidth: 'auto', halign: 'center' },
+              7: { cellWidth: 'auto', halign: 'center' },
+              8: { cellWidth: 'auto', halign: 'center' },
+            },
+            didDrawPage: function (data) {
+              // Add footer (always add page numbers on every page)
+              let pageHeight = doc.internal.pageSize.height;
+              doc.setFontSize(10);
+              doc.setTextColor('#333');
+              doc.text(collegeName, 10, pageHeight - 15);
+              doc.text(contactNumber, doc.internal.pageSize.width / 2, pageHeight - 15, { align: 'center' });
+              let pageNumber = doc.internal.getNumberOfPages();
+              doc.text(`Page ${pageNumber}`, doc.internal.pageSize.width - 20, pageHeight - 15);
+
+              // Add signatures and timestamp only on the last page
+              if (isLastPage) {
+                let signatureY = data.cursor.y + 20;
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+
+                // HR Signature on the left
+                doc.text('HR Signature', 30, signatureY);
+
+                // Principal Signature on the right
+                doc.text('Principal Signature', doc.internal.pageSize.width - 70, signatureY);
+
+                // Add timestamp at the bottom center
+                let timestamp = new Date().toLocaleString('en-US', {
+                  day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
+                });
+                doc.setFontSize(10);
+                doc.text(`Generated on: ${timestamp}`, doc.internal.pageSize.width / 2, signatureY + 10, { align: 'center' });
+              }
+            }
+          });
+        });
+
+        // Save the PDF
+        doc.save(fileName);
+      };
+
+      // Try to load the logo, then draw the PDF
+      const logoImg = new window.Image();
+      logoImg.crossOrigin = 'Anonymous';
+      logoImg.src = logoUrl;
+      logoImg.onload = () => drawPDF(logoImg);
+      logoImg.onerror = () => drawPDF(null);
+
       setShowReportsModal(false);
     } catch (error) {
+      console.error('Error generating PDF:', error);
       toast.error('Failed to download report. Please try again.');
     }
   };
@@ -265,7 +420,7 @@ const HRLeaveRequestsSection = ({ branches }) => {
       {/* Table for md+ screens */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6 hidden md:block">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
