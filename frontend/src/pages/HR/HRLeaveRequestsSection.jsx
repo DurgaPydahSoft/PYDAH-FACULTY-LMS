@@ -576,18 +576,10 @@ const HRLeaveRequestsSection = ({ branches }) => {
       </div>
     </div>
   )}
-
-
     </div>
     
   );
-
- 
-
- 
-
-  
-   
+     
 };
 
 export default HRLeaveRequestsSection;
