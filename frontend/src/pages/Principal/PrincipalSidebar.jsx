@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaHome, FaUsers, FaUserTie, FaCalendarAlt, FaClipboardList, FaUser, FaBars, FaTimes } from 'react-icons/fa';
+import { FaHome, FaUsers, FaUserTie, FaCalendarAlt, FaClipboardList, FaUser, FaBars, FaTimes, FaSignOutAlt } from 'react-icons/fa';
 import { FaDiagramProject } from "react-icons/fa6";
 
 const PrincipalSidebar = ({ activeSection, onSectionChange }) => {
@@ -90,20 +90,23 @@ const PrincipalSidebar = ({ activeSection, onSectionChange }) => {
         </div>
         
         {/* Bottom Section with Heading and Logout */}
-        <div className="p-6 border-t border-gray-300 space-y-4">
-          <h2 className="text-xl font-bold text-primary text-center">
-            {campus ? campus.charAt(0).toUpperCase() + campus.slice(1) : 'Principal'}
-          </h2>
-          <button
-            onClick={handleLogout}
-            className="w-full p-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-          >
-            Logout
-          </button>
+        <div className="p-6 border-t border-gray-300">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-primary">
+              {campus ? campus.charAt(0).toUpperCase() + campus.slice(1) : 'Principal'}
+            </h2>
+            <button
+              onClick={handleLogout}
+              className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors flex items-center justify-center"
+              title="Logout"
+            >
+              <FaSignOutAlt size={20} />
+            </button>
+          </div>
         </div>
       </div>
     </>
   );
 };
 
-export default PrincipalSidebar; 
+export default PrincipalSidebar;
