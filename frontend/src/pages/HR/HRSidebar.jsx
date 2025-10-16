@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaBars, FaTimes, FaHome, FaUsers, FaUserPlus, FaUserCog, FaTasks, FaUserCircle } from 'react-icons/fa';
+import { FaBars, FaTimes, FaHome, FaUsers, FaClipboardList, FaTasks,FaUserPlus, FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
+
 
 const HRSidebar = ({ activeSection, onSectionChange, hr }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -87,16 +88,19 @@ const HRSidebar = ({ activeSection, onSectionChange, hr }) => {
         </div>
 
         {/* Bottom Section with Heading and Logout */}
-        <div className="p-6 border-t border-gray-300 space-y-4">
-          <h2 className="text-xl font-bold text-primary text-center">
-            HR - {hr?.campus?.name || 'HR'}
-          </h2>
-          <button
-            onClick={handleLogout}
-            className="w-full p-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-          >
-            Logout
-          </button>
+        <div className="p-6 border-t border-gray-300">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-primary">
+              HR - {hr?.campus?.name || 'HR'}
+            </h2>
+            <button
+              onClick={handleLogout}
+              className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors flex items-center justify-center"
+              title="Logout"
+            >
+              <FaSignOutAlt size={20} />
+            </button>
+          </div>
         </div>
       </div>
     </>

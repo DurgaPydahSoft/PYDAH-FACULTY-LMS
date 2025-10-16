@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaBars, FaTimes, FaHome, FaUsers, FaClipboardList, FaTasks, FaUserCircle } from 'react-icons/fa';
+import { FaBars, FaTimes, FaHome, FaUsers, FaClipboardList, FaTasks, FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
 
 const HodSidebar = ({ activeSection, onSectionChange, hod }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -85,21 +85,24 @@ const HodSidebar = ({ activeSection, onSectionChange, hod }) => {
         </div>
 
         {/* Bottom Section with Heading and Logout */}
-        <div className="p-6 border-t border-gray-300 space-y-4">
-          <h2 className="text-xl font-bold text-primary text-center">
-  {hod?.department?.name 
-    ? hod.department.name.toUpperCase() 
-    : hod?.department?.code 
-      ? hod.department.code.toUpperCase() 
+        <div className="p-6 border-t border-gray-300">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-primary">
+  {hod?.department?.name
+    ? hod.department.name.toUpperCase()
+    : hod?.department?.code
+      ? hod.department.code.toUpperCase()
       : 'HOD'
   }
 </h2>
-          <button
-            onClick={handleLogout}
-            className="w-full p-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-          >
-            Logout
-          </button>
+            <button
+              onClick={handleLogout}
+              className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors flex items-center justify-center"
+              title="Logout"
+            >
+              <FaSignOutAlt size={20} />
+            </button>
+          </div>
         </div>
       </div>
     </>
