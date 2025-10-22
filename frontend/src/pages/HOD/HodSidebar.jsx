@@ -45,18 +45,15 @@ const HodSidebar = ({ activeSection, onSectionChange, hod }) => {
       )}
 
       {/* Sidebar */}
-      <div className={`fixed top-0 left-0 h-full bg-gray-200 text-white w-64 transform transition-transform duration-300 ease-in-out z-50 flex flex-col
+      <div className={`fixed top-0 left-0 h-full bg-gradient-to-b from-primary to bg-gray-800 text-white w-64 transform transition-transform duration-300 ease-in-out z-50 flex flex-col
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         {/* Logo Section */}
-        <div className="p-2 border-b border-gray-300">
-          <div className="flex items-center justify-center w-full h-20">
-            <img
-              src="/PYDAH_LOGO_PHOTO.jpg"
-              alt="PYDAH Group Logo"
-              className="max-w-full max-h-full object-contain rounded-lg"
-            />
+        <div className=" border-b border-gray-300">
+          <div className="flex items-center justify-center w-full h-20 space-x-3">
+            <h1 className="text-4xl font-bold text-white">PYDAH</h1>
           </div>
         </div>
+
 
         {/* Navigation Section */}
         <div className="p-6 flex-1">
@@ -71,8 +68,8 @@ const HodSidebar = ({ activeSection, onSectionChange, hod }) => {
                     }}
                     className={`w-full flex items-center space-x-3 p-3 rounded-lg transition-colors
                       ${activeSection === item.id
-                        ? 'bg-primary text-white shadow-innerSoft'
-                        : 'text-gray-700 hover:bg-gray-100'
+                        ? 'bg-white text-primary shadow-innerSoft'
+                        : 'text-white hover:bg-gray-100 hover:text-primary'
                       }`}
                   >
                     <span className="text-xl">{item.icon}</span>
@@ -87,14 +84,14 @@ const HodSidebar = ({ activeSection, onSectionChange, hod }) => {
         {/* Bottom Section with Heading and Logout */}
         <div className="p-6 border-t border-gray-300">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-primary">
-  {hod?.department?.name
-    ? hod.department.name.toUpperCase()
-    : hod?.department?.code
-      ? hod.department.code.toUpperCase()
-      : 'HOD'
-  }
-</h2>
+            <h2 className="text-xl font-bold text-white">
+              {hod?.department?.name
+                ? hod.department.name.toUpperCase()
+                : hod?.department?.code
+                  ? hod.department.code.toUpperCase()
+                  : 'HOD'
+              }
+            </h2>
             <button
               onClick={handleLogout}
               className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors flex items-center justify-center"
