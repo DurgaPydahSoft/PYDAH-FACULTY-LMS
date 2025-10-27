@@ -11,16 +11,6 @@ const path = require("path");
 
 const cors = require("cors");
 
-// Debug environment variables
-console.log('Environment Variables Loaded:', {
-  NODE_ENV: process.env.NODE_ENV,
-  PORT: process.env.PORT,
-  AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID ? 'Set' : 'Not Set',
-  AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY ? 'Set' : 'Not Set',
-  AWS_REGION: process.env.AWS_REGION,
-  AWS_S3_BUCKET: process.env.AWS_S3_BUCKET
-});
-
 connectDB();
 
 const app = express();

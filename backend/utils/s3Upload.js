@@ -3,14 +3,6 @@ const multer = require('multer');
 const multerS3 = require('multer-s3');
 const path = require('path');
 
-// Debug environment variables
-console.log('AWS Configuration:', {
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID ? 'Set' : 'Not Set',
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ? 'Set' : 'Not Set',
-  region: process.env.AWS_REGION,
-  bucket: process.env.AWS_S3_BUCKET
-});
-
 // Validate required environment variables
 if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY || !process.env.AWS_REGION || !process.env.AWS_S3_BUCKET) {
   throw new Error('Missing required AWS environment variables. Please check your .env file.');
