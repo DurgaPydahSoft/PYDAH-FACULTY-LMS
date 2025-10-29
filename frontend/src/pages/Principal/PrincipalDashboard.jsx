@@ -6,15 +6,15 @@ import RemarksModal from '../../components/RemarksModal';
 import PrincipalSidebar from './PrincipalSidebar';
 import Loading from '../../components/Loading';
 import { FaUserTie, FaUsers, FaClipboardList, FaArrowRight, FaBuilding } from 'react-icons/fa';
-import { useAuth } from '../../context/AuthContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import LeaveDateEditModal from '../../components/LeaveDateEditModal';
 import { createAuthAxios } from '../../utils/authAxios';
 import { API_BASE_URL } from '../../config';
 import HodManagement from './HodManagement';
+import BranchManagement from './BranchManagement';
+import EmployeeManagement from './EmployeeManagement';
 
-// const API_BASE_URL = config.API_BASE_URL;
 
 // Add a hook to detect if the screen is mobile
 const useIsMobile = () => {
@@ -33,7 +33,7 @@ const useIsMobile = () => {
 };
 
 const PrincipalDashboard = () => {
- // const { user } = useAuth();
+  // const { user } = useAuth();
   const isMobile = useIsMobile();
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState({
@@ -84,14 +84,6 @@ const PrincipalDashboard = () => {
   const [shouldRedirect, setShouldRedirect] = useState(false);
   const [activeSection, setActiveSection] = useState('dashboard');
   const [showLeaveDetailsModal, setShowLeaveDetailsModal] = useState(false);
-  const [newBranch, setNewBranch] = useState({ name: '', code: '' });
-  const [showCreateBranchModal, setShowCreateBranchModal] = useState(false);
-  const [showEditBranchModal, setShowEditBranchModal] = useState(false);
-  const [editBranchData, setEditBranchData] = useState({ _id: '', name: '', code: '' });
-  const [deleteBranchId, setDeleteBranchId] = useState(null);
-  const [showDeleteBranchModal, setShowDeleteBranchModal] = useState(false);
-  const [showEditEmployeeModal, setShowEditEmployeeModal] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [editEmployeeForm, setEditEmployeeForm] = useState({
     name: '',
     email: '',
@@ -144,7 +136,7 @@ const PrincipalDashboard = () => {
     // Validate campus from URL matches user's campus
     const urlCampus = campus.toLowerCase();
     const userCampus = user.campus.toLowerCase();
-    
+
     console.log('Campus validation:', {
       urlCampus,
       userCampus,
@@ -194,7 +186,7 @@ const PrincipalDashboard = () => {
         status: response.status,
         statusText: response.statusText
       });
-      
+
       if (response.data.branches) {
         setBranches(response.data.branches);
         console.log('Updated branches from branches property:', response.data.branches.length);
@@ -238,7 +230,7 @@ const PrincipalDashboard = () => {
   const fetchEmployees = async () => {
     try {
       setLoading(prev => ({ ...prev, employees: true }));
-      
+
       // Always fetch all employees first
       const response = await axiosInstance.get('/principal/employees');
       console.log('All employees response:', {
@@ -246,7 +238,7 @@ const PrincipalDashboard = () => {
         count: Array.isArray(response.data) ? response.data.length : 0,
         status: response.status
       });
-      
+
       if (Array.isArray(response.data)) {
         setAllEmployees(response.data);
         applyEmployeeFilters(response.data);
@@ -268,25 +260,25 @@ const PrincipalDashboard = () => {
       employeeDataLength: employeeData.length,
       filters: employeeFilters
     });
-    
+
     // Apply client-side filtering
     let filteredEmployees = [...employeeData];
-    
+
     // Debug: Log first employee to see field structure
     if (employeeData.length > 0) {
       console.log('First employee structure:', employeeData[0]);
     }
-    
+
     // Apply search filter
     if (employeeFilters.search) {
       const searchTerm = employeeFilters.search.toLowerCase();
-      filteredEmployees = filteredEmployees.filter(emp => 
+      filteredEmployees = filteredEmployees.filter(emp =>
         emp.name?.toLowerCase().includes(searchTerm) ||
         emp.email?.toLowerCase().includes(searchTerm) ||
         emp.employeeId?.toLowerCase().includes(searchTerm)
       );
     }
-    
+
     // Apply department filter
     if (employeeFilters.department) {
       console.log('Applying department filter for:', employeeFilters.department);
@@ -304,20 +296,20 @@ const PrincipalDashboard = () => {
       });
       console.log(`Department filter: ${beforeFilter} -> ${filteredEmployees.length} employees`);
     }
-    
+
     // Apply status filter
     if (employeeFilters.status) {
-      filteredEmployees = filteredEmployees.filter(emp => 
+      filteredEmployees = filteredEmployees.filter(emp =>
         emp.status === employeeFilters.status
       );
     }
-    
+
     console.log('Filtered employees:', {
       total: employeeData.length,
       filtered: filteredEmployees.length,
       filters: employeeFilters
     });
-    
+
     console.log('Setting employees state with:', filteredEmployees.length, 'employees');
     setEmployees(filteredEmployees);
   };
@@ -326,20 +318,20 @@ const PrincipalDashboard = () => {
     console.log('fetchForwardedLeaves called with filters:', filters);
     try {
       setLoading(prev => ({ ...prev, leaves: true }));
-      
+
       // Build query parameters for filtering
       const queryParams = new URLSearchParams();
       if (filters.department) queryParams.append('department', filters.department);
       if (filters.leaveType) queryParams.append('leaveType', filters.leaveType);
       if (filters.startDate) queryParams.append('startDate', filters.startDate);
       if (filters.endDate) queryParams.append('endDate', filters.endDate);
-      
+
       const url = `/principal/campus-leaves${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       console.log('Fetching leaves with URL:', url);
-      
+
       const response = await axiosInstance.get(url);
       console.log('Leaves response:', response.data);
-      
+
       // Debug: Check for modification data in the response
       if (Array.isArray(response.data)) {
         const modifiedLeaves = response.data.filter(leave => leave.originalStartDate && leave.originalEndDate);
@@ -354,7 +346,7 @@ const PrincipalDashboard = () => {
             status: leave.status
           });
         });
-        
+
         setForwardedLeaves(response.data);
         console.log('Set forwardedLeaves with', response.data.length, 'items');
       }
@@ -410,15 +402,15 @@ const PrincipalDashboard = () => {
       if (response.status === 200) {
         toast.success(`Leave request ${action.toLowerCase()} successfully`);
         // Update the local state
-        setForwardedLeaves(prev => 
-          prev.map(leave => 
-            leave._id === selectedLeave._id 
-              ? { 
-                  ...leave, 
-                  status: action,
-                  principalRemarks: remarks || `${action.toLowerCase()} by Principal`,
-                  principalApprovalDate: new Date().toISOString()
-                } 
+        setForwardedLeaves(prev =>
+          prev.map(leave =>
+            leave._id === selectedLeave._id
+              ? {
+                ...leave,
+                status: action,
+                principalRemarks: remarks || `${action.toLowerCase()} by Principal`,
+                principalApprovalDate: new Date().toISOString()
+              }
               : leave
           )
         );
@@ -440,12 +432,6 @@ const PrincipalDashboard = () => {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
-    localStorage.removeItem('campus');
-    setShouldRedirect(true);
-  };
 
   const handleAction = (requestId, action) => {
     const leave = forwardedLeaves.find(l => l._id === requestId);
@@ -460,14 +446,14 @@ const PrincipalDashboard = () => {
       const token = localStorage.getItem('token');
       const authAxios = createAuthAxios(token);
       const response = await authAxios.put(`${API_BASE_URL}/principal/leave-request/${selectedLeaveForEdit._id}`, requestData);
-      
+
       if (response.status === 200) {
         // Update the local state
         setForwardedLeaves(prev => prev.filter(leave => leave._id !== selectedLeaveForEdit._id));
-        
+
         // Show success message
         alert('Leave request approved successfully!');
-        
+
         // Refresh the data
         fetchForwardedLeaves();
       }
@@ -482,14 +468,14 @@ const PrincipalDashboard = () => {
       const token = localStorage.getItem('token');
       const authAxios = createAuthAxios(token);
       const response = await authAxios.put(`${API_BASE_URL}/principal/leave-request/${selectedLeaveForEdit._id}`, requestData);
-      
+
       if (response.status === 200) {
         // Update the local state
         setForwardedLeaves(prev => prev.filter(leave => leave._id !== selectedLeaveForEdit._id));
-        
+
         // Show success message
         alert('Leave request rejected successfully!');
-        
+
         // Refresh the data
         fetchForwardedLeaves();
       }
@@ -535,15 +521,15 @@ const PrincipalDashboard = () => {
 
       if (response.data) {
         // Update the leave request in the state
-        setForwardedLeaves(prev => 
-          prev.map(leave => 
-            leave._id === selectedRequestId 
-              ? { 
-                  ...leave, 
-                  status: selectedAction === 'approve' ? 'Approved' : 'Rejected',
-                  principalRemarks: remarks || `${selectedAction === 'approve' ? 'Approved' : 'Rejected'} by Principal`,
-                  principalApprovalDate: new Date().toISOString()
-                } 
+        setForwardedLeaves(prev =>
+          prev.map(leave =>
+            leave._id === selectedRequestId
+              ? {
+                ...leave,
+                status: selectedAction === 'approve' ? 'Approved' : 'Rejected',
+                principalRemarks: remarks || `${selectedAction === 'approve' ? 'Approved' : 'Rejected'} by Principal`,
+                principalApprovalDate: new Date().toISOString()
+              }
               : leave
           )
         );
@@ -563,7 +549,7 @@ const PrincipalDashboard = () => {
         action: selectedAction,
         campus
       });
-      
+
       if (error.response?.status === 403) {
         toast.error('You are not authorized to update this leave request. Please check your campus permissions.');
       } else if (error.response?.status === 401) {
@@ -620,130 +606,6 @@ const PrincipalDashboard = () => {
         status: error.response?.status
       });
       toast.error(error.response?.data?.message || 'Failed to update CCL work request');
-    }
-  };
-
-  const handleCreateBranch = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await axiosInstance.post(
-        `/principal/branches`,
-        newBranch,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
-      toast.success('Branch created successfully');
-      setNewBranch({ name: '', code: '' });
-      fetchBranches(); // Refresh the branches list
-    } catch (error) {
-      toast.error(error.response?.data?.msg || 'Failed to create branch');
-    }
-  };
-
-  const handleEditBranchClick = (branch) => {
-    setEditBranchData({ _id: branch._id, name: branch.name, code: branch.code });
-    setShowEditBranchModal(true);
-  };
-
-  const handleEditBranchSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await axiosInstance.put(
-        `/principal/branches/${editBranchData._id}`,
-        { name: editBranchData.name, code: editBranchData.code },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      toast.success('Branch updated successfully');
-      setShowEditBranchModal(false);
-      setEditBranchData({ _id: '', name: '', code: '' });
-      fetchBranches();
-    } catch (error) {
-      toast.error(error.response?.data?.msg || 'Failed to update branch');
-    }
-  };
-
-  const handleDeleteBranchClick = (branchId) => {
-    setDeleteBranchId(branchId);
-    setShowDeleteBranchModal(true);
-  };
-
-  const handleDeleteBranchConfirm = async () => {
-    if (!deleteBranchId) return;
-    try {
-      await axiosInstance.delete(
-        `/principal/branches/${deleteBranchId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      toast.success('Branch deleted successfully');
-      setShowDeleteBranchModal(false);
-      setDeleteBranchId(null);
-      fetchBranches();
-    } catch (error) {
-      toast.error(error.response?.data?.msg || 'Failed to delete branch');
-    }
-  };
-
-  const handleEditEmployeeClick = (employeeOrId) => {
-    // Accept either an employee object or an ID
-    const id = typeof employeeOrId === 'string' ? employeeOrId : employeeOrId._id;
-    const employee = employees.find(emp => emp._id === id);
-    if (!employee) {
-      toast.error('Employee not found in the latest list.');
-      return;
-    }
-    setEditingEmployee(employee);
-    setEditEmployeeForm({
-      name: employee.name,
-      email: employee.email,
-      phoneNumber: employee.phoneNumber,
-      department: employee.department,
-      status: employee.status,
-      specialPermission: Boolean(employee.specialPermission),
-      specialLeaveMaxDays: employee.specialLeaveMaxDays !== undefined
-        ? employee.specialLeaveMaxDays
-        : (employee.specialMaxDays !== undefined
-          ? employee.specialMaxDays
-          : 20)
-    });
-  };
-
-  const handleEditEmployeeSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const token = localStorage.getItem('token');
-      // Ensure specialPermission is a boolean and specialLeaveMaxDays is a number
-      const payload = {
-        ...editEmployeeForm,
-        specialPermission: Boolean(editEmployeeForm.specialPermission),
-        specialLeaveMaxDays: editEmployeeForm.specialPermission ? Number(editEmployeeForm.specialLeaveMaxDays) : undefined
-      };
-
-      console.log('Submitting employee update:', payload);
-
-      const response = await fetch(`${API_BASE_URL}/principal/employees/${editingEmployee._id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.msg || 'Failed to update employee');
-      }
-
-      const updatedEmployee = await response.json();
-      console.log('Employee update response:', updatedEmployee);
-
-      toast.success('Employee updated successfully');
-      await fetchEmployees(); // Refresh the employees list with the latest data
-      setEditingEmployee(null);
-    } catch (error) {
-      console.error('Error updating employee:', error);
-      toast.error(error.message || 'Failed to update employee');
     }
   };
 
@@ -809,7 +671,7 @@ const PrincipalDashboard = () => {
                 </div>
               </div>
 
-              
+
 
               {/* Recent Activity */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -820,7 +682,7 @@ const PrincipalDashboard = () => {
                     <button className="text-xs text-blue-600 hover:underline" onClick={() => setActiveSection('leaves')}>View All</button>
                   </div>
                   <ul className="divide-y divide-gray-100">
-                    {(forwardedLeaves.slice(0,5)).map(leave => (
+                    {(forwardedLeaves.slice(0, 5)).map(leave => (
                       <li key={leave._id} className="py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded transition" onClick={() => handleRecentLeaveClick(leave._id)}>
                         <span className="font-mono text-primary text-xs">{leave.leaveRequestId}</span>
                         <span className="flex-1 truncate">{leave.employee?.name || leave.employeeName}</span>
@@ -838,7 +700,7 @@ const PrincipalDashboard = () => {
                     <button className="text-xs text-blue-600 hover:underline" onClick={() => setActiveSection('ccl-work')}>View All</button>
                   </div>
                   <ul className="divide-y divide-gray-100">
-                    {(cclWorkRequests.slice(0,5)).map(work => (
+                    {(cclWorkRequests.slice(0, 5)).map(work => (
                       <li key={work._id} className="py-2 flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded transition" onClick={() => handleRecentCCLClick(work._id)}>
                         <span className="font-mono text-primary text-xs">{work.employeeEmployeeId || work.employeeId || 'N/A'}</span>
                         <span className="flex-1 truncate">{work.employeeName || 'Unknown'}</span>
@@ -854,292 +716,39 @@ const PrincipalDashboard = () => {
           </div>
         );
 
-      
-        case 'hods':
-  return (
-    <HodManagement 
-      branches={branches}
-      hods={hods}
-      onHodUpdate={fetchHods}
-      campus={campus}
-      token={token}
-    />
-  );
+
+      case 'hods':
+        return (
+          <HodManagement
+            branches={branches}
+            hods={hods}
+            onHodUpdate={fetchHods}
+            campus={campus}
+            token={token}
+          />
+        );
 
       case 'branches':
         return (
-          <div className="p-6 mt-4">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-primary">Branch Management</h2>
-              <button
-                onClick={() => setShowCreateBranchModal(true)}
-                className="bg-primary text-white px-4 py-2 rounded-neumorphic hover:shadow-innerSoft transition-all duration-300"
-              >
-                Create Branch
-              </button>
-            </div>
-            <div className="bg-secondary rounded-neumorphic shadow-outerRaised p-6">
-              <div className="overflow-x-auto">
-                <table className="min-w-full bg-white rounded-lg overflow-hidden">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Branch Name</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Branch Code</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Status</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">HOD</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {branches.map((branch) => (
-                      <tr key={branch._id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm text-gray-900">{branch.name}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900">{branch.code}</td>
-                        <td className="px-4 py-3 text-sm">
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold
-                            ${branch.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
-                          >
-                            {branch.isActive ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {branch.hodId ? (
-                            hods.find(hod => hod._id === branch.hodId)?.name || 'N/A'
-                          ) : 'No HOD Assigned'}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <button
-                            onClick={() => handleEditBranchClick(branch)}
-                            className="bg-blue-500 text-white px-3 py-1 rounded-md text-xs hover:bg-blue-600 transition-colors"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteBranchClick(branch._id)}
-                            className="bg-red-500 text-white px-3 py-1 rounded-md text-xs hover:bg-red-600 transition-colors ml-2"
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            {/* Edit Branch Modal */}
-            {showEditBranchModal && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-                  <h3 className="text-lg font-semibold text-primary mb-4">Edit Branch</h3>
-                  <form onSubmit={handleEditBranchSubmit} className="space-y-4">
-                    <div>
-                      <label className="block text-gray-700 text-sm font-bold mb-2">Branch Name</label>
-                      <input
-                        type="text"
-                        value={editBranchData.name}
-                        onChange={e => setEditBranchData({ ...editBranchData, name: e.target.value })}
-                        className="w-full p-2 rounded-neumorphic shadow-innerSoft bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-gray-700 text-sm font-bold mb-2">Branch Code</label>
-                      <input
-                        type="text"
-                        value={editBranchData.code}
-                        onChange={e => setEditBranchData({ ...editBranchData, code: e.target.value })}
-                        className="w-full p-2 rounded-neumorphic shadow-innerSoft bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                        required
-                      />
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <button type="button" onClick={() => setShowEditBranchModal(false)} className="bg-gray-500 text-white px-3 py-2 rounded-neumorphic">Cancel</button>
-                      <button type="submit" className="bg-primary text-white px-4 py-2 rounded-neumorphic hover:shadow-innerSoft transition-all duration-300">Save Changes</button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            )}
-            {/* Delete Branch Modal */}
-            {showDeleteBranchModal && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-                  <h3 className="text-lg font-semibold text-primary mb-4">Delete Branch</h3>
-                  <p>Are you sure you want to delete this branch? This action cannot be undone.</p>
-                  <div className="flex justify-end gap-2 mt-6">
-                    <button type="button" onClick={() => setShowDeleteBranchModal(false)} className="bg-gray-500 text-white px-3 py-2 rounded-neumorphic">Cancel</button>
-                    <button type="button" onClick={handleDeleteBranchConfirm} className="bg-red-600 text-white px-4 py-2 rounded-neumorphic hover:shadow-innerSoft transition-all duration-300">Delete</button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          <BranchManagement
+            branches={branches}
+            hods={hods}
+            onBranchUpdate={fetchBranches}
+            token={token}
+            loading={loading.branches}
+          />
         );
 
       case 'employees':
         return (
-          <div className="p-6 mt-4">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-primary">Employee Management</h2>
-              <button
-                className="bg-primary text-white px-4 py-2 rounded shadow hover:bg-primary-dark transition"
-                onClick={exportEmployeesToPDF}
-              >
-                Export to PDF
-              </button>
-            </div>
-            <div className="bg-secondary rounded-neumorphic shadow-outerRaised p-6">
-
-              {/* Employee filters */}
-              <div className="mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
-                  <input
-                    type="text"
-                    placeholder="Search by name, email, or ID..."
-                    value={employeeFilters.search}
-                    onChange={(e) => {
-                      console.log('Search filter changed to:', e.target.value);
-                      setEmployeeFilters({ ...employeeFilters, search: e.target.value });
-                    }}
-                    className="p-2 rounded-neumorphic shadow-innerSoft bg-background"
-                  />
-                  <select
-                    value={employeeFilters.department}
-                    onChange={(e) => {
-                      console.log('Department filter changed to:', e.target.value);
-                      setEmployeeFilters({ ...employeeFilters, department: e.target.value });
-                    }}
-                    className="p-2 rounded-neumorphic shadow-innerSoft bg-background"
-                  >
-                    <option value="">All Departments</option>
-                    {branches && branches.length > 0 ? (
-                      branches.map((branch) => (
-                        <option key={branch.code} value={branch.code}>{branch.name}</option>
-                      ))
-                    ) : (
-                      <option value="" disabled>Loading departments...</option>
-                    )}
-                  </select>
-                  <select
-                    value={employeeFilters.status}
-                    onChange={(e) => {
-                      console.log('Status filter changed to:', e.target.value);
-                      setEmployeeFilters({ ...employeeFilters, status: e.target.value });
-                    }}
-                    className="p-2 rounded-neumorphic shadow-innerSoft bg-background"
-                  >
-                    <option value="">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
-                {(employeeFilters.search || employeeFilters.department || employeeFilters.status) && (
-                  <div className="flex justify-end">
-                    <button
-                      onClick={() => setEmployeeFilters({ search: '', department: '', status: '' })}
-                      className="text-sm text-blue-600 hover:text-blue-800 underline"
-                    >
-                      Clear Filters
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Employee list: Table only on md+ screens */}
-              <div className="overflow-x-auto hidden md:block">
-                <table className="min-w-full bg-white rounded-lg overflow-hidden">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Employee ID</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Name</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Email</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Department</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Designation</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Phone</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Status</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {employees.map((employee) => (
-                      <tr key={employee._id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm text-gray-900">{employee.employeeId}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900">{employee.name}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900">{employee.email}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          <div className="group relative">
-                            <span>{employee.branchCode || employee.department}</span>
-                            <div className="hidden group-hover:block absolute z-10 bg-black text-white text-xs rounded py-1 px-2 left-0 -bottom-8">
-                              {branches.find(b => b.code === (employee.branchCode || employee.department))?.name || employee.department}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">
-                          {employee.role.charAt(0).toUpperCase() + employee.role.slice(1)}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-900">{employee.phoneNumber || 'N/A'}</td>
-                        <td className="px-4 py-3 text-sm">
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold
-                            ${employee.status === 'active'
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'}`}
-                          >
-                            {employee.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <button
-                            onClick={() => handleEditEmployeeClick(employee)}
-                            className="bg-blue-500 text-white px-3 py-1 rounded-md text-xs hover:bg-blue-600 transition-colors"
-                          >
-                            Edit
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Employee Cards Section: always visible, only show on mobile (block on mobile, hidden on md+) */}
-              <div className="mt-10 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 md:hidden">
-                {employees.map((employee) => (
-                  <div
-                    key={employee._id}
-                    className="bg-white rounded-xl shadow p-4 flex flex-col items-center cursor-pointer hover:shadow-lg transition"
-                    onClick={() => handleEditEmployeeClick(employee)}
-                    title={`Edit ${employee.name}`}
-                  >
-                    <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 border-2 border-primary mb-2 flex items-center justify-center">
-                      {employee.profilePicture ? (
-                        <img
-                          src={employee.profilePicture}
-                          alt={employee.name}
-                          className="w-full h-full object-cover"
-                          onError={e => { e.target.onerror = null; e.target.style.display = 'none'; e.target.parentNode.querySelector('svg').style.display = 'block'; }}
-                          style={{ display: 'block' }}
-                        />
-                      ) : null}
-                      <svg
-                        className="w-12 h-12 text-gray-300 absolute"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        style={{ display: employee.profilePicture ? 'none' : 'block' }}
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                    </div>
-                    <div className="text-center">
-                      <div className="font-semibold text-gray-800 truncate w-20">{employee.name}</div>
-                      <div className="text-xs text-gray-500 truncate w-20">{employee.employeeId}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <EmployeeManagement
+            branches={branches}
+            employees={employees}
+            allEmployees={allEmployees}
+            onEmployeeUpdate={fetchEmployees}
+            token={token}
+            loading={loading.employees}
+          />
         );
 
       case 'leaves':
@@ -1265,11 +874,11 @@ const PrincipalDashboard = () => {
                         });
                         return (
                           <tr key={row._id} className={`${row.originalStartDate && row.originalEndDate ? 'bg-yellow-50' : ''} border-b hover:bg-gray-50`}>
-                        <td className="px-4 py-3 font-mono text-primary">{row.leaveRequestId}</td>
-                        <td className="px-4 py-3">{row.employee?.name || row.employeeName || 'Unknown'}</td>
-                        <td className="px-4 py-3">{row.employee?.employeeId || row.employeeEmployeeId || 'N/A'}</td>
-                        <td className="px-4 py-3">{row.type ? row.type.charAt(0).toUpperCase() + row.type.slice(1) : row.leaveType ? row.leaveType.charAt(0).toUpperCase() + row.leaveType.slice(1) : 'N/A'}</td>
-                        <td className="px-4 py-3">
+                            <td className="px-4 py-3 font-mono text-primary">{row.leaveRequestId}</td>
+                            <td className="px-4 py-3">{row.employee?.name || row.employeeName || 'Unknown'}</td>
+                            <td className="px-4 py-3">{row.employee?.employeeId || row.employeeEmployeeId || 'N/A'}</td>
+                            <td className="px-4 py-3">{row.type ? row.type.charAt(0).toUpperCase() + row.type.slice(1) : row.leaveType ? row.leaveType.charAt(0).toUpperCase() + row.leaveType.slice(1) : 'N/A'}</td>
+                            <td className="px-4 py-3">
                               {row.isModifiedByPrincipal ? (
                                 <div>
                                   <div className="line-through text-gray-500">
@@ -1287,14 +896,14 @@ const PrincipalDashboard = () => {
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
-                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold
+                                <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold
                             ${row.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                              row.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                              row.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
-                              'bg-yellow-100 text-yellow-800'}`}
-                          >
-                            {row.status || 'N/A'}
-                          </span>
+                                    row.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                                      row.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
+                                        'bg-yellow-100 text-yellow-800'}`}
+                                >
+                                  {row.status || 'N/A'}
+                                </span>
                                 {row.originalStartDate && row.originalEndDate && (
                                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
@@ -1304,51 +913,51 @@ const PrincipalDashboard = () => {
                                   </span>
                                 )}
                               </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <button
-                            className="bg-primary text-white px-3 py-1 rounded-md text-xs hover:bg-primary-dark transition-colors"
-                            onClick={() => {
-                              setSelectedLeave(row);
-                              setShowLeaveDetailsModal(true);
-                            }}
-                          >
-                            View
-                          </button>
-                        </td>
-                      </tr>
+                            </td>
+                            <td className="px-4 py-3">
+                              <button
+                                className="bg-primary text-white px-3 py-1 rounded-md text-xs hover:bg-primary-dark transition-colors"
+                                onClick={() => {
+                                  setSelectedLeave(row);
+                                  setShowLeaveDetailsModal(true);
+                                }}
+                              >
+                                View
+                              </button>
+                            </td>
+                          </tr>
                         );
                       } else {
                         // CCL Work Request
                         return (
-                      <tr key={row._id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 font-mono text-primary">{row.cclRequestId || `CCL${new Date(row.date).getFullYear()}${row.employeeDepartment?.substring(0, 3).toUpperCase()}${row._id.toString().slice(-4)}`}</td>
-                        <td className="px-4 py-3">{row.employeeName || 'Unknown'}</td>
-                        <td className="px-4 py-3">{row.employeeEmployeeId || 'N/A'}</td>
-                        <td className="px-4 py-3">CCL Work</td>
-                        <td className="px-4 py-3">{new Date(row.date).toLocaleDateString()}</td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold
+                          <tr key={row._id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 font-mono text-primary">{row.cclRequestId || `CCL${new Date(row.date).getFullYear()}${row.employeeDepartment?.substring(0, 3).toUpperCase()}${row._id.toString().slice(-4)}`}</td>
+                            <td className="px-4 py-3">{row.employeeName || 'Unknown'}</td>
+                            <td className="px-4 py-3">{row.employeeEmployeeId || 'N/A'}</td>
+                            <td className="px-4 py-3">CCL Work</td>
+                            <td className="px-4 py-3">{new Date(row.date).toLocaleDateString()}</td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold
                             ${row.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                              row.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                              row.status === 'Forwarded to Principal' ? 'bg-blue-100 text-blue-800' :
-                              'bg-yellow-100 text-yellow-800'}`}
-                          >
-                            {row.status || 'N/A'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <button
-                            className="bg-primary text-white px-3 py-1 rounded-md text-xs hover:bg-primary-dark transition-colors"
-                            onClick={() => {
-                              setSelectedCCLWork(row);
-                              setShowCCLRemarksModal(true);
-                            }}
-                          >
-                            View
-                          </button>
-                        </td>
-                      </tr>
+                                  row.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                                    row.status === 'Forwarded to Principal' ? 'bg-blue-100 text-blue-800' :
+                                      'bg-yellow-100 text-yellow-800'}`}
+                              >
+                                {row.status || 'N/A'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <button
+                                className="bg-primary text-white px-3 py-1 rounded-md text-xs hover:bg-primary-dark transition-colors"
+                                onClick={() => {
+                                  setSelectedCCLWork(row);
+                                  setShowCCLRemarksModal(true);
+                                }}
+                              >
+                                View
+                              </button>
+                            </td>
+                          </tr>
                         );
                       }
                     })}
@@ -1444,8 +1053,8 @@ const PrincipalDashboard = () => {
                       <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold
                         ${leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
                           leave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                          leave.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
-                          'bg-yellow-100 text-yellow-800'}`}
+                            leave.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
+                              'bg-yellow-100 text-yellow-800'}`}
                       >
                         {leave.status || 'N/A'}
                       </span>
@@ -1473,8 +1082,8 @@ const PrincipalDashboard = () => {
                         <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold
                           ${leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
                             leave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                            leave.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
-                            'bg-yellow-100 text-yellow-800'}`}
+                              leave.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
+                                'bg-yellow-100 text-yellow-800'}`}
                         >
                           {leave.status || 'N/A'}
                         </span>
@@ -1531,7 +1140,7 @@ const PrincipalDashboard = () => {
                     </button>
                   </div>
                   <div className="space-y-3 sm:space-y-4">
-                    
+
                     {/* Employee Information */}
                     <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
                       <h4 className="font-semibold text-gray-900 mb-2">Employee Information</h4>
@@ -1601,7 +1210,7 @@ const PrincipalDashboard = () => {
                             </div>
                           ) : (
                             <div className="col-span-1 sm:col-span-2">
-                          <p className="text-sm text-gray-600">Duration</p>
+                              <p className="text-sm text-gray-600">Duration</p>
                               <p className="font-medium text-sm sm:text-base">{new Date(selectedLeave.startDate).toLocaleDateString()} to {new Date(selectedLeave.endDate).toLocaleDateString()} ({selectedLeave.numberOfDays} days)</p>
                             </div>
                           )}
@@ -1617,8 +1226,8 @@ const PrincipalDashboard = () => {
                           <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold
                             ${selectedLeave.status === 'Approved' ? 'bg-green-100 text-green-800' :
                               selectedLeave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                              selectedLeave.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
-                              'bg-yellow-100 text-yellow-800'}`}
+                                selectedLeave.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-yellow-100 text-yellow-800'}`}
                           >
                             {selectedLeave.status || 'N/A'}
                           </span>
@@ -1789,7 +1398,7 @@ const PrincipalDashboard = () => {
               {filteredCCLWorkRequests.length === 0 ? (
                 <div className="p-6 text-center text-gray-500">
                   No CCL work requests found.
-                    </div>
+                </div>
               ) : (
                 <div className="divide-y divide-gray-200">
                   {filteredCCLWorkRequests.map((request) => (
@@ -1811,35 +1420,35 @@ const PrincipalDashboard = () => {
                           <p className="text-sm text-gray-600">
                             <strong>Applied On:</strong> {new Date(request.appliedOn).toLocaleDateString()}
                           </p>
-                  </div>
+                        </div>
                         <div className="flex flex-col items-end space-y-2">
                           <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold
                             ${request.status === 'approved' ? 'bg-green-100 text-green-800' :
                               request.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                              'bg-yellow-100 text-yellow-800'}`}
+                                'bg-yellow-100 text-yellow-800'}`}
                           >
                             {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                           </span>
                           {request.status === 'pending' && (
                             <div className="flex space-x-2">
-                      <button
+                              <button
                                 onClick={() => handleCCLWorkAction(request._id, 'approved')}
                                 className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition-colors"
-                      >
-                        Approve
-                      </button>
-                      <button
+                              >
+                                Approve
+                              </button>
+                              <button
                                 onClick={() => handleCCLWorkAction(request._id, 'rejected')}
                                 className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  )}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
-                </div>
-              ))}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -1874,21 +1483,6 @@ const PrincipalDashboard = () => {
 
 
 
-  // Apply employee filters when filters change
-  useEffect(() => {
-    console.log('Employee filter change detected:', employeeFilters);
-    const token = localStorage.getItem('token');
-    if (token && allEmployees.length > 0) {
-      console.log('Applying employee filters to', allEmployees.length, 'employees');
-      applyEmployeeFilters();
-    } else {
-      console.log('Cannot apply employee filters:', { 
-        hasToken: !!token, 
-        allEmployeesLength: allEmployees.length 
-      });
-    }
-  }, [employeeFilters.search, employeeFilters.department, employeeFilters.status, allEmployees.length]);
-
   // Apply leave filters when filters change
   useEffect(() => {
     console.log('Leave filter change detected:', leaveFilters);
@@ -1898,163 +1492,20 @@ const PrincipalDashboard = () => {
       leavesLength: forwardedLeaves.length,
       filterValues: leaveFilters
     });
-    
+
     const token = localStorage.getItem('token');
     if (token && !isInitialLoad.current) {
       console.log('Fetching leaves with filters:', leaveFilters);
       fetchForwardedLeaves(leaveFilters);
     } else {
-      console.log('Cannot fetch leaves:', { 
-        hasToken: !!token, 
+      console.log('Cannot fetch leaves:', {
+        hasToken: !!token,
         leavesLength: forwardedLeaves.length,
         isInitialLoad: isInitialLoad.current
       });
     }
   }, [leaveFilters.startDate, leaveFilters.endDate, leaveFilters.department, leaveFilters.status]);
 
-  const exportEmployeesToPDF = () => {
-    if (!employees.length) {
-      alert('No employees to export.');
-      return;
-    }
-
-    // Sort employees by department, then by name
-    const sortedEmployees = [...employees].sort((a, b) => {
-      const deptA = (a.branchCode || a.department || '').toLowerCase();
-      const deptB = (b.branchCode || b.department || '').toLowerCase();
-      if (deptA < deptB) return -1;
-      if (deptA > deptB) return 1;
-      // If departments are equal, sort by employee name
-      const nameA = (a.name || '').toLowerCase();
-      const nameB = (b.name || '').toLowerCase();
-      if (nameA < nameB) return -1;
-      if (nameA > nameB) return 1;
-      return 0;
-    });
-
-    // Prepare employee data for PDF (removed status column)
-    const employeeData = sortedEmployees.map((emp, idx) => [
-      idx + 1,
-      emp.employeeId || 'N/A',
-      emp.name || 'N/A',
-      emp.email || 'N/A',
-      emp.branchCode || emp.department || 'N/A',
-      emp.role ? emp.role.charAt(0).toUpperCase() + emp.role.slice(1) : 'N/A',
-      emp.phoneNumber || 'N/A'
-    ]);
-
-    const employeeHeaders = [[
-      'S. No', 'Employee ID', 'Name', 'Email', 'Department', 'Designation', 'Phone'
-    ]];
-
-    // Use portrait orientation for better vertical space
-    const doc = new jsPDF('portrait', 'mm', 'a4');
-    const collegeName = 'Pydah College of Engineering';
-    const collegeAddress = 'An Autonomous Institution Kakinada | Andhra Pradesh | INDIA';
-    const contactNumber = 'Contact: +91 99513 54444';
-    const now = new Date();
-    const month = now.toLocaleString('en-US', { month: 'long' });
-    const year = now.getFullYear();
-    
-    // Create title based on applied filters
-    let title = `Employee Directory - ${month} - ${year}`;
-    let fileName = `Employee_Directory_${month}_${year}.pdf`;
-    
-    if (employeeFilters.department) {
-      const branchName = branches.find(b => b.code === employeeFilters.department)?.name || employeeFilters.department;
-      const branchCode = employeeFilters.department;
-      title = `Employee Directory - ${branchName} - ${month} - ${year}`;
-      fileName = `Employee_Directory_${branchCode}_${month}_${year}.pdf`;
-    } else if (employeeFilters.status) {
-      title = `Employee Directory - ${employeeFilters.status.charAt(0).toUpperCase() + employeeFilters.status.slice(1)} Employees - ${month} - ${year}`;
-      fileName = `Employee_Directory_${employeeFilters.status}_${month}_${year}.pdf`;
-    }
-    
-    const logoUrl = window.location.origin + '/PYDAH_LOGO_PHOTO.jpg';
-
-    // Helper to draw the PDF (with or without logo)
-    const drawPDF = (logoImg) => {
-      if (logoImg) doc.addImage(logoImg, 'PNG', 15, 10, 40, 20);
-      doc.setFont('times', 'bold');
-      doc.setTextColor('#333');
-      doc.setFontSize(20);
-      doc.text(collegeName, doc.internal.pageSize.width / 2, 20, { align: 'center' });
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'normal');
-      doc.text(collegeAddress, doc.internal.pageSize.width / 2, 28, { align: 'center' });
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor('#D35400');
-      doc.text(title, doc.internal.pageSize.width / 2, 40, { align: 'center' });
-
-      // Draw Employee Directory table
-      doc.setFontSize(12);
-      doc.setTextColor('#333');
-      doc.text('Employee Directory', 15, 50);
-      autoTable(doc, {
-        startY: 55,
-        head: employeeHeaders,
-        body: employeeData,
-        styles: { fontSize: 9, cellPadding: 3 },
-        headStyles: {
-          fillColor: [255, 213, 128],
-          textColor: [0, 0, 0],
-          fontStyle: 'bold',
-        },
-        theme: 'grid',
-        margin: { left: 15, right: 15 },
-        tableWidth: 'auto',
-        columnStyles: {
-          0: { cellWidth: 12 }, // S. No
-          1: { cellWidth: 25 }, // Employee ID
-          2: { cellWidth: 35 }, // Name
-          3: { cellWidth: 40 }, // Email
-          4: { cellWidth: 25 }, // Department
-          5: { cellWidth: 25 }, // Designation
-          6: { cellWidth: 25 }, // Phone
-        },
-        didDrawPage: function (data) {
-          // Add footer
-          let pageHeight = doc.internal.pageSize.height;
-          doc.setFontSize(10);
-          doc.setTextColor('#333');
-          doc.text(collegeName, 15, pageHeight - 15);
-          doc.text(contactNumber, doc.internal.pageSize.width / 2, pageHeight - 15, { align: 'center' });
-          let pageNumber = doc.internal.getNumberOfPages();
-          doc.text(`Page ${pageNumber}`, doc.internal.pageSize.width - 20, pageHeight - 15);
-
-          // Add signatures - HOD on left, Principal on right
-          let signatureY = data.cursor.y + 25;
-          doc.setFontSize(12);
-          doc.setFont('helvetica', 'bold');
-          
-          // HOD Signature on the left
-          doc.text('HOD Signature', 30, signatureY);
-          
-          // Principal Signature on the right
-          doc.text('Principal Signature', doc.internal.pageSize.width - 70, signatureY);
-
-          // Add timestamp at the bottom center
-          let timestamp = new Date().toLocaleString('en-US', {
-            day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit',
-          });
-          doc.setFontSize(10);
-          doc.setTextColor('#333');
-          doc.text(`Generated on: ${timestamp}`, doc.internal.pageSize.width / 2, signatureY + 10, { align: 'center' });
-        }
-      });
-
-      // Save the PDF
-      doc.save(fileName);
-    };
-
-    // Try to load the logo, then draw the PDF
-    const logoImg = new window.Image();
-    logoImg.crossOrigin = 'Anonymous';
-    logoImg.src = logoUrl;
-    logoImg.onload = () => drawPDF(logoImg);
-    logoImg.onerror = () => drawPDF(null);
-  };
 
   const exportToPDF = (pdfIncludeCCL = true, pdfIncludeSummary = true) => {
     if (!forwardedLeaves.length && !cclWorkRequests.length) {
@@ -2073,7 +1524,7 @@ const PrincipalDashboard = () => {
         const leaveStartDate = new Date(leave.startDate);
         const filterStart = leaveFilters.startDate ? new Date(leaveFilters.startDate) : null;
         const filterEnd = leaveFilters.endDate ? new Date(leaveFilters.endDate) : null;
-        
+
         if (filterStart && filterEnd) {
           if (!(leaveStartDate >= filterStart && leaveStartDate <= filterEnd)) return false;
         } else if (filterStart) {
@@ -2134,7 +1585,7 @@ const PrincipalDashboard = () => {
         const cclDate = new Date(ccl.date);
         const filterStart = cclFilters.startDate ? new Date(cclFilters.startDate) : null;
         const filterEnd = cclFilters.endDate ? new Date(cclFilters.endDate) : null;
-        
+
         if (filterStart && filterEnd) {
           if (!(cclDate >= filterStart && cclDate <= filterEnd)) return false;
         } else if (filterStart) {
@@ -2193,7 +1644,7 @@ const PrincipalDashboard = () => {
     ]];
 
     const cclHeaders = [[
-      'S. No','Name', 'Request ID',  'Employee ID', 'Dept', 'Date', 'Assigned To', 'Reason', 'Status'
+      'S. No', 'Name', 'Request ID', 'Employee ID', 'Dept', 'Date', 'Assigned To', 'Reason', 'Status'
     ]];
 
     const doc = new jsPDF('landscape');
@@ -2309,8 +1760,8 @@ const PrincipalDashboard = () => {
       doc.text(`Generated on: ${timestamp}`, 10, finalY);
 
       // Save the PDF
-      const fileName = pdfIncludeCCL ? 
-        `Leave_and_CCL_Requests_${month}_${year}.pdf` : 
+      const fileName = pdfIncludeCCL ?
+        `Leave_and_CCL_Requests_${month}_${year}.pdf` :
         `Leave_Requests_${month}_${year}.pdf`;
       doc.save(fileName);
 
@@ -2524,7 +1975,7 @@ const PrincipalDashboard = () => {
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                     required
                   />
@@ -2534,7 +1985,7 @@ const PrincipalDashboard = () => {
                   <input
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                     required
                   />
@@ -2544,7 +1995,7 @@ const PrincipalDashboard = () => {
                   <input
                     type="text"
                     value={formData.HODId}
-                    onChange={(e) => setFormData({...formData, HODId: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, HODId: e.target.value })}
                     className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                     placeholder="Leave empty to use email as ID"
                   />
@@ -2554,7 +2005,7 @@ const PrincipalDashboard = () => {
                   <input
                     type="password"
                     value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                     required
                   />
@@ -2563,7 +2014,7 @@ const PrincipalDashboard = () => {
                   <label className="block text-gray-700 text-sm font-semibold mb-1">Branch</label>
                   <select
                     value={formData.branchCode}
-                    onChange={(e) => setFormData({...formData, branchCode: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, branchCode: e.target.value })}
                     className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                     required
                   >
@@ -2613,7 +2064,7 @@ const PrincipalDashboard = () => {
                   <input
                     type="text"
                     value={editForm.name}
-                    onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                     className="mt-1 block w-full p-2 lg:p-3 rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
@@ -2622,7 +2073,7 @@ const PrincipalDashboard = () => {
                   <input
                     type="email"
                     value={editForm.email}
-                    onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                     className="mt-1 block w-full p-2 lg:p-3 rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
@@ -2631,7 +2082,7 @@ const PrincipalDashboard = () => {
                   <input
                     type="text"
                     value={editForm.phoneNumber}
-                    onChange={(e) => setEditForm({...editForm, phoneNumber: e.target.value})}
+                    onChange={(e) => setEditForm({ ...editForm, phoneNumber: e.target.value })}
                     className="mt-1 block w-full p-2 lg:p-3 rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
@@ -2639,7 +2090,7 @@ const PrincipalDashboard = () => {
                   <label className="block text-sm font-medium text-gray-700">Department</label>
                   <select
                     value={editForm.department}
-                    onChange={(e) => setEditForm({...editForm, department: e.target.value})}
+                    onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
                     className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                     required
                   >
@@ -2657,7 +2108,7 @@ const PrincipalDashboard = () => {
                   <label className="block text-sm font-medium text-gray-700">Status</label>
                   <select
                     value={editForm.status}
-                    onChange={(e) => setEditForm({...editForm, status: e.target.value})}
+                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
                     className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                     required
                   >
@@ -2742,154 +2193,6 @@ const PrincipalDashboard = () => {
                 Reject
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Create Branch Modal */}
-      {showCreateBranchModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-primary mb-4">Create New Branch</h3>
-            <form onSubmit={e => { handleCreateBranch(e); setShowCreateBranchModal(false); }} className="space-y-4">
-              <div>
-                <label className="block text-gray-700 text-sm font-bold mb-2">Branch Name</label>
-                <input
-                  type="text"
-                  value={newBranch.name}
-                  onChange={e => setNewBranch({ ...newBranch, name: e.target.value })}
-                  className="w-full p-2 rounded-neumorphic shadow-innerSoft bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-gray-700 text-sm font-bold mb-2">Branch Code</label>
-                <input
-                  type="text"
-                  value={newBranch.code}
-                  onChange={e => setNewBranch({ ...newBranch, code: e.target.value })}
-                  className="w-full p-2 rounded-neumorphic shadow-innerSoft bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                  required
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setShowCreateBranchModal(false)} className="bg-gray-500 text-white px-3 py-2 rounded-neumorphic">Cancel</button>
-                <button type="submit" className="bg-primary text-white px-4 py-2 rounded-neumorphic hover:shadow-innerSoft transition-all duration-300">Create Branch</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Employee Modal */}
-      {editingEmployee && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Edit Employee</h2>
-            <form onSubmit={handleEditEmployeeSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Name</label>
-                <input
-                  type="text"
-                  value={editEmployeeForm.name}
-                  onChange={(e) => setEditEmployeeForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Email</label>
-                <input
-                  type="email"
-                  value={editEmployeeForm.email}
-                  onChange={(e) => setEditEmployeeForm(prev => ({ ...prev, email: e.target.value }))}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Phone Number</label>
-                <input
-                  type="tel"
-                  value={editEmployeeForm.phoneNumber}
-                  onChange={(e) => setEditEmployeeForm(prev => ({ ...prev, phoneNumber: e.target.value }))}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Department</label>
-                <select
-                  value={editEmployeeForm.department}
-                  onChange={(e) => setEditEmployeeForm(prev => ({ ...prev, department: e.target.value }))}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base"
-                  required
-                >
-                  <option value="">Select Department</option>
-                  {branches.map(branch => (
-                    <option key={branch._id} value={branch.code}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Status</label>
-                <select
-                  value={editEmployeeForm.status}
-                  onChange={(e) => setEditEmployeeForm(prev => ({ ...prev, status: e.target.value }))}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-base"
-                  required
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
-              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setEditingEmployee(null)}
-                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 w-full sm:w-auto"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
-                >
-                  Update Employee
-                </button>
-                <button
-                  type="button"
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 w-full sm:w-auto"
-                  onClick={async () => {
-                    if (window.confirm('Are you sure you want to delete this employee? This action cannot be undone.')) {
-                      try {
-                        const token = localStorage.getItem('token');
-                        const response = await fetch(`${API_BASE_URL}/principal/employees/${editingEmployee._id}`, {
-                          method: 'DELETE',
-                          headers: {
-                            'Authorization': `Bearer ${token}`
-                          }
-                        });
-                        if (!response.ok) {
-                          const errorData = await response.json();
-                          throw new Error(errorData.msg || 'Failed to delete employee');
-                        }
-                        toast.success('Employee deleted successfully');
-                        await fetchEmployees();
-                        setEditingEmployee(null);
-                      } catch (error) {
-                        console.error('Error deleting employee:', error);
-                        toast.error(error.message || 'Failed to delete employee');
-                      }
-                    }
-                  }}
-                >
-                  Delete Employee
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

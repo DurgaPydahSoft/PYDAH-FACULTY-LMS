@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import axiosInstance from '../../utils/axiosConfig';
 import HodPasswordResetModal from '../../components/HodPasswordResetModal';
-import { FaUserTie } from 'react-icons/fa';
 
 const HodManagement = ({ 
   branches = [], 
