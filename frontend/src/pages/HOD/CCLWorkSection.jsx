@@ -12,7 +12,8 @@ const CCLWorkSection = ({
   setSelectedCCLWork,
   cclRemarks,
   setCclRemarks,
-  handleCCLRemarksSubmit
+  handleCCLRemarksSubmit,
+  cclActionLoading
 }) => {
   // Ensure cclWorkRequests is an array
   const safeCclWorkRequests = Array.isArray(cclWorkRequests) ? cclWorkRequests : [];
@@ -76,9 +77,13 @@ const CCLWorkSection = ({
                 <>
                   <button
                     onClick={() => handleApproveCCL(cclWork._id)}
-                    className="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400"
+                    className="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-400 flex items-center justify-center"
                     title="Approve"
+                    disabled={cclActionLoading}
                   >
+                    {cclActionLoading ? (
+                      <span className="loader mr-2"></span>
+                    ) : null}
                     Approve
                   </button>
                   <button
@@ -86,9 +91,13 @@ const CCLWorkSection = ({
                       setSelectedCCLWork(cclWork);
                       setShowCCLRemarksModal(true);
                     }}
-                    className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400"
+                    className="px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 flex items-center justify-center"
                     title="Reject"
+                    disabled={cclActionLoading}
                   >
+                    {cclActionLoading ? (
+                      <span className="loader mr-2"></span>
+                    ) : null}
                     Reject
                   </button>
                 </>
@@ -204,8 +213,12 @@ const CCLWorkSection = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 flex items-center justify-center"
+                  disabled={cclActionLoading}
                 >
+                  {cclActionLoading ? (
+                    <span className="loader mr-2"></span>
+                  ) : null}
                   Reject CCL Work
                 </button>
               </div>
@@ -213,6 +226,22 @@ const CCLWorkSection = ({
           </div>
         </div>
       )}
+      {/* Simple spinner CSS for loader */}
+      <style>{`
+        .loader {
+          border: 2px solid #f3f3f3;
+          border-top: 2px solid #3498db;
+          border-radius: 50%;
+          width: 16px;
+          height: 16px;
+          animation: spin 0.8s linear infinite;
+          display: inline-block;
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };

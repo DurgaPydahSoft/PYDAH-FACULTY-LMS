@@ -1073,6 +1073,7 @@ approvedNumberOfDays,
 
       leaveRequest.status = 'Rejected';
       leaveRequest.principalRemarks = remarks || 'Rejected by Principal';
+      leaveRequest.rejectionBy = 'Principal';
       leaveRequest.principalApprovalDate = new Date();
       leaveRequest.approvedBy.principal = false;
 

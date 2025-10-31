@@ -361,7 +361,9 @@ const allLeaveRows = [
                 ? new Date(lr.approvedEndDate).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })
                 : new Date(lr.endDate).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' }),
             lr.isModifiedByPrincipal ? lr.approvedNumberOfDays || '' : lr.numberOfDays || '',
-            lr.status || '',
+            lr.status === 'Rejected'
+              ? (lr.rejectionBy === 'HOD' ? 'Rejected by HOD' : lr.rejectionBy === 'Principal' ? 'Rejected by Principal' : 'Rejected')
+              : lr.status
         ]);
 
         // Filter CCL requests by date range and status

@@ -1,3 +1,36 @@
+  // Handle Approve/Reject for CCL Work Requests
+  const handleCCLWorkAction = async (requestId, action) => {
+    try {
+      const token = localStorage.getItem('token');
+      const authAxios = createAuthAxios(token);
+      // Use the correct state variable for CCL work requests
+      const selectedWork = cclWorkRequests.find(work => work._id === requestId);
+      if (!selectedWork) {
+        toast.error('CCL work request not found');
+        return;
+      }
+      // Prepare request body
+      const requestBody = {
+        status: action,
+        principalRemarks: cclRemarks || `${action} by Principal`
+      };
+      // Send API request to update status
+      const response = await authAxios.put(`${API_BASE_URL}/principal/ccl-work-requests/${requestId}`, requestBody);
+      if (response.status === 200 || response.data.success) {
+        toast.success(`CCL work request ${action.toLowerCase()} successfully!`);
+        // Refresh CCL work requests
+        fetchCCLWorkRequests();
+        setShowCCLRemarksModal(false);
+        setSelectedCCLWork(null);
+        setCclRemarks('');
+      } else {
+        toast.error(response.data?.msg || 'Failed to update CCL work request');
+      }
+    } catch (error) {
+      console.error('Error updating CCL work request:', error);
+      toast.error(error.response?.data?.msg || 'Error updating CCL work request');
+    }
+  };
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axiosInstance from '../../utils/axiosConfig';
@@ -82,14 +115,48 @@ const PrincipalDashboard = () => {
   const [shouldRedirect, setShouldRedirect] = useState(false);
   const [activeSection, setActiveSection] = useState('dashboard');
 
+
   const [dashboardStats, setDashboardStats] = useState(null);
 
   const [isSubmittingRemarks, setIsSubmittingRemarks] = useState(false);
   const [cclStatusFilter, setCclStatusFilter] = useState('');
-  const [filteredCCLWorkRequests, setFilteredCCLWorkRequests] = useState([]);
+  const [CCLWorkRequests, setFilteredCCLWorkRequests] = useState([]);
 
   const isInitialLoad = useRef(true);
 
+  // Handle Approve/Reject for CCL Work Requests
+  const handleCCLWorkAction = async (requestId, action) => {
+    try {
+      const token = localStorage.getItem('token');
+      const authAxios = createAuthAxios(token);
+      // Use the correct state variable for CCL work requests
+      const selectedWork = cclWorkRequests.find(work => work._id === requestId);
+      if (!selectedWork) {
+        toast.error('CCL work request not found');
+        return;
+      }
+      // Prepare request body
+      const requestBody = {
+        status: action,
+        remarks: cclRemarks || `${action} by Principal`
+      };
+      // Send API request to update status
+      const response = await authAxios.put(`${API_BASE_URL}/principal/ccl-work-requests/${requestId}`, requestBody);
+      if (response.status === 200 || response.data.success) {
+        toast.success(`CCL work request ${action.toLowerCase()} successfully!`);
+        // Refresh CCL work requests
+        fetchCCLWorkRequests();
+        setShowCCLRemarksModal(false);
+        setSelectedCCLWork(null);
+        setCclRemarks('');
+      } else {
+        toast.error(response.data?.msg || 'Failed to update CCL work request');
+      }
+    } catch (error) {
+      console.error('Error updating CCL work request:', error);
+      toast.error(error.response?.data?.msg || 'Error updating CCL work request');
+    }
+  };
 
   const { campus } = useParams();
   const navigate = useNavigate();
@@ -644,58 +711,73 @@ const PrincipalDashboard = () => {
                 className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">All</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
+                <option value="Pending">Pending</option>
+                <option value="Forwarded to Principal">Forwarded to Principal</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
               </select>
             </div>
 
             {/* CCL Work Requests List */}
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              {filteredCCLWorkRequests.length === 0 ? (
+              {cclWorkRequests.filter(work => !cclStatusFilter || work.status === cclStatusFilter).length === 0 ? (
                 <div className="p-6 text-center text-gray-500">
                   No CCL work requests found.
                 </div>
               ) : (
                 <div className="divide-y divide-gray-200">
-                  {filteredCCLWorkRequests.map((request) => (
+                  {cclWorkRequests.filter(work => !cclStatusFilter || work.status === cclStatusFilter).map((request) => (
                     <div key={request._id} className="p-4 hover:bg-gray-50">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <h3 className="text-lg font-semibold text-gray-900">
-                            {request.employee?.name || request.employeeName}
+                            {request.employeeName}
                           </h3>
                           <p className="text-sm text-gray-600">
-                            {request.employee?.employeeId || request.employeeEmployeeId} • {request.employee?.department?.name || request.employeeDepartment}
+                            <strong>Employee ID:</strong> {request.employeeEmployeeId} • <strong>Department:</strong> {request.employeeDepartment}
                           </p>
                           <p className="text-sm text-gray-600 mt-1">
-                            <strong>Work Description:</strong> {request.workDescription}
+                            <strong>Reason:</strong> {request.reason}
                           </p>
                           <p className="text-sm text-gray-600">
-                            <strong>Duration:</strong> {request.startDate} to {request.endDate} ({request.numberOfDays} days)
+                            <strong>Assigned To:</strong> {request.assignedTo}
                           </p>
                           <p className="text-sm text-gray-600">
-                            <strong>Applied On:</strong> {new Date(request.appliedOn).toLocaleDateString()}
+                            <strong>Date:</strong> {request.date ? new Date(request.date).toLocaleDateString() : 'N/A'}
                           </p>
+                          <p className="text-sm text-gray-600">
+                            <strong>CCL Request ID:</strong> {request.cclRequestId}
+                          </p>
+                          {request.hodRemarks && (
+                            <p className="text-sm text-gray-600">
+                              <strong>HOD Remarks:</strong> {request.hodRemarks}
+                            </p>
+                          )}
+                          {request.principalRemarks && (
+                            <p className="text-sm text-gray-600">
+                              <strong>Principal Remarks:</strong> {request.principalRemarks}
+                            </p>
+                          )}
                         </div>
                         <div className="flex flex-col items-end space-y-2">
                           <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold
-                            ${request.status === 'approved' ? 'bg-green-100 text-green-800' :
-                              request.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                            ${request.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                              request.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                              request.status === 'Forwarded to Principal' ? 'bg-blue-100 text-blue-800' :
                                 'bg-yellow-100 text-yellow-800'}`}
                           >
-                            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                            {request.status}
                           </span>
-                          {request.status === 'pending' && (
+                          {(request.status === 'Pending' || request.status === 'Forwarded to Principal') && (
                             <div className="flex space-x-2">
                               <button
-                                onClick={() => handleCCLWorkAction(request._id, 'approved')}
+                                onClick={() => handleCCLWorkAction(request._id, 'Approved')}
                                 className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition-colors"
                               >
                                 Approve
                               </button>
                               <button
-                                onClick={() => handleCCLWorkAction(request._id, 'rejected')}
+                                onClick={() => handleCCLWorkAction(request._id, 'Rejected')}
                                 className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors"
                               >
                                 Reject

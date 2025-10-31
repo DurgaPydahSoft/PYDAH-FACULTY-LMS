@@ -116,7 +116,9 @@ const LeaveRequestsSection = ({
                   leave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
                   'bg-yellow-100 text-yellow-800'
                 }`}>
-                  {leave.status}
+                  {leave.status === 'Rejected'
+                    ? (leave.rejectionBy === 'HOD' ? 'Rejected by HOD' : leave.rejectionBy === 'Principal' ? 'Rejected by Principal' : 'Rejected')
+                    : leave.status}
                 </span>
                 <p className="text-sm text-gray-600 flex items-center gap-1 mt-2">
                   <MdEmail className="text-primary" /> {leave.employeeEmail}

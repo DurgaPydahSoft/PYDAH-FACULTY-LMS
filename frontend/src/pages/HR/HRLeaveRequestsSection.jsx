@@ -1,4 +1,4 @@
-import  { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { FaFilePdf } from 'react-icons/fa';
@@ -18,7 +18,7 @@ const HRLeaveRequestsSection = ({ branches }) => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [total, setTotal] = useState(0);
-  
+
   // New states for HR actions
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showActionModal, setShowActionModal] = useState(false);
@@ -75,8 +75,8 @@ const HRLeaveRequestsSection = ({ branches }) => {
 
   if (loading) {
     return (
-       <Loading />// Use your spinner component if available
-     
+      <Loading />// Use your spinner component if available
+
     );
   }
 
@@ -95,7 +95,7 @@ const HRLeaveRequestsSection = ({ branches }) => {
   };
 
 
-   // Handle report filter changes
+  // Handle report filter changes
   const handleReportFilterChange = (e) => {
     setReportFilters({ ...reportFilters, [e.target.name]: e.target.value });
   };
@@ -294,9 +294,9 @@ const HRLeaveRequestsSection = ({ branches }) => {
 
   const handleSubmitAction = async () => {
     if (!selectedRequest) return;
-    
+
     setActionLoading(true);
-    
+
     // Show loading toast
     const loadingToastId = toast.loading(
       `${actionType === 'approve' ? 'Approving' : 'Rejecting'} leave request...`,
@@ -309,28 +309,27 @@ const HRLeaveRequestsSection = ({ branches }) => {
         draggable: true,
       }
     );
-    
+
     try {
       const token = localStorage.getItem('token');
       const response = await axios.put(
         `${API_BASE_URL}/hr/leave-requests/${selectedRequest._id}/update-status`,
-        { 
+        {
           status: actionType === 'approve' ? 'Approved' : 'Rejected',
-          hrRemarks 
+          hrRemarks
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
+
       if (response.data.success) {
         // Dismiss loading toast
         toast.dismiss(loadingToastId);
-        
+
         // Show success toast
         toast.success(
-          `Leave request ${actionType === 'approve' ? 'approved' : 'rejected'} successfully!${
-            response.data.leaveRequest?.clDays && response.data.leaveRequest?.lopDays 
-              ? ` (CL: ${response.data.leaveRequest.clDays} days, LOP: ${response.data.leaveRequest.lopDays} days)`
-              : ''
+          `Leave request ${actionType === 'approve' ? 'approved' : 'rejected'} successfully!${response.data.leaveRequest?.clDays && response.data.leaveRequest?.lopDays
+            ? ` (CL: ${response.data.leaveRequest.clDays} days, LOP: ${response.data.leaveRequest.lopDays} days)`
+            : ''
           }`,
           {
             position: "top-right",
@@ -341,7 +340,7 @@ const HRLeaveRequestsSection = ({ branches }) => {
             draggable: true,
           }
         );
-        
+
         // Refresh the leave requests
         fetchLeaveRequests();
         setShowActionModal(false);
@@ -351,10 +350,10 @@ const HRLeaveRequestsSection = ({ branches }) => {
       }
     } catch (error) {
       console.error('Error updating leave request:', error);
-      
+
       // Dismiss loading toast
       toast.dismiss(loadingToastId);
-      
+
       // Show error toast
       const errorMessage = error.response?.data?.msg || 'Failed to update leave request. Please try again.';
       toast.error(errorMessage, {
@@ -443,8 +442,8 @@ const HRLeaveRequestsSection = ({ branches }) => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {leaveRequests.map((lr) => (
-                <tr 
-                  key={lr._id} 
+                <tr
+                  key={lr._id}
                   className="hover:bg-gray-50 transition-colors cursor-pointer"
                   onClick={() => handleAction(lr, 'view')}
                 >
@@ -458,12 +457,19 @@ const HRLeaveRequestsSection = ({ branches }) => {
                       ${lr.status === 'Approved'
                         ? 'bg-green-100 text-green-800'
                         : lr.status === 'Rejected'
-                        ? 'bg-red-100 text-red-800'
-                        : lr.status === 'Forwarded by HOD'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-yellow-100 text-yellow-800'}`}
+                          ? 'bg-red-100 text-red-800'
+                          : lr.status === 'Forwarded by HOD'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-yellow-100 text-yellow-800'}`}
                     >
-                      {lr.status}
+                      {lr.status === 'Rejected'
+                        ? (lr.rejectionBy === 'HOD'
+                          ? 'Rejected by HOD'
+                          : lr.rejectionBy === 'Principal'
+                            ? 'Rejected by Principal'
+                            : 'Rejected')
+                        : lr.status}
+
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{new Date(lr.startDate).toLocaleDateString()}</td>
@@ -479,8 +485,8 @@ const HRLeaveRequestsSection = ({ branches }) => {
       {/* Card layout for small screens */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 md:hidden">
         {leaveRequests.map((lr) => (
-          <div 
-            key={lr._id} 
+          <div
+            key={lr._id}
             className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => handleAction(lr, 'view')}
           >
@@ -493,10 +499,10 @@ const HRLeaveRequestsSection = ({ branches }) => {
                 ${lr.status === 'Approved'
                   ? 'bg-green-100 text-green-800'
                   : lr.status === 'Rejected'
-                  ? 'bg-red-100 text-red-800'
-                  : lr.status === 'Forwarded by HOD'
-                  ? 'bg-blue-100 text-blue-800'
-                  : 'bg-yellow-100 text-yellow-800'}`}
+                    ? 'bg-red-100 text-red-800'
+                    : lr.status === 'Forwarded by HOD'
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-yellow-100 text-yellow-800'}`}
               >
                 {lr.status}
               </span>
@@ -539,7 +545,7 @@ const HRLeaveRequestsSection = ({ branches }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-lg w-full mx-4">
             <h3 className="text-xl font-bold mb-4 text-primary">Leave Request Details</h3>
-            
+
             {/* Request Details */}
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
               <div className="grid grid-cols-2 gap-4 text-sm mb-4">
@@ -550,15 +556,15 @@ const HRLeaveRequestsSection = ({ branches }) => {
                 <div><strong>Start Date:</strong> {new Date(selectedRequest.startDate).toLocaleDateString()}</div>
                 <div><strong>End Date:</strong> {new Date(selectedRequest.endDate).toLocaleDateString()}</div>
                 <div><strong>Days:</strong> {selectedRequest.numberOfDays}</div>
-                <div><strong>Status:</strong> 
+                <div><strong>Status:</strong>
                   <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold
                     ${selectedRequest.status === 'Approved'
                       ? 'bg-green-100 text-green-800'
                       : selectedRequest.status === 'Rejected'
-                      ? 'bg-red-100 text-red-800'
-                      : selectedRequest.status === 'Forwarded by HOD'
-                      ? 'bg-blue-100 text-blue-800'
-                      : 'bg-yellow-100 text-yellow-800'}`}
+                        ? 'bg-red-100 text-red-800'
+                        : selectedRequest.status === 'Forwarded by HOD'
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-yellow-100 text-yellow-800'}`}
                   >
                     {selectedRequest.status}
                   </span>
@@ -595,7 +601,7 @@ const HRLeaveRequestsSection = ({ branches }) => {
               >
                 Close
               </button>
-              
+
               {/* Show approve/reject buttons only for "Forwarded by HOD" status and when not in action mode */}
               {selectedRequest.status === 'Forwarded by HOD' && actionType === 'view' && (
                 <>
@@ -637,14 +643,13 @@ const HRLeaveRequestsSection = ({ branches }) => {
                   <button
                     onClick={handleSubmitAction}
                     disabled={actionLoading || (actionType === 'reject' && !hrRemarks.trim())}
-                    className={`px-4 py-2 rounded-lg transition-colors ${
-                      actionType === 'approve'
+                    className={`px-4 py-2 rounded-lg transition-colors ${actionType === 'approve'
                         ? 'bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-300'
                         : 'bg-red-600 text-white hover:bg-red-700 disabled:bg-gray-300'
-                    }`}
+                      }`}
                   >
-                    {actionLoading ? 'Processing...' : 
-                     actionType === 'approve' ? 'Confirm Approval' : 'Confirm Rejection'}
+                    {actionLoading ? 'Processing...' :
+                      actionType === 'approve' ? 'Confirm Approval' : 'Confirm Rejection'}
                   </button>
                 </div>
               </div>
@@ -653,94 +658,94 @@ const HRLeaveRequestsSection = ({ branches }) => {
         </div>
       )}
 
- {/* Reports Modal */}
-  {showReportsModal && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl p-6 max-w-lg w-full mx-4">
-        <h3 className="text-xl font-bold mb-4 text-primary">Download Leave Requests Report</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Start Date</label>
-            <input
-              type="date"
-              name="startDate"
-              value={reportFilters.startDate}
-              onChange={handleReportFilterChange}
-              className="w-full border rounded px-2 py-1"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">End Date</label>
-            <input
-              type="date"
-              name="endDate"
-              value={reportFilters.endDate}
-              onChange={handleReportFilterChange}
-              className="w-full border rounded px-2 py-1"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Department/Branch</label>
-            <select
-              name="department"
-              value={reportFilters.department}
-              onChange={handleReportFilterChange}
-              className="w-full border rounded px-2 py-1"
-            >
-              <option value="">All</option>
-              {branches.map(branch => (
-                <option key={branch.code} value={branch.code}>{branch.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Leave Type</label>
-            <input
-              type="text"
-              name="leaveType"
-              value={reportFilters.leaveType}
-              onChange={handleReportFilterChange}
-              className="w-full border rounded px-2 py-1"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Leave Status</label>
-            <select
-              name="status"
-              value={reportFilters.status}
-              onChange={handleReportFilterChange}
-              className="w-full border rounded px-2 py-1"
-            >
-              <option value="">All</option>
-              <option value="Pending">Pending</option>
-              <option value="Forwarded by HOD">Forwarded by HOD</option>
-              <option value="Approved">Approved</option>
-              <option value="Rejected">Rejected</option>
-            </select>
+      {/* Reports Modal */}
+      {showReportsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-lg w-full mx-4">
+            <h3 className="text-xl font-bold mb-4 text-primary">Download Leave Requests Report</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Start Date</label>
+                <input
+                  type="date"
+                  name="startDate"
+                  value={reportFilters.startDate}
+                  onChange={handleReportFilterChange}
+                  className="w-full border rounded px-2 py-1"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">End Date</label>
+                <input
+                  type="date"
+                  name="endDate"
+                  value={reportFilters.endDate}
+                  onChange={handleReportFilterChange}
+                  className="w-full border rounded px-2 py-1"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Department/Branch</label>
+                <select
+                  name="department"
+                  value={reportFilters.department}
+                  onChange={handleReportFilterChange}
+                  className="w-full border rounded px-2 py-1"
+                >
+                  <option value="">All</option>
+                  {branches.map(branch => (
+                    <option key={branch.code} value={branch.code}>{branch.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Leave Type</label>
+                <input
+                  type="text"
+                  name="leaveType"
+                  value={reportFilters.leaveType}
+                  onChange={handleReportFilterChange}
+                  className="w-full border rounded px-2 py-1"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Leave Status</label>
+                <select
+                  name="status"
+                  value={reportFilters.status}
+                  onChange={handleReportFilterChange}
+                  className="w-full border rounded px-2 py-1"
+                >
+                  <option value="">All</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Forwarded by HOD">Forwarded by HOD</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end mt-4">
+              <button
+                onClick={() => setShowReportsModal(false)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDownloadReportPDF}
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-2"
+              >
+                <FaFilePdf />
+                Download PDF
+              </button>
+            </div>
           </div>
         </div>
-        <div className="flex gap-3 justify-end mt-4">
-          <button
-            onClick={() => setShowReportsModal(false)}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleDownloadReportPDF}
-            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-2"
-          >
-            <FaFilePdf />
-            Download PDF
-          </button>
-        </div>
-      </div>
+      )}
     </div>
-  )}
-    </div>
-    
+
   );
-     
+
 };
 
 export default HRLeaveRequestsSection;

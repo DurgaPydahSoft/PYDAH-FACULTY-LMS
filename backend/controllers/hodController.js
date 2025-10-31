@@ -230,7 +230,7 @@ const getProfile = async (req, res) => {
         role: 'hod',
         campus: req.user.campus,
         branchCode: req.user.branchCode
-      }).select('-password');
+}).select('-password');
     } else {
       hod = await HOD.findOne({
         _id: req.user.id,
@@ -460,6 +460,7 @@ const updateLeaveRequest = async (req, res) => {
 
     if (status === 'Rejected') {
       leaveRequest.status = 'Rejected';
+      leaveRequest.rejectionBy = 'HOD'; // <-- Add this line
       await sendLeaveRejectionEmail(leaveRequest, employee, hod);
     } else if (status === 'Approved') {
       leaveRequest.status = 'Forwarded by HOD';

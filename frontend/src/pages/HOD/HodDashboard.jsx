@@ -266,9 +266,10 @@ const HodDashboard = () => {
   // CCL Work Management Functions
   const handleApproveCCL = async (cclId) => {
     try {
+      // Backend expects a PUT to /hod/ccl-work-requests/:workId with a status in the body
       await axios.put(
-        `${API_BASE_URL}/hod/ccl-work-requests/${cclId}/approve`,
-        {},
+        `${API_BASE_URL}/hod/ccl-work-requests/${cclId}`,
+        { status: 'Forwarded to Principal' },
         {
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -276,7 +277,7 @@ const HodDashboard = () => {
           }
         }
       );
-      toast.success('CCL work request approved successfully');
+      toast.success('CCL work request forwarded to Principal successfully');
       fetchCCLWorkRequests();
     } catch (error) {
       console.error('Error approving CCL work request:', error);
@@ -286,9 +287,10 @@ const HodDashboard = () => {
 
   const handleRejectCCL = async (cclId, remarks) => {
     try {
+      // Backend expects status 'Rejected' and optional remarks in the request body
       await axios.put(
-        `${API_BASE_URL}/hod/ccl-work-requests/${cclId}/reject`,
-        { remarks },
+        `${API_BASE_URL}/hod/ccl-work-requests/${cclId}`,
+        { status: 'Rejected', remarks },
         {
           headers: { 
             'Authorization': `Bearer ${token}`,

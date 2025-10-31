@@ -130,6 +130,11 @@ const leaveRequestSchema = new mongoose.Schema({
     enum: ['Pending', 'Forwarded by HOD', 'Approved', 'Rejected'],
     default: 'Pending'
   },
+  rejectionBy: {
+    type: String,
+    enum: ['HOD', 'Principal', ''],
+    default: ''
+  },
   hodRemarks: {
     type: String,
     default: ''
