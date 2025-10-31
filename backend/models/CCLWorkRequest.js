@@ -47,6 +47,19 @@ const cclWorkRequestSchema = new mongoose.Schema({
     required: true,
     unique: true
   }
+  ,
+  // Mark whether this CCL work day has already been consumed for leave
+  isUsed: {
+    type: Boolean,
+    default: false
+  },
+  usedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee'
+  },
+  usedInLeaveRequestId: {
+    type: String
+  }
 }, {
   timestamps: true
 });

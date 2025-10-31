@@ -1,4 +1,4 @@
-const { HR, Employee, User } = require('../models');
+const { HR, Employee, User, HOD, Department, Campus } = require('../models');
 const jwt = require('jsonwebtoken');
 const { validateEmail } = require('../utils/validators');
 const bcrypt = require('bcryptjs');
@@ -868,6 +868,26 @@ exports.getCampusLeaveRequests = async (req, res) => {
       );
     }
 
+    // Enrich CCL leaves with worked dates
+    const allUsedIds = leaveRequests
+      .filter(lr => lr.leaveType === 'CCL' && Array.isArray(lr.usedCCLDays) && lr.usedCCLDays.length > 0)
+      .flatMap(lr => lr.usedCCLDays.map(id => id.toString()));
+    if (allUsedIds.length > 0) {
+      const uniqueIds = Array.from(new Set(allUsedIds));
+      const workDocs = await CCLWorkRequest.find({ _id: { $in: uniqueIds } }).select('_id date');
+      const idToDate = workDocs.reduce((acc, doc) => {
+        acc[doc._id.toString()] = new Date(doc.date).toISOString().split('T')[0];
+        return acc;
+      }, {});
+      leaveRequests = leaveRequests.map(lr => {
+        if (lr.leaveType === 'CCL' && Array.isArray(lr.usedCCLDays)) {
+          const dates = lr.usedCCLDays.map(id => idToDate[id.toString()]).filter(Boolean);
+          return { ...lr, cclWorkedDates: dates };
+        }
+        return lr;
+      });
+    }
+
     // Sort by appliedOn (most recent first)
     leaveRequests.sort((a, b) => new Date(b.appliedOn) - new Date(a.appliedOn));
 
@@ -885,6 +905,247 @@ exports.getCampusLeaveRequests = async (req, res) => {
     });
   } catch (error) {
     console.error('HR Get Campus Leave Requests Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// Get all HODs
+exports.getAllHODs = async (req, res) => {
+  try {
+    const hods = await HOD.find({}).populate('department', 'name code');
+    res.json(hods);
+  } catch (error) {
+    console.error('Get HODs Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// Create HOD
+exports.createHOD = async (req, res) => {
+  try {
+    const { name, email, password, department, HODId } = req.body;
+    const hrId = req.user.id;
+
+    // Validate email
+    if (!validateEmail(email)) {
+      return res.status(400).json({ msg: 'Invalid email format' });
+    }
+
+    // Check if email already exists
+    const existingHOD = await HOD.findOne({ email: email.toLowerCase() });
+    if (existingHOD) {
+      return res.status(400).json({ msg: 'HOD with this email already exists' });
+    }
+
+    // Check if department is provided and has required fields
+    if (!department || !department.name || !department.code) {
+      return res.status(400).json({ 
+        msg: 'Department information is required with name and code',
+        receivedDepartment: department
+      });
+    }
+
+    // Find HR to determine campus info
+    const hr = await HR.findById(hrId);
+    if (!hr || !hr.campus) {
+      return res.status(400).json({ msg: 'HR campus information not found' });
+    }
+
+    const campusType = hr.campus.type || (hr.campus.name ? hr.campus.name.charAt(0).toUpperCase() + hr.campus.name.slice(1) : null);
+    const campusName = hr.campus.name;
+
+    // Find Campus document for this HR
+    const campusDoc = await Campus.findOne({ $or: [{ type: campusType }, { name: campusName }] });
+    if (!campusDoc) {
+      return res.status(400).json({ msg: 'Campus document not found for HR campus' });
+    }
+
+    // Determine principal reference for campus (either Principal model via campus.principalId or User model)
+    let campusRef = null;
+    let campusModel = null;
+    if (campusDoc.principalId) {
+      campusRef = campusDoc.principalId;
+      campusModel = 'Principal';
+    } else {
+      // Try to find a principal in User model for this campus name
+      const principalUser = await User.findOne({ role: 'principal', campus: campusDoc.name.toLowerCase() });
+      if (principalUser) {
+        campusRef = principalUser._id;
+        campusModel = 'User';
+      }
+    }
+
+    if (!campusRef || !campusModel) {
+      return res.status(400).json({ msg: 'No principal found for this campus to associate HOD with' });
+    }
+
+    // Create new HOD with required fields (including campus and campusModel to satisfy schema validation)
+    const hod = new HOD({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      password: password || 'defaultPassword',
+      HODId: HODId || email.toLowerCase(),
+      department: {
+        name: department.name.trim(),
+        code: department.code.trim().toUpperCase(),
+        campusType: department.campusType || campusDoc.type || campusType || 'Engineering'
+      },
+      status: 'active',
+      lastLogin: null,
+      createdBy: hrId,
+      createdByModel: 'HR',
+      campus: campusRef,
+      campusModel: campusModel
+    });
+
+    // Save and return
+    const savedHOD = await hod.save();
+
+    // If campus has branch entries, link hodId to branch if codes match
+    if (Array.isArray(campusDoc.branches) && campusDoc.branches.length > 0) {
+      const branch = campusDoc.branches.find(b => b.code === department.code.trim().toUpperCase());
+      if (branch) {
+        branch.hodId = savedHOD._id;
+        await campusDoc.save();
+      }
+    }
+
+    res.status(201).json(savedHOD);
+  } catch (error) {
+    console.error('Create HOD Error:', error);
+    res.status(500).json({ msg: error.message || 'Server error' });
+  }
+};
+
+// Update HOD
+exports.updateHOD = async (req, res) => {
+  try {
+    const { name, email, department, status } = req.body;
+    const { id } = req.params;
+
+    // Find HOD
+    let hod = await HOD.findById(id);
+    if (!hod) {
+      return res.status(404).json({ msg: 'HOD not found' });
+    }
+
+    // Update fields
+    if (name) hod.name = name;
+    if (email) {
+      if (!validateEmail(email)) {
+        return res.status(400).json({ msg: 'Invalid email format' });
+      }
+      // Check if email is already taken by another HOD
+      const emailExists = await HOD.findOne({ 
+        email: email.toLowerCase(),
+        _id: { $ne: id }
+      });
+      if (emailExists) {
+        return res.status(400).json({ msg: 'Email already in use' });
+      }
+      hod.email = email.toLowerCase();
+    }
+    if (department) {
+      // Frontend sends department as an object { name, code, campusType }
+      // Accept both object and string (branch code) formats.
+      if (typeof department === 'string') {
+        // treat string as branch code
+        hod.department = {
+          name: department,
+          code: String(department).toUpperCase(),
+          campusType: hod.department?.campusType || 'Engineering'
+        };
+      } else if (typeof department === 'object') {
+        hod.department = {
+          name: department.name || department.code || hod.department?.name || '',
+          code: (department.code || hod.department?.code || '').toString().toUpperCase(),
+          campusType: department.campusType || hod.department?.campusType || 'Engineering'
+        };
+      } else {
+        return res.status(400).json({ msg: 'Invalid department format' });
+      }
+    }
+    if (status) hod.status = status;
+
+    const updatedHOD = await hod.save();
+    const populatedHOD = await HOD.findById(updatedHOD._id).populate('department', 'name code');
+    
+    res.json(populatedHOD);
+  } catch (error) {
+    console.error('Update HOD Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// Delete HOD
+exports.deleteHOD = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const hod = await HOD.findById(id);
+    if (!hod) {
+      return res.status(404).json({ msg: 'HOD not found' });
+    }
+
+  // Prevent deletion if HOD has associated records
+  // Add any additional checks here if needed
+
+  // Use model-level deletion to avoid calling document.remove() on a plain object
+  await HOD.findByIdAndDelete(id);
+  res.json({ msg: 'HOD removed' });
+  } catch (error) {
+    console.error('Delete HOD Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// Reset HOD Password
+exports.resetHODPassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword) {
+      return res.status(400).json({ msg: 'Please provide a new password' });
+    }
+
+    const hod = await HOD.findById(id);
+    if (!hod) {
+      return res.status(404).json({ msg: 'HOD not found' });
+    }
+
+    // Set new password (hashing is handled in the model's pre-save hook)
+    hod.password = newPassword;
+    await hod.save();
+
+    res.json({ msg: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Reset HOD Password Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// Get all departments
+exports.getDepartments = async (req, res) => {
+  try {
+    // Return branches (departments) from the HR's campus document
+    const hr = await HR.findById(req.user.id);
+    if (!hr || !hr.campus) {
+      return res.status(400).json({ msg: 'HR campus information not found' });
+    }
+
+    const campusName = typeof req.user.campus === 'string' ? req.user.campus : (req.user.campus?.name || hr.campus.name);
+    const campusType = (hr.campus && (hr.campus.type || hr.campus.name)) || campusName;
+
+    const campusDoc = await Campus.findOne({ $or: [{ type: campusType }, { name: campusName }] }).lean();
+    if (!campusDoc) {
+      return res.status(404).json({ msg: 'Campus not found' });
+    }
+
+    const departments = (campusDoc.branches || []).map(b => ({ name: b.name, code: b.code }));
+    res.json(departments);
+  } catch (error) {
+    console.error('Get Departments Error:', error);
     res.status(500).json({ msg: 'Server error' });
   }
 };

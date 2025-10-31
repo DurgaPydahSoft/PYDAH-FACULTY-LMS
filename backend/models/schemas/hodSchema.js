@@ -57,7 +57,7 @@ const hodSchema = new mongoose.Schema({
   createdByModel: {
     type: String,
     required: true,
-    enum: ['Principal', 'User']
+    enum: ['Principal', 'User', 'HR']
   },
   campus: {
     type: mongoose.Schema.Types.ObjectId,

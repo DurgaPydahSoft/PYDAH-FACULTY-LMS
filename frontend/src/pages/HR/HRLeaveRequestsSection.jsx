@@ -515,6 +515,9 @@ const HRLeaveRequestsSection = ({ branches }) => {
               <div className="text-sm text-gray-600"><strong>End:</strong> {new Date(lr.endDate).toLocaleDateString()}</div>
               <div className="text-sm text-gray-600"><strong>Applied On:</strong> {lr.appliedOn ? new Date(lr.appliedOn).toLocaleDateString() : ''}</div>
               <div className="text-sm text-gray-600"><strong>Reason:</strong> {lr.reason}</div>
+              {lr.leaveType === 'CCL' && Array.isArray(lr.cclWorkedDates) && lr.cclWorkedDates.length > 0 && (
+                <div className="text-sm text-gray-600"><strong>CCL Worked Days:</strong> {lr.cclWorkedDates.join(', ')}</div>
+              )}
             </div>
           </div>
         ))}

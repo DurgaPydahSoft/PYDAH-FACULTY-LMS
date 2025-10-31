@@ -3,7 +3,7 @@ const { Employee } = require('../models');
 // Submit CCL work request
 exports.submitCCLWork = async (req, res) => {
   try {
-    const { date, periods, reason } = req.body;
+    const { date, periods, reason, isHalfDay, assignedTo } = req.body;
     const employeeId = req.user.id;
 
     const employee = await Employee.findById(employeeId);
@@ -15,7 +15,9 @@ exports.submitCCLWork = async (req, res) => {
     employee.cclWork.push({
       date: new Date(date),
       periods,
-      reason
+      reason,
+      assignedTo,
+      isHalfDay: !!isHalfDay
     });
 
     await employee.save();
@@ -83,8 +85,11 @@ exports.approveCCLWork = async (req, res) => {
     // If both HOD and Principal approved, update status and CCL balance
     if (cclWork.approvedBy.hod && cclWork.approvedBy.principal) {
       cclWork.status = 'Approved';
-      // Calculate CCL days based on periods worked
-      const cclDays = Math.ceil(cclWork.periods.length / 7); // Example: 7 periods = 1 CCL day
+      // Earn 0.5 if marked half-day, else 1 full day (fallback to periods calc)
+      let cclDays = cclWork.isHalfDay ? 0.5 : 1;
+      if (typeof cclWork.isHalfDay === 'undefined' && Array.isArray(cclWork.periods)) {
+        cclDays = Math.ceil(cclWork.periods.length / 7);
+      }
       await employee.updateCCLBalance('earned', cclDays, cclWork._id, 'CCLWork', 'CCL earned from extra duty');
     }
 
@@ -129,8 +134,10 @@ exports.principalApproveCCLWork = async (req, res) => {
     // If both HOD and Principal approved, update status and CCL balance
     if (cclWork.approvedBy.hod && cclWork.approvedBy.principal) {
       cclWork.status = 'Approved';
-      // Calculate CCL days based on periods worked
-      const cclDays = Math.ceil(cclWork.periods.length / 7); // Example: 7 periods = 1 CCL day
+      let cclDays = cclWork.isHalfDay ? 0.5 : 1;
+      if (typeof cclWork.isHalfDay === 'undefined' && Array.isArray(cclWork.periods)) {
+        cclDays = Math.ceil(cclWork.periods.length / 7);
+      }
       await employee.updateCCLBalance('earned', cclDays, cclWork._id, 'CCLWork', 'CCL earned from extra duty');
     }
 

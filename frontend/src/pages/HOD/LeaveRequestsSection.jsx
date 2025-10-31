@@ -140,6 +140,19 @@ const LeaveRequestsSection = ({
                 <p className="text-sm text-gray-600">
                   <strong>Reason:</strong> {leave.reason}
                 </p>
+                {leave.leaveType === 'CCL' && Array.isArray(leave.cclWorkedDates) && leave.cclWorkedDates.length > 0 && (
+                  <p className="text-sm text-gray-600">
+                    <strong>CCL Worked Days:</strong> {leave.cclWorkedDates.join(', ')}
+                  </p>
+                )}
+                {leave.leaveType === 'OD' && (
+                  <div className="text-sm text-gray-600">
+                    <strong>OD Duration:</strong> {leave.odTimeType || 'full'}
+                    {leave.odTimeType === 'custom' && (
+                      <> (<span>From {leave.odStartTime} to {leave.odEndTime}</span>)</>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end space-x-2">
@@ -223,6 +236,23 @@ const LeaveRequestsSection = ({
                   <label className="block text-sm font-medium text-gray-700">Number of Days</label>
                   <p className="text-gray-900">{selectedLeaveForDetails.numberOfDays}</p>
                 </div>
+                {selectedLeaveForDetails.leaveType === 'OD' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">OD Duration</label>
+                    <p className="text-gray-900">
+                      {selectedLeaveForDetails.odTimeType || 'full'}
+                      {selectedLeaveForDetails.odTimeType === 'custom' && (
+                        <> ({selectedLeaveForDetails.odStartTime} - {selectedLeaveForDetails.odEndTime})</>
+                      )}
+                    </p>
+                  </div>
+                )}
+              {selectedLeaveForDetails.leaveType === 'CCL' && Array.isArray(selectedLeaveForDetails.cclWorkedDates) && selectedLeaveForDetails.cclWorkedDates.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">CCL Worked Days</label>
+                  <p className="text-gray-900">{selectedLeaveForDetails.cclWorkedDates.join(', ')}</p>
+                </div>
+              )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Status</label>
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${

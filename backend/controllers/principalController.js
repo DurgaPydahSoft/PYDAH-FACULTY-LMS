@@ -450,6 +450,26 @@ exports.getCampusLeaves = async (req, res) => {
       return [...acc, ...employeeLeaves];
     }, []);
 
+    // Enrich CCL leaves with worked dates
+    const allUsedIds = leaveRequests
+      .filter(lr => lr.leaveType === 'CCL' && Array.isArray(lr.usedCCLDays) && lr.usedCCLDays.length > 0)
+      .flatMap(lr => lr.usedCCLDays.map(id => id.toString()));
+    if (allUsedIds.length > 0) {
+      const uniqueIds = Array.from(new Set(allUsedIds));
+      const workDocs = await CCLWorkRequest.find({ _id: { $in: uniqueIds } }).select('_id date');
+      const idToDate = workDocs.reduce((acc, doc) => {
+        acc[doc._id.toString()] = new Date(doc.date).toISOString().split('T')[0];
+        return acc;
+      }, {});
+      leaveRequests = leaveRequests.map(lr => {
+        if (lr.leaveType === 'CCL' && Array.isArray(lr.usedCCLDays)) {
+          const dates = lr.usedCCLDays.map(id => idToDate[id.toString()]).filter(Boolean);
+          return { ...lr, cclWorkedDates: dates };
+        }
+        return lr;
+      });
+    }
+
     // Apply filters from query params
     const { department, leaveType, startDate, endDate } = req.query;
     if (department) {

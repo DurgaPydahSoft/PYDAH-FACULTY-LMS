@@ -148,6 +148,12 @@ const EmployeeLeaveHistorySection = ({ leaveHistory, onSelect, onDelete }) => {
                   <p className="text-sm text-gray-900 leading-5 line-clamp-2">{leave.reason || 'No reason provided'}</p>
                 </div>
               </div>
+              {leave.leaveType === 'CCL' && Array.isArray(leave.cclWorkedDates) && leave.cclWorkedDates.length > 0 && (
+                <div>
+                  <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">CCL Worked Days</p>
+                  <p className="text-sm text-gray-800">{leave.cclWorkedDates.join(', ')}</p>
+                </div>
+              )}
             </div>
           ))
         ) : (

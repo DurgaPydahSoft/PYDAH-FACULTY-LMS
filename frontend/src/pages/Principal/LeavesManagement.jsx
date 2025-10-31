@@ -1260,6 +1260,12 @@ const allLeaveRows = [
                                             {selectedLeave.appliedOn ? new Date(selectedLeave.appliedOn).toLocaleDateString() : 'N/A'}
                                         </p>
                                     </div>
+                                    {selectedLeave.leaveType === 'CCL' && Array.isArray(selectedLeave.cclWorkedDates) && selectedLeave.cclWorkedDates.length > 0 && (
+                                        <div className="col-span-1 sm:col-span-2">
+                                            <p className="text-sm text-gray-600">CCL Worked Days</p>
+                                            <p className="font-medium text-sm sm:text-base">{selectedLeave.cclWorkedDates.join(', ')}</p>
+                                        </div>
+                                    )}
                                     <div>
                                         <p className="text-sm text-gray-600">Status</p>
                                         <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold

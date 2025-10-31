@@ -7,16 +7,42 @@ const mongoose = require('mongoose');
 // Get Employee by ID
 const getEmployeeById = async (req, res) => {
   try {
-    const employee = await Employee.findOne({ employeeId: req.params.id })
+    const employeeDoc = await Employee.findOne({ employeeId: req.params.id })
       .select('-password')
       .populate({
         path: 'leaveRequests.alternateSchedule.periods.substituteFaculty',
         select: 'name employeeId'
       });
     
-    if (!employee) {
+    if (!employeeDoc) {
       return res.status(404).json({ msg: 'Employee not found' });
     }
+
+    // Derive CCL worked dates for each leave with usedCCLDays
+    const employee = employeeDoc.toObject();
+    const allUsedIds = (employee.leaveRequests || [])
+      .filter(lr => lr.leaveType === 'CCL' && Array.isArray(lr.usedCCLDays) && lr.usedCCLDays.length > 0)
+      .flatMap(lr => lr.usedCCLDays.map(id => id.toString()));
+
+    let idToDate = {};
+    if (allUsedIds.length > 0) {
+      const uniqueIds = Array.from(new Set(allUsedIds));
+      const workDocs = await CCLWorkRequest.find({ _id: { $in: uniqueIds } }).select('_id date');
+      idToDate = workDocs.reduce((acc, doc) => {
+        acc[doc._id.toString()] = new Date(doc.date).toISOString().split('T')[0];
+        return acc;
+      }, {});
+    }
+
+    employee.leaveRequests = (employee.leaveRequests || []).map(lr => {
+      if (lr.leaveType === 'CCL' && Array.isArray(lr.usedCCLDays)) {
+        const dates = lr.usedCCLDays
+          .map(id => idToDate[id.toString()])
+          .filter(Boolean);
+        return { ...lr, cclWorkedDates: dates };
+      }
+      return lr;
+    });
 
     res.json(employee);
   } catch (error) {
@@ -92,6 +118,41 @@ const deleteLeaveRequest = async (req, res) => {
       return res.status(400).json({ msg: 'Only pending leave requests can be deleted' });
     }
 
+    // If this was a CCL leave, unmark any used CCL work days
+    try {
+      if (leaveRequest.leaveType === 'CCL') {
+        const usedIds = Array.isArray(leaveRequest.usedCCLDays) ? leaveRequest.usedCCLDays.map(id => id.toString()) : [];
+        if (usedIds.length > 0) {
+          await CCLWorkRequest.updateMany(
+            { _id: { $in: usedIds } },
+            { $set: { isUsed: false, usedBy: null, usedInLeaveRequestId: null } }
+          );
+        } else if (leaveRequest.leaveRequestId) {
+          // Fallback: free any work entries linked by leaveRequestId
+          await CCLWorkRequest.updateMany(
+            { usedInLeaveRequestId: leaveRequest.leaveRequestId },
+            { $set: { isUsed: false, usedBy: null, usedInLeaveRequestId: null } }
+          );
+        }
+      }
+    } catch (freeErr) {
+      console.error('Failed to free CCL work days on delete:', freeErr);
+      // continue deletion even if freeing fails
+    }
+
+    // If this was a CCL leave with mapped work days, free them up before deletion
+    try {
+      if (leaveRequest.leaveType === 'CCL' && Array.isArray(leaveRequest.usedCCLDays) && leaveRequest.usedCCLDays.length > 0) {
+        await CCLWorkRequest.updateMany(
+          { _id: { $in: leaveRequest.usedCCLDays } },
+          { $set: { isUsed: false, usedBy: null, usedInLeaveRequestId: null } }
+        );
+      }
+    } catch (e) {
+      console.error('Error unmarking CCL work days on delete:', e);
+      // continue; not fatal for delete
+    }
+
     // Remove the subdocument and save
     try {
       if (typeof leaveRequest.remove === 'function') {
@@ -134,7 +195,8 @@ const addLeaveRequest = async (req, res) => {
       endDate,
       numberOfDays,
       reason,
-      alternateSchedule
+      alternateSchedule,
+      selectedCCLDays = []
     } = req.body;
 
     // Debug log
@@ -214,6 +276,11 @@ const addLeaveRequest = async (req, res) => {
       }
     };
 
+    // If CCL leave and selected CCL day ids are provided, attach them
+    if (leaveType === 'CCL' && Array.isArray(selectedCCLDays) && selectedCCLDays.length > 0) {
+      newLeaveRequest.usedCCLDays = selectedCCLDays.map(id => id);
+    }
+
     if (leaveType === 'CL') {
       // Monthly CL rule: at most 1 CL day approved per calendar month
       const reqStart = new Date(startDate);
@@ -254,6 +321,20 @@ const addLeaveRequest = async (req, res) => {
 
     // Get the saved leave request with the generated ID
     const savedLeaveRequest = employee.leaveRequests[employee.leaveRequests.length - 1];
+
+    // If this is a CCL leave and selected CCL days were provided, mark them as used
+    if (leaveType === 'CCL' && Array.isArray(selectedCCLDays) && selectedCCLDays.length > 0) {
+      try {
+        // Update the CCLWorkRequest documents to mark them used and link to this leaveRequestId
+        await CCLWorkRequest.updateMany(
+          { _id: { $in: selectedCCLDays } },
+          { $set: { isUsed: true, usedBy: employee._id, usedInLeaveRequestId: leaveRequestId } }
+        );
+      } catch (e) {
+        console.error('Failed to mark CCL work days as used:', e);
+        // Non-fatal: continue but log error
+      }
+    }
 
     // Send email notification to employee only
     try {
@@ -600,6 +681,8 @@ const getCCLWorkHistory = asyncHandler(async (req, res) => {
         assignedTo: work.assignedTo || null,
         reason: work.reason || null,
         status: work.status || 'Pending',
+        cclRequestId: work.cclRequestId || null,
+        isUsed: work.isUsed || false,
         hodRemarks: work.hodRemarks || null,
         principalRemarks: work.principalRemarks || null,
         createdAt: work.createdAt

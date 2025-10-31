@@ -6,7 +6,8 @@ const CCLWorkRequestForm = ({ onSubmit, onClose }) => {
   const [formData, setFormData] = useState({
     date: '',
     assignedTo: '',
-    reason: ''
+    reason: '',
+    isHalfDay: false
   });
   const [loading, setLoading] = useState(false);
 
@@ -22,7 +23,7 @@ const CCLWorkRequestForm = ({ onSubmit, onClose }) => {
       }
 
       const authAxios = createAuthAxios(token);
-      const response = await authAxios.post('/employee/ccl-work', formData);
+      const response = await authAxios.post('/ccl/work', formData);
 
       if (response.data.success) {
         onSubmit(response.data.data);
@@ -75,21 +76,33 @@ const CCLWorkRequestForm = ({ onSubmit, onClose }) => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
+              Duration
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                name="isHalfDay"
+                checked={formData.isHalfDay}
+                onChange={(e) => setFormData(prev => ({ ...prev, isHalfDay: e.target.checked }))}
+                className="rounded"
+              />
+              Half Day (0.5 CCL day)
+            </label>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
               Assigned To <span className="text-red-500">*</span>
             </label>
-            <select
+            <input
+              type="text"
               name="assignedTo"
               value={formData.assignedTo}
               onChange={handleChange}
               required
+              placeholder="Enter role or person (e.g., Principal)"
               className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select a person</option>
-              <option value="Principal">Principal</option>
-              <option value="Dean">Dean</option>
-              <option value="Vice Principal">Vice Principal</option>
-              <option value="DD">DD</option>
-            </select>
+            />
           </div>
 
           <div>

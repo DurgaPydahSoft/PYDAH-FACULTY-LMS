@@ -279,6 +279,19 @@ const employeeSchema = new mongoose.Schema({
       type: Number,
       default: 0
     }
+    ,
+    // OD specific optional fields
+    odTimeType: {
+      type: String,
+      enum: ['full', 'half', 'custom'],
+      default: 'full'
+    },
+    odStartTime: {
+      type: String // HH:MM (24h)
+    },
+    odEndTime: {
+      type: String // HH:MM (24h)
+    }
   }],
   createdAt: {
     type: Date,

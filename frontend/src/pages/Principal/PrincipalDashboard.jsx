@@ -9,6 +9,12 @@
         toast.error('CCL work request not found');
         return;
       }
+      // Ensure this work request is forwarded to principal before allowing action
+      if (selectedWork.status !== 'Forwarded to Principal') {
+        console.warn('Attempt to update CCL work request with invalid status:', selectedWork);
+        toast.error('This CCL work request is not forwarded to Principal and cannot be updated');
+        return;
+      }
       // Prepare request body
       const requestBody = {
         status: action,
