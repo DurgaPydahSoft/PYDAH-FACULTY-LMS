@@ -323,6 +323,7 @@ const HodDashboard = () => {
             employees={employees}
             leaveRequests={leaveRequests}
             cclWorkRequests={cclWorkRequests}
+            onSectionChange={setActiveSection}
           />
         );
 
@@ -394,6 +395,7 @@ const HodDashboard = () => {
             employees={employees}
             leaveRequests={leaveRequests}
             cclWorkRequests={cclWorkRequests}
+            onSectionChange={setActiveSection}
           />
         );
     }

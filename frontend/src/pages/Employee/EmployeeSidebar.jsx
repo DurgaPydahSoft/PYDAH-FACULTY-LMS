@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaBars, FaTimes, FaHome, FaHistory, FaTasks, FaUserCircle } from 'react-icons/fa';
+import { FaBars, FaTimes, FaHome, FaHistory, FaTasks, FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
 
 const EmployeeSidebar = ({ activeSection, onSectionChange, employee }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -23,33 +23,69 @@ const EmployeeSidebar = ({ activeSection, onSectionChange, employee }) => {
 
   return (
     <>
-      {/* Mobile Hamburger Button */}
-      <button
-        onClick={toggleSidebar}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-primary text-white hover:bg-primary-dark transition-colors"
-      >
-        {isOpen ? <FaTimes size={24} /> : <FaBars size={24} />}
-      </button>
+      {/* Mobile Header with Hamburger */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-primary to-gray-800 text-white shadow-md">
+        <div className="flex items-center justify-between p-4">
+          {/* Left: Hamburger Menu */}
+          <button
+            onClick={toggleSidebar}
+            className="p-2 rounded-md text-white hover:bg-white hover:bg-opacity-20 transition-colors"
+          >
+            {isOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
+          </button>
+
+          {/* Center: PYDAH Logo */}
+          <h1 className="text-2xl font-bold text-white absolute left-1/2 transform -translate-x-1/2">
+            PYDAH
+          </h1>
+
+          {/* Right: Logout Icon */}
+          <button
+            onClick={handleLogout}
+            className="p-2 rounded-md text-white hover:bg-white hover:bg-opacity-20 transition-colors"
+            title="Logout"
+          >
+            <FaSignOutAlt size={18} />
+          </button>
+        </div>
+      </div>
 
       {/* Overlay for mobile */}
       {isOpen && (
-        <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40" onClick={toggleSidebar} />
+        <div
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+          onClick={toggleSidebar}
+        />
       )}
 
       {/* Sidebar */}
-      <div className={`fixed top-0 left-0 h-full bg-gradient-to-b from-primary to bg-gray-800 text-white w-64 transform transition-transform duration-300 ease-in-out z-50 flex flex-col
-        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-        {/* Logo Section */}
-        <div className=" border-b border-gray-300">
+      <div className={`fixed top-0 left-0 h-full bg-gradient-to-b from-primary to-gray-800 text-white w-64 transform transition-transform duration-300 ease-in-out z-50 flex flex-col
+        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} lg:mt-0 mt-16`}>
+
+        {/* Logo Section - Hidden on mobile, shown on desktop */}
+        <div className="border-b border-gray-300 hidden lg:block">
           <div className="flex items-center justify-center w-full h-20 space-x-3">
             <h1 className="text-4xl font-bold text-white">PYDAH</h1>
           </div>
         </div>
 
+        {/* User Info - Mobile Only */}
+        <div className="lg:hidden p-6 border-b border-gray-300 bg-primary-dark">
+          <div className="flex items-center space-x-3">
+            <FaUserCircle className="text-3xl text-white" />
+            <div>
+              <h2 className="text-lg font-bold text-white">
+                {employee?.name || 'Employee'}
+              </h2>
+              <p className="text-sm text-gray-200">Employee Portal</p>
+            </div>
+          </div>
+        </div>
+
         {/* Navigation Section */}
-        <div className="p-6 flex-1">
+        <div className="p-6 flex-1 overflow-y-auto">
           <nav>
-            <ul className="space-y-4">
+            <ul className="space-y-2">
               {menuItems.map((item) => (
                 <li key={item.id}>
                   <button
@@ -57,39 +93,55 @@ const EmployeeSidebar = ({ activeSection, onSectionChange, employee }) => {
                       onSectionChange(item.id);
                       setIsOpen(false);
                     }}
-                    className={`w-full flex items-center space-x-3 p-3 rounded-lg transition-colors
+                    className={`w-full flex items-center space-x-4 p-4 rounded-xl transition-all duration-200
                       ${activeSection === item.id
-                        ? 'bg-white text-primary shadow-innerSoft'
-                        : 'text-white hover:bg-gray-100 hover:text-primary'
+                        ? 'bg-white text-primary shadow-lg'
+                        : 'text-white hover:bg-white hover:bg-opacity-20 hover:shadow-md'
                       }`}
                   >
                     <span className="text-xl">{item.icon}</span>
-                    <span>{item.label}</span>
+                    <span className="font-medium">{item.label}</span>
                   </button>
                 </li>
               ))}
-              
             </ul>
           </nav>
         </div>
 
-        {/* Bottom Section with Heading and Logout */}
-        <div className="p-6 border-t border-gray-300 space-y-4">
-          <h2 className="text-xl font-bold text-white text-center">
-            {employee?.name || 'Employee'}
-          </h2>
+        {/* Bottom Section with Logout - Desktop Only */}
+        <div className="p-6 border-t border-gray-300 hidden lg:block">
           <button
             onClick={handleLogout}
-            className="w-full p-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+            className="w-full p-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium flex items-center justify-center space-x-2"
+          >
+            <span>Logout</span>
+          </button>
+        </div>
+
+        {/* Mobile Logout Button - Fixed at bottom */}
+        <div className="lg:hidden p-4 border-t border-gray-300 bg-primary-dark">
+          <button
+            onClick={handleLogout}
+            className="w-full p-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
           >
             Logout
           </button>
         </div>
       </div>
+
+      {/* Add padding to main content for mobile header */}
+      <style >{`
+        .main-content {
+          padding-top: 60px;
+        }
+        @media (min-width: 1024px) {
+          .main-content {
+            padding-top: 0;
+          }
+        }
+      `}</style>
     </>
   );
 };
 
 export default EmployeeSidebar;
-
-

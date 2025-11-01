@@ -274,7 +274,7 @@ const EmployeeDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen  bg-gradient-to-t from-green-50 via-blue-100 to-blue-300">
+    <div className="min-h-screen  bg-gradient-to-b from-gray-100 to-gray-500">
       <EmployeeSidebar activeSection={activeSection} onSectionChange={setActiveSection} employee={employee} />
       <div className="lg:pl-64 py-2 px-3 sm:py-4 sm:px-6">
         <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6  lg:space-y-8">
@@ -302,7 +302,7 @@ const EmployeeDashboard = () => {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                      <FaUserCircle className="text-green-400 text-4xl sm:text-5xl lg:text-6xl" />
+                      <FaUserCircle className="text-primary text-4xl sm:text-5xl lg:text-6xl" />
                     </div>
                   )}
                   {/* Overlay for actions */}
@@ -342,17 +342,11 @@ const EmployeeDashboard = () => {
                 </div>
                 <div className="text-center sm:text-left flex-1">
                   <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-primary mb-1 break-words leading-tight">Welcome, {employee?.name}</h1>
-                  <p className="text-gray-600 text-xs sm:text-sm">
+                  <p className="text-primary text-xs sm:text-sm">
                     <span className="font-medium">{employee?.employeeId}</span> • {employee?.department}
                   </p>
                 </div>
               </div>
-              {/* <button
-            onClick={handleLogout}
-              className="w-full sm:w-auto px-4 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2 justify-center text-sm sm:text-base font-medium shadow-sm"
-          >
-            <MdOutlineLogout className="text-lg" /> Logout
-          </button> */}
             </div>
           </div>
 
