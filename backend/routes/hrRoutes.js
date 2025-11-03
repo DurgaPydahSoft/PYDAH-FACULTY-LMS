@@ -105,6 +105,7 @@ router.delete('/employees/:id/delete-profile-picture', hrController.deleteEmploy
 
 // HOD Management
 router.get('/hods', hrController.getAllHODs);
+router.get('/hods/non-teaching', hrController.getNonTeachingHODs);
 router.post('/hods', hrController.createHOD);
 router.put('/hods/:id', hrController.updateHOD);
 router.delete('/hods/:id', hrController.deleteHOD);

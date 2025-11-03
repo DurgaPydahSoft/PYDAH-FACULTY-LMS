@@ -25,7 +25,8 @@ const HodLogin = () => {
     email: '',
     password: '',
     campus: '',
-    branchCode: ''
+    branchCode: '',
+    hodType: 'teaching' // Add hodType field
   });
   const [campuses, setCampuses] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -34,6 +35,7 @@ const HodLogin = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const isTeaching = formData.hodType === 'teaching';
 
   // Fetch campuses from backend
   useEffect(() => {
@@ -86,8 +88,12 @@ const HodLogin = () => {
 
   useEffect(() => {
     const fetchBranches = async () => {
-      if (!formData.campus) {
+      // Only fetch branches for teaching HODs
+      if (!formData.campus || !isTeaching) {
         setBranches([]);
+        if (!isTeaching) {
+          setFormData(prev => ({ ...prev, branchCode: '' }));
+        }
         return;
       }
       try {
@@ -104,15 +110,23 @@ const HodLogin = () => {
       }
     };
     fetchBranches();
-  }, [formData.campus]);
+  }, [formData.campus, isTeaching]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({
+    const newFormData = {
       ...formData,
-      [name]: value,
-      ...(name === 'campus' && { branchCode: '' })
-    });
+      [name]: value
+    };
+    
+    // Clear branchCode when switching to non-teaching or changing campus
+    if (name === 'hodType' && value === 'non-teaching') {
+      newFormData.branchCode = '';
+    } else if (name === 'campus') {
+      newFormData.branchCode = '';
+    }
+    
+    setFormData(newFormData);
     setError('');
   };
 
@@ -128,6 +142,13 @@ const HodLogin = () => {
       return;
     }
 
+    // Validate branchCode for teaching HODs
+    if (isTeaching && !formData.branchCode) {
+      setError('Please select a branch for teaching HOD');
+      setLoading(false);
+      return;
+    }
+
     try {
       console.log('Attempting HOD login with:', {
         email: formData.email,
@@ -137,14 +158,22 @@ const HodLogin = () => {
         url: `${API_BASE_URL}/hod/login`
       });
 
+      // Prepare login payload
+      const loginPayload = {
+        email: formData.email,
+        password: formData.password,
+        campus: formData.campus,
+        hodType: formData.hodType
+      };
+
+      // Only include branchCode for teaching HODs
+      if (isTeaching && formData.branchCode) {
+        loginPayload.branchCode = formData.branchCode;
+      }
+
       const response = await axios.post(
         `${API_BASE_URL}/hod/login`,
-        {
-          email: formData.email,
-          password: formData.password,
-          campus: formData.campus,
-          branchCode: formData.branchCode
-        }
+        loginPayload
       );
 
       console.log('Login response:', response.data);
@@ -152,7 +181,11 @@ const HodLogin = () => {
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('role', 'hod');
       localStorage.setItem('campus', formData.campus);
-      localStorage.setItem('branchCode', formData.branchCode);
+      if (isTeaching && formData.branchCode) {
+        localStorage.setItem('branchCode', formData.branchCode);
+      } else {
+        localStorage.removeItem('branchCode');
+      }
       navigate('/hod-dashboard');
     } catch (error) {
       console.error('Login error:', error.response || error);
@@ -210,9 +243,26 @@ const HodLogin = () => {
             </div>
           )}
 
+          {/* HOD Type Selection */}
           <div className="mb-3 sm:mb-6">
             <label className="block text-gray-700 text-xs sm:text-base font-bold mb-1 sm:mb-2">
-              Campus
+              HOD Type <span className="text-red-500">*</span>
+            </label>
+            <select
+              name="hodType"
+              value={formData.hodType}
+              onChange={handleChange}
+              className="w-full p-2 sm:p-3 rounded-neumorphic shadow-innerSoft bg-background focus:outline-none focus:ring-2 focus:ring-primary text-xs sm:text-base"
+              required
+            >
+              <option value="teaching">Teaching</option>
+              <option value="non-teaching">Non-Teaching</option>
+            </select>
+          </div>
+
+          <div className="mb-3 sm:mb-6">
+            <label className="block text-gray-700 text-xs sm:text-base font-bold mb-1 sm:mb-2">
+              Campus <span className="text-red-500">*</span>
             </label>
             <select
               name="campus"
@@ -237,30 +287,39 @@ const HodLogin = () => {
             )}
           </div>
 
-          <div className="mb-3 sm:mb-6">
-            <label className="block text-gray-700 text-xs sm:text-base font-bold mb-1 sm:mb-2">
-              Branch Code
-            </label>
-            <select
-              name="branchCode"
-              value={formData.branchCode}
-              onChange={handleChange}
-              className="w-full p-2 sm:p-3 rounded-neumorphic shadow-innerSoft bg-background focus:outline-none focus:ring-2 focus:ring-primary text-xs sm:text-base"
-              required
-              disabled={!formData.campus}
-            >
-              <option value="">Select Branch Code</option>
-              {branches.map((branch) => (
-                <option key={branch.code} value={branch.code}>
-                  {isMobile ? branch.code : `${branch.name} (${branch.code})`}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Branch Code - Only for Teaching HODs */}
+          {isTeaching ? (
+            <div className="mb-3 sm:mb-6">
+              <label className="block text-gray-700 text-xs sm:text-base font-bold mb-1 sm:mb-2">
+                Branch Code <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="branchCode"
+                value={formData.branchCode}
+                onChange={handleChange}
+                className="w-full p-2 sm:p-3 rounded-neumorphic shadow-innerSoft bg-background focus:outline-none focus:ring-2 focus:ring-primary text-xs sm:text-base"
+                required
+                disabled={!formData.campus}
+              >
+                <option value="">Select Branch Code</option>
+                {branches.map((branch) => (
+                  <option key={branch.code} value={branch.code}>
+                    {isMobile ? branch.code : `${branch.name} (${branch.code})`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="mb-3 sm:mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs sm:text-sm text-blue-700">
+                Non-teaching HODs do not require branch selection.
+              </p>
+            </div>
+          )}
 
           <div className="mb-3 sm:mb-6">
             <label className="block text-gray-700 text-xs sm:text-base font-bold mb-1 sm:mb-2">
-              Email
+              Email <span className="text-red-500">*</span>
             </label>
             <input
               type="email"
@@ -275,7 +334,7 @@ const HodLogin = () => {
 
           <div className="mb-3 sm:mb-6">
             <label className="block text-gray-700 text-xs sm:text-base font-bold mb-1 sm:mb-2">
-              Password
+              Password <span className="text-red-500">*</span>
             </label>
             <input
               type="password"

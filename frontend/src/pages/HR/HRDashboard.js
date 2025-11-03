@@ -54,6 +54,8 @@ const HRDashboard = () => {
     role: "",
     customRole: "",
     leaveBalanceByExperience: "",
+    employeeType: "teaching", // Default to teaching
+    assignedHodId: "", // For non-teaching employees
   });
   const [branches, setBranches] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -289,14 +291,25 @@ const HRDashboard = () => {
       toast.error("Please select a campus");
       return;
     }
-    if (!branches.some((b) => b.code === newEmployee.department)) {
-      toast.error("Invalid department for selected campus");
-      return;
+    
+    // Validate based on employee type
+    if (newEmployee.employeeType === "teaching") {
+      if (!branches.some((b) => b.code === newEmployee.department)) {
+        toast.error("Invalid department for selected campus");
+        return;
+      }
+      if (newEmployee.role === "other" && !newEmployee.customRole) {
+        toast.error("Please enter a custom role");
+        return;
+      }
+    } else {
+      // Non-teaching validation
+      if (!newEmployee.assignedHodId) {
+        toast.error("Please select a HOD for non-teaching employee");
+        return;
+      }
     }
-    if (newEmployee.role === "other" && !newEmployee.customRole) {
-      toast.error("Please enter a custom role");
-      return;
-    }
+    
     setLoading(true);
     try {
       const payload = {
@@ -306,12 +319,20 @@ const HRDashboard = () => {
         employeeId: newEmployee.employeeId,
         phoneNumber: newEmployee.phoneNumber,
         role: newEmployee.role || "faculty",
-        department: newEmployee.department,
-        branchCode: newEmployee.department,
+        employeeType: newEmployee.employeeType,
         leaveBalanceByExperience: newEmployee.leaveBalanceByExperience,
       };
-      if (newEmployee.role === "other") {
-        payload.customRole = newEmployee.customRole;
+      
+      // Add department for teaching employees
+      if (newEmployee.employeeType === "teaching") {
+        payload.department = newEmployee.department;
+        payload.branchCode = newEmployee.department;
+        if (newEmployee.role === "other") {
+          payload.customRole = newEmployee.customRole;
+        }
+      } else {
+        // Add assignedHodId for non-teaching employees
+        payload.assignedHodId = newEmployee.assignedHodId;
       }
       const response = await fetch(`${API_BASE_URL}/hr/employees`, {
         method: "POST",
@@ -339,6 +360,8 @@ const HRDashboard = () => {
         role: "",
         customRole: "",
         leaveBalanceByExperience: "",
+        employeeType: "teaching",
+        assignedHodId: "",
       });
       fetchEmployees();
       fetchEmployeeStats();

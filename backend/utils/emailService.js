@@ -166,19 +166,35 @@ const sendLeaveApplicationEmails = async (leaveRequest, employee) => {
 
     console.log('Email sent successfully to employee');
 
-    // --- HOD Notification ---
+      // --- HOD Notification ---
     try {
-      // Find HOD for the employee's department and campus with improved lookup
+      // Find HOD based on employee type
       const normalizedCampus = normalizeCampusType(employee.campus);
-      const hod = await HOD.findOne({
-        'department.code': employee.department,
-        'department.campusType': normalizedCampus,
-        status: 'active'
-      });
+      let hod;
+      
+      if (employee.employeeType === 'non-teaching') {
+        // Non-teaching: find HOD by assignedHodId
+        if (employee.assignedHodId) {
+          hod = await HOD.findById(employee.assignedHodId);
+          if (hod && hod.status !== 'active') {
+            hod = null;
+          }
+        }
+      } else {
+        // Teaching: find HOD by department
+        hod = await HOD.findOne({
+          'department.code': employee.department,
+          'department.campusType': normalizedCampus,
+          hodType: 'teaching',
+          status: 'active'
+        });
+      }
       
       if (!hod) {
-        console.warn('No HOD found for department/campus:', {
+        console.warn('No HOD found for employee:', {
+          employeeType: employee.employeeType,
           department: employee.department,
+          assignedHodId: employee.assignedHodId,
           campus: employee.campus,
           normalizedCampus: normalizedCampus
         });
@@ -209,6 +225,52 @@ const sendLeaveApplicationEmails = async (leaveRequest, employee) => {
       leaveRequestId: leaveRequest?.leaveRequestId,
       response: error.response?.body || 'No response body'
     });
+    throw error;
+  }
+};
+
+// Send email to HR when non-teaching leave is forwarded
+const sendHRNotification = async (leaveRequest, employee, hod) => {
+  try {
+    // Get HR for the employee's campus
+    const HR = mongoose.models.HR || mongoose.model('HR');
+    const normalizedCampus = normalizeCampusType(employee.campus);
+    
+    const hr = await HR.findOne({
+      'campus.type': normalizedCampus,
+      status: 'active'
+    });
+
+    if (!hr) {
+      console.warn(`No active HR found for campus: ${normalizedCampus}`);
+      return;
+    }
+
+    const templateParams = {
+      employeeName: employee.name,
+      department: employee.assignedHodId ? 'Non-Teaching' : employee.department || 'N/A',
+      leaveRequestId: leaveRequest.leaveRequestId,
+      leaveType: leaveRequest.leaveType,
+      startDate: new Date(leaveRequest.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+      endDate: new Date(leaveRequest.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+      numberOfDays: formatNumberOfDays(leaveRequest.numberOfDays),
+      reason: leaveRequest.reason,
+      hodName: hod.name,
+      hodRemarks: leaveRequest.hodRemarks || 'No remarks provided',
+      frontendUrl: getFrontendUrl(),
+      year: new Date().getFullYear()
+    };
+
+    const htmlContent = getHodForwardOrPrincipalReceiveTemplate(templateParams);
+    await sendEmail({
+      to: hr.email,
+      subject: 'Non-Teaching Leave Request Forwarded for Approval',
+      htmlContent
+    });
+
+    console.log('HR notification email sent successfully to:', hr.email);
+  } catch (error) {
+    console.error('Error sending HR notification:', error);
     throw error;
   }
 };

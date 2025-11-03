@@ -13,6 +13,9 @@ const LEAVE_TYPES = [
 const PERIODS = [1, 2, 3, 4, 5, 6, 7];
 
 const LeaveApplicationForm = ({ onSubmit, onClose, employee }) => {
+  // Check if employee is non-teaching
+  const isNonTeaching = employee?.employeeType === 'non-teaching';
+  
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     leaveType: '',
@@ -93,11 +96,11 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee }) => {
     fetchLeaveBalance();
   }, []);
 
-  // Fetch faculty list
+  // Fetch faculty list - only for teaching employees
   useEffect(() => {
     const fetchFaculty = async () => {
-      if (!employee) {
-        console.log('Employee data not available yet');
+      if (!employee || isNonTeaching) {
+        // Skip fetching faculty list for non-teaching employees
         return;
       }
 
@@ -118,7 +121,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee }) => {
       }
     };
     fetchFaculty();
-  }, [employee]);
+  }, [employee, isNonTeaching]);
 
   const getMaxEndDate = (startDate) => {
     if (!startDate) return '';
@@ -342,6 +345,13 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee }) => {
         }
       }
 
+      // For non-teaching employees, skip Step 2 and submit directly
+      if (isNonTeaching) {
+        handleSubmit(null);
+        return;
+      }
+
+      // For teaching employees, proceed to Step 2 (alternate schedule)
       if (formData.isHalfDay) {
         const updatedFormData = {
           ...formData,
@@ -418,7 +428,9 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee }) => {
       return;
     }
 
-    if (currentDay < formData.alternateSchedule.length - 1) {
+    // For teaching employees, validate alternate schedule
+    // For non-teaching employees, skip alternate schedule validation
+    if (!isNonTeaching && currentDay < formData.alternateSchedule.length - 1) {
       console.log('Validation failed: Incomplete alternate schedule', {
         currentDay,
         totalDays: formData.alternateSchedule.length
@@ -442,16 +454,18 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee }) => {
       const end = new Date(formData.endDate);
       const numberOfDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
 
+      // For non-teaching employees, no alternate schedule needed
+      // For teaching employees, include alternate schedule
       const formattedData = {
         ...formData,
         employeeId: employee._id,
         employeeModel: 'Employee',
-        department: employee.department,
+        department: employee.department || 'Non-Teaching',
         campus: employee.campus,
         startDate: formData.startDate,
         endDate: formData.endDate,
         numberOfDays: formData.isHalfDay ? 0.5 : numberOfDays,
-        alternateSchedule: formData.alternateSchedule.map(day => ({
+        alternateSchedule: isNonTeaching ? [] : formData.alternateSchedule.map(day => ({
           date: day.date,
           periods: day.periods.map(period => ({
             periodNumber: parseInt(period.periodNumber),
@@ -562,7 +576,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee }) => {
                 <h2 className="text-xl font-bold">Apply for Leave</h2>
                 <p className="text-white/80 text-sm flex items-center">
                   <span className="w-2 h-2 bg-primary/30 rounded-full mr-2 animate-pulse"></span>
-                  {step === 1 ? 'Step 1: Basic Details' : 'Step 2: Alternate Schedule'}
+                  {isNonTeaching ? 'Leave Application' : (step === 1 ? 'Step 1: Basic Details' : 'Step 2: Alternate Schedule')}
                 </p>
               </div>
             </div>
@@ -576,18 +590,20 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee }) => {
             </button>
           </div>
 
-          {/* Progress Steps */}
-          <div className="flex items-center justify-center mt-4">
-            <div className="flex items-center">
-              <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step >= 1 ? 'bg-white text-primary' : 'bg-white bg-opacity-20 text-white'} font-medium`}>
-                1
-              </div>
-              <div className={`w-16 h-1 mx-2 ${step >= 2 ? 'bg-white' : 'bg-white bg-opacity-20'}`}></div>
-              <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step >= 2 ? 'bg-white text-primary' : 'bg-white bg-opacity-20 text-white'} font-medium`}>
-                2
+          {/* Progress Steps - Hide Step 2 for non-teaching employees */}
+          {!isNonTeaching && (
+            <div className="flex items-center justify-center mt-4">
+              <div className="flex items-center">
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step >= 1 ? 'bg-white text-primary' : 'bg-white bg-opacity-20 text-white'} font-medium`}>
+                  1
+                </div>
+                <div className={`w-16 h-1 mx-2 ${step >= 2 ? 'bg-white' : 'bg-white bg-opacity-20'}`}></div>
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${step >= 2 ? 'bg-white text-primary' : 'bg-white bg-opacity-20 text-white'} font-medium`}>
+                  2
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Content */}
@@ -602,9 +618,24 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee }) => {
             }
           }}>
             <div className="space-y-6">
-              {step === 1 ? (
+              {(step === 1 || isNonTeaching) ? (
                 /* Step 1: Basic Details */
                 <div className="space-y-6">
+                  {/* Show notice for non-teaching employees */}
+                  {isNonTeaching && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-start">
+                        <svg className="w-5 h-5 text-blue-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div>
+                          <p className="text-sm font-medium text-blue-800">Non-Teaching Employee</p>
+                          <p className="text-sm text-blue-700 mt-1">As a non-teaching employee, you don't need to provide alternate schedule. Your leave request will be submitted directly after entering the details.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Leave Balance Cards */}
                   <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
                     <LeaveBalanceCard type="CL" balance={leaveBalance.leaveBalance} />
@@ -895,8 +926,9 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee }) => {
                   </div>
 
                 </div>
-              ) : (
-                /* Step 2: Alternate Schedule */
+                  ) : (
+                /* Step 2: Alternate Schedule - Only for teaching employees */
+                !isNonTeaching && (
                 <div className="space-y-6">
                   {/* Day Navigation Header */}
                   <div className="bg-gradient-to-r from-primary/10 to-primary/20 rounded-lg p-5 border border-primary/20">
@@ -1167,6 +1199,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee }) => {
                     </div>
                   )}
                 </div>
+                )
               )}
             </div>
           </form>
@@ -1176,7 +1209,7 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee }) => {
         <div className="border-t bg-gray-50 px-6 py-4">
           <div className="flex flex-col sm:flex-row justify-between space-y-3 sm:space-y-0 sm:space-x-4">
             <div>
-              {step === 2 && (
+              {step === 2 && !isNonTeaching && (
                 <button
                   type="button"
                   onClick={() => setStep(1)}
@@ -1204,24 +1237,35 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee }) => {
                 Cancel
               </button>
 
-              {step === 1 ? (
+              {(step === 1 || isNonTeaching) ? (
                 <button
                   type="submit"
                   form="leaveApplicationForm"
                   disabled={isSubmitting}
                   className="w-full sm:w-auto px-6 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark flex items-center justify-center disabled:opacity-50"
                 >
-                  Continue to Schedule
-                  <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </svg>
+                  {isNonTeaching ? (
+                    <>
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Submit Leave Request
+                    </>
+                  ) : (
+                    <>
+                      Continue to Schedule
+                      <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </>
+                  )}
                 </button>
               ) : (
                 <button
                   type="submit"
                   form="leaveApplicationForm"
-                  disabled={isSubmitting || currentDay < formData.alternateSchedule.length - 1}
-                  className={`w-full sm:w-auto px-6 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white flex items-center justify-center ${isSubmitting || currentDay < formData.alternateSchedule.length - 1
+                  disabled={isSubmitting || (!isNonTeaching && currentDay < formData.alternateSchedule.length - 1)}
+                  className={`w-full sm:w-auto px-6 py-2.5 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white flex items-center justify-center ${isSubmitting || (!isNonTeaching && currentDay < formData.alternateSchedule.length - 1)
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-green-600 hover:bg-green-700'
                     }`}

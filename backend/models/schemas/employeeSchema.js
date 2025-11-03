@@ -67,7 +67,9 @@ const employeeSchema = new mongoose.Schema({
   },
   department: {
     type: String,
-    required: true
+    required: function() {
+      return this.employeeType === 'teaching';
+    }
   },
   campus: {
     type: String,
@@ -76,8 +78,23 @@ const employeeSchema = new mongoose.Schema({
   },
   branchCode: {
     type: String,
-    required: true,
+    required: function() {
+      return this.employeeType === 'teaching';
+    },
     uppercase: true
+  },
+  employeeType: {
+    type: String,
+    enum: ['teaching', 'non-teaching'],
+    default: 'teaching',
+    required: true
+  },
+  assignedHodId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'HOD',
+    required: function() {
+      return this.employeeType === 'non-teaching';
+    }
   },
   status: {
     type: String,
@@ -206,7 +223,7 @@ const employeeSchema = new mongoose.Schema({
     }],
     status: {
       type: String,
-      enum: ['Pending', 'Forwarded by HOD', 'Approved', 'Rejected'],
+      enum: ['Pending', 'Forwarded by HOD', 'Forwarded to HR', 'Approved', 'Rejected'],
       default: 'Pending'
     },
     remarks: String,
@@ -405,8 +422,8 @@ employeeSchema.pre('save', async function(next) {
       }
     }
 
-    // Validate alternate schedule if employee is faculty
-    if (this.role === 'faculty' && !latestLeaveRequest.isHalfDay) {
+    // Validate alternate schedule if employee is faculty and teaching
+    if (this.employeeType === 'teaching' && this.role === 'faculty' && !latestLeaveRequest.isHalfDay) {
       if (!latestLeaveRequest.alternateSchedule || !Array.isArray(latestLeaveRequest.alternateSchedule) || latestLeaveRequest.alternateSchedule.length === 0) {
         throw new Error('Faculty must provide alternate schedule for leave days');
       }
@@ -454,21 +471,24 @@ employeeSchema.pre('save', async function(next) {
     // Only generate if not already present
     if (!latestLeaveRequest.leaveRequestId) {
       const currentYear = new Date().getFullYear();
-      const department = this.department;
       const leaveType = latestLeaveRequest.leaveType;
+      
+      // For non-teaching employees, use 'NT' instead of department code
+      const deptCode = this.employeeType === 'non-teaching' ? 'NT' : this.department;
+      
       // Find the highest sequence number for this type/year/department
       let maxSeq = 0;
       this.leaveRequests.forEach(lr => {
         if (
           lr.leaveRequestId &&
-          lr.leaveRequestId.startsWith(`${leaveType}${currentYear}${department}`)
+          lr.leaveRequestId.startsWith(`${leaveType}${currentYear}${deptCode}`)
         ) {
           const seq = parseInt(lr.leaveRequestId.slice(-4));
           if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
         }
       });
       const nextSeq = (maxSeq + 1).toString().padStart(4, '0');
-      latestLeaveRequest.leaveRequestId = `${leaveType}${currentYear}${department}${nextSeq}`;
+      latestLeaveRequest.leaveRequestId = `${leaveType}${currentYear}${deptCode}${nextSeq}`;
     }
     next();
   } catch (error) {

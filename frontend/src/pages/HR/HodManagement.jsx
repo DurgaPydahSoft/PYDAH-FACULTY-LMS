@@ -11,9 +11,10 @@ const HodManagement = ({ onHodUpdate, campus }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    password: 'defaultPassword',
+    password: '',
     branchCode: '',
-    HODId: ''
+    HODId: '',
+    hodType: 'teaching' // Default to teaching
   });
   const [selectedHod, setSelectedHod] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -123,8 +124,20 @@ const HodManagement = ({ onHodUpdate, campus }) => {
 
   // Form validation helper
   const validateForm = () => {
-    if (!formData.name || !formData.email || !formData.branchCode) {
+    if (!formData.name || !formData.email) {
       setError('Please fill in all required fields');
+      return false;
+    }
+    
+    // Password is required
+    if (!formData.password || formData.password.length < 6) {
+      setError('Password is required and must be at least 6 characters');
+      return false;
+    }
+    
+    // For teaching HODs, branchCode is required
+    if (formData.hodType === 'teaching' && !formData.branchCode) {
+      setError('Branch is required for teaching HODs');
       return false;
     }
     
@@ -155,83 +168,10 @@ const HodManagement = ({ onHodUpdate, campus }) => {
     if (!validateForm()) return;
 
     try {
-      // Get campus type with proper capitalization
-      const campusType = typeof campus === 'string' 
-        ? campus.charAt(0).toUpperCase() + campus.slice(1)
-        : campus?.type?.charAt(0).toUpperCase() + (campus?.type || '').slice(1);
-      
-      if (!campusType) {
-        throw new Error('Campus information is missing');
-      }
-
-      // Find the selected branch from branches array
-      const selectedBranch = branches.find(branch => branch.code === formData.branchCode);
-      if (!selectedBranch) {
-        throw new Error('Invalid branch selected');
-      }
-
       // Get the current user (HR) to use their campus reference
       const currentUser = JSON.parse(localStorage.getItem('user'));
       if (!currentUser || !currentUser.campus) {
         throw new Error('HR user campus information not found');
-      }
-
-      // Debug log the current user and campus data with more details
-      console.group('User and Campus Data');
-      console.log('Current user:', JSON.parse(JSON.stringify(currentUser)));
-      console.log('Campus object structure:', {
-        hasCampus: !!currentUser.campus,
-        campusType: currentUser.campus?.type,
-        campusName: currentUser.campus?.name,
-        campusLocation: currentUser.campus?.location,
-        rawCampus: currentUser.campus
-      });
-      console.groupEnd();
-
-      // Define valid campus types (must match the backend enum exactly)
-      const validCampusTypes = ['Engineering', 'Diploma', 'Pharmacy', 'Degree'];
-      
-      // Try to extract campus type in order of priority
-      let actualCampusType = null;
-      
-      // 1. Try to get from campus.type (direct property)
-      if (currentUser.campus?.type) {
-        actualCampusType = currentUser.campus.type;
-        console.log('Found campus type from campus.type:', actualCampusType);
-      } 
-      // 2. Try to get from campus.name (capitalized)
-      else if (currentUser.campus?.name) {
-        actualCampusType = currentUser.campus.name;
-        console.log('Using campus name as type:', actualCampusType);
-      }
-      // 3. Try to get from props as fallback
-      else if (campusType) {
-        actualCampusType = campusType;
-        console.log('Using campus type from props:', actualCampusType);
-      }
-      
-      // If we still don't have a campus type, try to infer it from the branch code
-      if (!actualCampusType && formData.branchCode) {
-        const campusFromBranch = validCampusTypes.find(type => 
-          formData.branchCode.toUpperCase().startsWith(type.substring(0, 3).toUpperCase())
-        );
-        if (campusFromBranch) {
-          actualCampusType = campusFromBranch;
-          console.log('Inferred campus type from branch code:', actualCampusType);
-        }
-      }
-      
-      console.log('Derived campus type:', actualCampusType);
-      
-      // Normalize the campus type (case-insensitive match)
-      const normalizedCampusType = actualCampusType && validCampusTypes.find(
-        type => type.toLowerCase() === actualCampusType.toLowerCase()
-      );
-      
-      if (!normalizedCampusType) {
-        console.error('Available campus types:', validCampusTypes);
-        console.error('Provided campus type:', actualCampusType);
-        throw new Error(`Invalid campus type '${actualCampusType}'. Must be one of: ${validCampusTypes.join(', ')}`);
       }
 
       // Ensure we have all required fields
@@ -240,24 +180,78 @@ const HodManagement = ({ onHodUpdate, campus }) => {
         throw new Error('HOD ID is required');
       }
 
-      // Get the HR's campus ID - this should be an ObjectId
-      const campusId = currentUser.campus?._id || currentUser.campus;
-      if (!campusId) {
-        throw new Error('HR campus ID is required');
-      }
-
       const payload = {
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
-        password: formData.password || 'defaultPassword',
+        password: formData.password.trim(), // Use the password from form
         HODId: HODId,
-        department: {
-          name: selectedBranch.name.trim(),
-          code: formData.branchCode.trim().toUpperCase(),
-          campusType: normalizedCampusType || 'Engineering' // Default to Engineering if not set
-        },
+        hodType: formData.hodType,
         status: 'active' // Default status
       };
+
+      // Only process branch and department for teaching HODs
+      if (formData.hodType === 'teaching') {
+        // Get campus type with proper capitalization
+        const campusType = typeof campus === 'string' 
+          ? campus.charAt(0).toUpperCase() + campus.slice(1)
+          : campus?.type?.charAt(0).toUpperCase() + (campus?.type || '').slice(1);
+        
+        if (!campusType) {
+          throw new Error('Campus information is missing');
+        }
+
+        // Find the selected branch from branches array
+        const selectedBranch = branches.find(branch => branch.code === formData.branchCode);
+        if (!selectedBranch || !formData.branchCode) {
+          throw new Error('Branch is required for teaching HODs');
+        }
+
+        // Define valid campus types (must match the backend enum exactly)
+        const validCampusTypes = ['Engineering', 'Diploma', 'Pharmacy', 'Degree'];
+        
+        // Try to extract campus type in order of priority
+        let actualCampusType = null;
+        
+        // 1. Try to get from campus.type (direct property)
+        if (currentUser.campus?.type) {
+          actualCampusType = currentUser.campus.type;
+        } 
+        // 2. Try to get from campus.name (capitalized)
+        else if (currentUser.campus?.name) {
+          actualCampusType = currentUser.campus.name;
+        }
+        // 3. Try to get from props as fallback
+        else if (campusType) {
+          actualCampusType = campusType;
+        }
+        
+        // If we still don't have a campus type, try to infer it from the branch code
+        if (!actualCampusType && formData.branchCode) {
+          const campusFromBranch = validCampusTypes.find(type => 
+            formData.branchCode.toUpperCase().startsWith(type.substring(0, 3).toUpperCase())
+          );
+          if (campusFromBranch) {
+            actualCampusType = campusFromBranch;
+          }
+        }
+        
+        // Normalize the campus type (case-insensitive match)
+        const normalizedCampusType = actualCampusType && validCampusTypes.find(
+          type => type.toLowerCase() === actualCampusType.toLowerCase()
+        );
+        
+        if (!normalizedCampusType) {
+          throw new Error(`Invalid campus type '${actualCampusType}'. Must be one of: ${validCampusTypes.join(', ')}`);
+        }
+
+        // Add department for teaching HODs
+        payload.department = {
+          name: selectedBranch.name.trim(),
+          code: formData.branchCode.trim().toUpperCase(),
+          campusType: normalizedCampusType || 'Engineering'
+        };
+      }
+      // For non-teaching HODs, no department or branch needed - payload is ready
 
       console.log('Final payload for HOD creation:', JSON.stringify(payload, null, 2));
 
@@ -269,9 +263,10 @@ const HodManagement = ({ onHodUpdate, campus }) => {
       setFormData({
         name: '',
         email: '',
-        password: 'defaultPassword',
+        password: '',
         branchCode: '',
-        HODId: ''
+        HODId: '',
+        hodType: 'teaching'
       });
       // Update local list so UI reflects the change immediately
       if (createRes?.data) {
@@ -437,9 +432,16 @@ const HodManagement = ({ onHodUpdate, campus }) => {
                     {hod.email}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                      {hod.department?.name || 'N/A'}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                        {hod.hodType === 'non-teaching' ? 'Non-Teaching' : (hod.department?.name || 'N/A')}
+                      </span>
+                      {hod.hodType === 'non-teaching' && (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                          Non-Teaching HOD
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
@@ -501,6 +503,26 @@ const HodManagement = ({ onHodUpdate, campus }) => {
                   <h3 className="text-lg leading-6 font-medium text-gray-900">Create New HOD</h3>
                   <div className="mt-4 space-y-4">
                     <div>
+                      <label htmlFor="hodType" className="block text-sm font-medium text-gray-700 text-left">HOD Type <span className="text-red-500">*</span></label>
+                      <select
+                        id="hodType"
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        value={formData.hodType}
+                        onChange={(e) => {
+                          const hodType = e.target.value;
+                          setFormData({
+                            ...formData,
+                            hodType,
+                            branchCode: hodType === 'teaching' ? formData.branchCode : ''
+                          });
+                        }}
+                        required
+                      >
+                        <option value="teaching">Teaching</option>
+                        <option value="non-teaching">Non-Teaching</option>
+                      </select>
+                    </div>
+                    <div>
                       <label htmlFor="name" className="block text-sm font-medium text-gray-700 text-left">Name</label>
                       <input
                         type="text"
@@ -533,38 +555,59 @@ const HodManagement = ({ onHodUpdate, campus }) => {
                       <p className="mt-1 text-xs text-gray-500">If left blank, email will be used as HOD ID</p>
                     </div>
                     <div>
-                      <label htmlFor="branchCode" className="block text-sm font-medium text-gray-700 text-left">Branch <span className="text-red-500">*</span></label>
-                      <div className="relative">
-                        <select
-                          id="branchCode"
-                          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                          value={formData.branchCode}
-                          onChange={(e) => setFormData({...formData, branchCode: e.target.value})}
-                          required
-                        >
-                          <option value="">Select Branch</option>
-                          {Array.isArray(branches) && branches.length > 0 ? (
-                            branches.map((branch) => (
-                              <option key={branch.code} value={branch.code}>
-                                {branch.name} ({branch.code})
-                              </option>
-                            ))
-                          ) : (
-                            <option disabled>No branches available</option>
-                          )}
-                        </select>
-                        {!loading && branches.length === 0 && (
-                          <div className="mt-2 p-2 bg-yellow-50 text-yellow-700 text-sm rounded">
-                            <p>No branches found for your campus.</p>
-                            <p className="text-xs mt-1">Debug info: {JSON.stringify({
-                              branchesCount: branches.length,
-                              isArray: Array.isArray(branches),
-                              sample: branches.slice(0, 2)
-                            })}</p>
-                          </div>
-                        )}
-                      </div>
+                      <label htmlFor="password" className="block text-sm font-medium text-gray-700 text-left">Password <span className="text-red-500">*</span></label>
+                      <input
+                        type="password"
+                        id="password"
+                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        placeholder="Enter password"
+                        value={formData.password}
+                        onChange={(e) => setFormData({...formData, password: e.target.value})}
+                        required
+                        minLength={6}
+                      />
+                      <p className="mt-1 text-xs text-gray-500">Minimum 6 characters</p>
                     </div>
+                    {formData.hodType === 'teaching' && (
+                      <div>
+                        <label htmlFor="branchCode" className="block text-sm font-medium text-gray-700 text-left">Branch <span className="text-red-500">*</span></label>
+                        <div className="relative">
+                          <select
+                            id="branchCode"
+                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            value={formData.branchCode}
+                            onChange={(e) => setFormData({...formData, branchCode: e.target.value})}
+                            required
+                          >
+                            <option value="">Select Branch</option>
+                            {Array.isArray(branches) && branches.length > 0 ? (
+                              branches.map((branch) => (
+                                <option key={branch.code} value={branch.code}>
+                                  {branch.name} ({branch.code})
+                                </option>
+                              ))
+                            ) : (
+                              <option disabled>No branches available</option>
+                            )}
+                          </select>
+                          {!loading && branches.length === 0 && (
+                            <div className="mt-2 p-2 bg-yellow-50 text-yellow-700 text-sm rounded">
+                              <p>No branches found for your campus.</p>
+                              <p className="text-xs mt-1">Debug info: {JSON.stringify({
+                                branchesCount: branches.length,
+                                isArray: Array.isArray(branches),
+                                sample: branches.slice(0, 2)
+                              })}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {formData.hodType === 'non-teaching' && (
+                      <div className="mt-2 p-3 bg-blue-50 text-blue-700 text-sm rounded">
+                        <p>Non-teaching HODs do not require branch selection.</p>
+                      </div>
+                    )}
                     {error && (
                       <div className="mt-2 text-sm text-red-600">
                         {error}
@@ -577,7 +620,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
                     type="button"
                     className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:col-start-2 sm:text-sm disabled:opacity-50"
                     onClick={handleCreateHOD}
-                    disabled={!formData.name || !formData.email || !formData.branchCode}
+                    disabled={!formData.name || !formData.email || !formData.password || formData.password.length < 6 || (formData.hodType === 'teaching' && !formData.branchCode)}
                   >
                     Create HOD
                   </button>
@@ -672,7 +715,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
                   type="button"
                   className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:col-start-2 sm:text-sm disabled:opacity-50"
                   onClick={handleEditSubmit}
-                  disabled={!formData.name || !formData.email || !formData.branchCode}
+                  disabled={!formData.name || !formData.email || (selectedHod?.hodType !== 'non-teaching' && !formData.branchCode)}
                 >
                   Save Changes
                 </button>

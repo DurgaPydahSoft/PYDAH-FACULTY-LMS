@@ -15,6 +15,7 @@ const HRLeaveRequestsSection = ({ branches }) => {
   const [status, setStatus] = useState('');
   const [department, setDepartment] = useState('');
   const [leaveType, setLeaveType] = useState('');
+  const [employeeType, setEmployeeType] = useState(''); // Add employee type filter
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [total, setTotal] = useState(0);
@@ -39,7 +40,7 @@ const HRLeaveRequestsSection = ({ branches }) => {
   useEffect(() => {
     fetchLeaveRequests();
     // eslint-disable-next-line
-  }, [search, status, department, leaveType, page, limit]);
+  }, [search, status, department, leaveType, employeeType, page, limit]);
 
   const fetchLeaveRequests = async () => {
     setLoading(true);
@@ -50,6 +51,7 @@ const HRLeaveRequestsSection = ({ branches }) => {
         status,
         department,
         leaveType,
+        employeeType,
         page,
         limit,
       };
@@ -84,6 +86,7 @@ const HRLeaveRequestsSection = ({ branches }) => {
   const handleStatusChange = (e) => setStatus(e.target.value);
   const handleDepartmentChange = (e) => setDepartment(e.target.value);
   const handleLeaveTypeChange = (e) => setLeaveType(e.target.value);
+  const handleEmployeeTypeChange = (e) => setEmployeeType(e.target.value);
   const handlePageChange = (newPage) => setPage(newPage);
 
   // HR Action Functions
@@ -389,7 +392,7 @@ const HRLeaveRequestsSection = ({ branches }) => {
         </button>
       </div>
       {/* Filters */}
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-5 gap-4">
         <input
           type="text"
           placeholder="Search by name, ID, email"
@@ -401,6 +404,7 @@ const HRLeaveRequestsSection = ({ branches }) => {
           <option value="">All Statuses</option>
           <option value="Pending">Pending</option>
           <option value="Forwarded by HOD">Forwarded by HOD</option>
+          <option value="Forwarded to HR">Forwarded to HR</option>
           <option value="Approved">Approved</option>
           <option value="Rejected">Rejected</option>
         </select>
@@ -413,6 +417,15 @@ const HRLeaveRequestsSection = ({ branches }) => {
           {branches.map(branch => (
             <option key={branch.code} value={branch.code}>{branch.name}</option>
           ))}
+        </select>
+        <select
+          value={employeeType}
+          onChange={handleEmployeeTypeChange}
+          className="p-2 rounded bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
+        >
+          <option value="">All Types</option>
+          <option value="teaching">Teaching</option>
+          <option value="non-teaching">Non-Teaching</option>
         </select>
         <input
           type="text"
@@ -460,14 +473,18 @@ const HRLeaveRequestsSection = ({ branches }) => {
                           ? 'bg-red-100 text-red-800'
                           : lr.status === 'Forwarded by HOD'
                             ? 'bg-blue-100 text-blue-800'
-                            : 'bg-yellow-100 text-yellow-800'}`}
+                            : lr.status === 'Forwarded to HR'
+                              ? 'bg-purple-100 text-purple-800'
+                              : 'bg-yellow-100 text-yellow-800'}`}
                     >
                       {lr.status === 'Rejected'
                         ? (lr.rejectionBy === 'HOD'
                           ? 'Rejected by HOD'
                           : lr.rejectionBy === 'Principal'
                             ? 'Rejected by Principal'
-                            : 'Rejected')
+                            : lr.rejectionBy === 'HR'
+                              ? 'Rejected by HR'
+                              : 'Rejected')
                         : lr.status}
 
                     </span>
@@ -502,9 +519,19 @@ const HRLeaveRequestsSection = ({ branches }) => {
                     ? 'bg-red-100 text-red-800'
                     : lr.status === 'Forwarded by HOD'
                       ? 'bg-blue-100 text-blue-800'
-                      : 'bg-yellow-100 text-yellow-800'}`}
+                      : lr.status === 'Forwarded to HR'
+                        ? 'bg-purple-100 text-purple-800'
+                        : 'bg-yellow-100 text-yellow-800'}`}
               >
-                {lr.status}
+                {lr.status === 'Rejected'
+                  ? (lr.rejectionBy === 'HOD'
+                    ? 'Rejected by HOD'
+                    : lr.rejectionBy === 'Principal'
+                      ? 'Rejected by Principal'
+                      : lr.rejectionBy === 'HR'
+                        ? 'Rejected by HR'
+                        : 'Rejected')
+                  : lr.status}
               </span>
             </div>
             <div className="space-y-2">
@@ -567,9 +594,19 @@ const HRLeaveRequestsSection = ({ branches }) => {
                         ? 'bg-red-100 text-red-800'
                         : selectedRequest.status === 'Forwarded by HOD'
                           ? 'bg-blue-100 text-blue-800'
-                          : 'bg-yellow-100 text-yellow-800'}`}
+                          : selectedRequest.status === 'Forwarded to HR'
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-yellow-100 text-yellow-800'}`}
                   >
-                    {selectedRequest.status}
+                    {selectedRequest.status === 'Rejected'
+                      ? (selectedRequest.rejectionBy === 'HOD'
+                        ? 'Rejected by HOD'
+                        : selectedRequest.rejectionBy === 'Principal'
+                          ? 'Rejected by Principal'
+                          : selectedRequest.rejectionBy === 'HR'
+                            ? 'Rejected by HR'
+                            : 'Rejected')
+                      : selectedRequest.status}
                   </span>
                 </div>
               </div>
@@ -605,8 +642,8 @@ const HRLeaveRequestsSection = ({ branches }) => {
                 Close
               </button>
 
-              {/* Show approve/reject buttons only for "Forwarded by HOD" status and when not in action mode */}
-              {selectedRequest.status === 'Forwarded by HOD' && actionType === 'view' && (
+              {/* Show approve/reject buttons for "Forwarded by HOD" or "Forwarded to HR" status and when not in action mode */}
+              {(selectedRequest.status === 'Forwarded by HOD' || selectedRequest.status === 'Forwarded to HR') && actionType === 'view' && (
                 <>
                   <button
                     onClick={() => {

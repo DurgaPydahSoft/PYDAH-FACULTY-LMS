@@ -25,18 +25,30 @@ const hodSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
+  hodType: {
+    type: String,
+    enum: ['teaching', 'non-teaching'],
+    default: 'teaching',
+    required: true
+  },
   department: {
     name: {
       type: String,
-      required: true
+      required: function() {
+        return this.hodType === 'teaching';
+      }
     },
     code: {
       type: String,
-      required: true
+      required: function() {
+        return this.hodType === 'teaching';
+      }
     },
     campusType: {
       type: String,
-      required: true,
+      required: function() {
+        return this.hodType === 'teaching';
+      },
       enum: ['Engineering', 'Diploma', 'Pharmacy', 'Degree']
     }
   },
@@ -86,7 +98,17 @@ const hodSchema = new mongoose.Schema({
 // Validate department code based on campus type and branches
 hodSchema.pre('save', async function(next) {
   try {
+    // Skip validation for non-teaching HODs
+    if (this.hodType === 'non-teaching') {
+      return next();
+    }
+
     if (!this.isNew && !this.isModified('department')) return next();
+
+    // For teaching HODs, validate department
+    if (!this.department || !this.department.code) {
+      throw new Error('Department is required for teaching HODs');
+    }
 
     this.department.campusType = this.department.campusType.charAt(0).toUpperCase() + this.department.campusType.slice(1);
 

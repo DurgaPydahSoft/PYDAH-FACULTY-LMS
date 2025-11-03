@@ -127,7 +127,7 @@ const leaveRequestSchema = new mongoose.Schema({
   alternateSchedule: [dayScheduleSchema],
   status: {
     type: String,
-    enum: ['Pending', 'Forwarded by HOD', 'Approved', 'Rejected'],
+    enum: ['Pending', 'Forwarded by HOD', 'Forwarded to HR', 'Approved', 'Rejected'],
     default: 'Pending'
   },
   rejectionBy: {
@@ -221,12 +221,15 @@ leaveRequestSchema.pre('save', async function(next) {
       }
 
       const currentYear = new Date().getFullYear();
-      const department = employee.department;
+      const leaveType = this.leaveType;
+      
+      // For non-teaching employees, use 'NT' instead of department code
+      const deptCode = employee.employeeType === 'non-teaching' ? 'NT' : (employee.department || 'UNK');
       
       // Find the latest leave request for this type, year, and department
       const latestRequest = await this.constructor.findOne({
-        leaveType: this.leaveType,
-        leaveRequestId: new RegExp(`^${this.leaveType}${currentYear}${department}`)
+        leaveType: leaveType,
+        leaveRequestId: new RegExp(`^${leaveType}${currentYear}${deptCode}`)
       }).sort({ leaveRequestId: -1 });
 
       let sequenceNumber = 1;
@@ -237,7 +240,7 @@ leaveRequestSchema.pre('save', async function(next) {
       }
 
       // Generate the new ID
-      this.leaveRequestId = `${this.leaveType}${currentYear}${department}${sequenceNumber.toString().padStart(4, '0')}`;
+      this.leaveRequestId = `${leaveType}${currentYear}${deptCode}${sequenceNumber.toString().padStart(4, '0')}`;
     } catch (error) {
       next(error);
       return;

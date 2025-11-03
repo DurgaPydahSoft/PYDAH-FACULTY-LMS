@@ -197,23 +197,88 @@ exports.authHOD = async (req, res, next) => {
 
     // Check which model to use based on token data
     let hod;
+    const hasBranchCode = !!decoded.branchCode;
+    const isTeaching = hasBranchCode;
+
     if (decoded.model === 'User') {
-      hod = await User.findOne({
-        _id: decoded.id,
-        role: 'hod',
-        campus: decoded.campus,
-        branchCode: decoded.branchCode
-      });
+      // User model - for teaching HODs only (they have branchCode)
+      if (hasBranchCode) {
+        hod = await User.findOne({
+          _id: decoded.id,
+          role: 'hod',
+          campus: decoded.campus,
+          branchCode: decoded.branchCode
+        });
+      } else {
+        // Non-teaching HODs are not in User model
+        return res.status(401).json({ msg: 'Token is not valid' });
+      }
 
       if (!hod || !hod.isActive) {
         return res.status(401).json({ msg: 'Token is not valid' });
       }
     } else {
-      hod = await HOD.findOne({
-        _id: decoded.id,
-        'department.code': decoded.branchCode,
-        'department.campusType': decoded.campus.charAt(0).toUpperCase() + decoded.campus.slice(1)
-      });
+      // HOD model - check for teaching or non-teaching
+      if (isTeaching) {
+        // Teaching HOD - requires department/branch
+        hod = await HOD.findOne({
+          _id: decoded.id,
+          'department.code': decoded.branchCode,
+          'department.campusType': decoded.campus.charAt(0).toUpperCase() + decoded.campus.slice(1),
+          hodType: 'teaching'
+        });
+      } else {
+        // Non-teaching HOD - no department/branch required
+        // Find by campus reference instead
+        const Campus = require('../models').Campus || require('mongoose').model('Campus');
+        const campusDoc = await Campus.findOne({ 
+          type: decoded.campus.charAt(0).toUpperCase() + decoded.campus.slice(1),
+          isActive: true
+        });
+
+        if (!campusDoc) {
+          return res.status(401).json({ msg: 'Invalid campus' });
+        }
+
+        // Find Principal(s) for this campus
+        const Principal = require('../models').Principal || require('mongoose').model('Principal');
+        const principals = await Principal.find({});
+        const principalUsers = await User.find({ 
+          role: 'principal',
+          campus: decoded.campus
+        });
+
+        let campusRefs = [];
+        for (const principal of principals) {
+          const principalCampus = await Campus.findOne({
+            principalId: principal._id,
+            type: decoded.campus.charAt(0).toUpperCase() + decoded.campus.slice(1),
+            isActive: true
+          });
+          if (principalCampus) {
+            campusRefs.push({ ref: principal._id, model: 'Principal' });
+          }
+        }
+        for (const principalUser of principalUsers) {
+          campusRefs.push({ ref: principalUser._id, model: 'User' });
+        }
+
+        if (campusRefs.length === 0) {
+          return res.status(401).json({ msg: 'Invalid campus' });
+        }
+
+        // Query HOD with any of the found campus references
+        const orConditions = campusRefs.map(({ ref, model }) => ({
+          campus: ref,
+          campusModel: model
+        }));
+
+        hod = await HOD.findOne({
+          _id: decoded.id,
+          hodType: 'non-teaching',
+          $or: orConditions
+        });
+      }
 
       if (!hod || hod.status !== 'active') {
         return res.status(401).json({ msg: 'Token is not valid' });
@@ -225,9 +290,18 @@ exports.authHOD = async (req, res, next) => {
       id: hod._id,
       role: 'hod',
       campus: decoded.campus,
-      branchCode: decoded.branchCode,
       model: decoded.model
     };
+
+    // Add branchCode only for teaching HODs
+    if (hasBranchCode) {
+      req.user.branchCode = decoded.branchCode;
+    }
+
+    // Add hodType if available
+    if (hod.hodType) {
+      req.user.hodType = hod.hodType;
+    }
 
     next();
   } catch (error) {

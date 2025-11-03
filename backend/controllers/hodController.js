@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { HOD, Employee, User, LeaveRequest } = require('../models');
+const mongoose = require("mongoose");
+const { HOD, Employee, User, LeaveRequest, Campus, Principal } = require('../models');
 const CCLWorkRequest = require('../models/CCLWorkRequest');
 const { validateEmail } = require('../utils/validators');
 const asyncHandler = require('express-async-handler');
@@ -55,16 +56,21 @@ const registerHod = async (req, res) => {
 const login = async (req, res) => {
   try {
     console.log('HOD login attempt:', req.body);
-    const { email, password, campus, branchCode } = req.body;
+    const { email, password, campus, branchCode, hodType } = req.body;
 
-    if (!email || !password || !campus || !branchCode) {
+    // Validate required fields
+    if (!email || !password || !campus) {
       console.log('Missing required fields:', { 
         email: !!email, 
         password: !!password, 
-        campus: !!campus,
-        branchCode: !!branchCode 
+        campus: !!campus
       });
       return res.status(400).json({ msg: 'Please provide all required fields' });
+    }
+
+    // For teaching HODs, branchCode is required
+    if (hodType === 'teaching' && !branchCode) {
+      return res.status(400).json({ msg: 'Branch code is required for teaching HODs' });
     }
 
     if (!validateEmail(email)) {
@@ -73,57 +79,123 @@ const login = async (req, res) => {
     }
 
     const normalizedEmail = email.toLowerCase();
-    const normalizedBranchCode = branchCode.toUpperCase();
     const normalizedCampus = campus.toLowerCase();
     const campusType = campus.charAt(0).toUpperCase() + campus.slice(1);
 
     console.log('Normalized credentials:', {
       email: normalizedEmail,
-      branchCode: normalizedBranchCode,
       campus: normalizedCampus,
-      campusType
+      campusType,
+      hodType,
+      branchCode
     });
 
-    // Try HOD model first since that's the primary model
-    let hod = await HOD.findOne({ 
-      email: normalizedEmail,
-      'department.code': normalizedBranchCode,
-      'department.campusType': campusType
-    });
+    // Determine HOD type if not provided (for backward compatibility)
+    const isTeaching = hodType !== 'non-teaching';
 
-    console.log('HOD search result in HOD model:', {
-      found: !!hod,
-      hodDetails: hod ? {
-        id: hod._id,
-        email: hod.email,
-        department: hod.department,
-        status: hod.status,
-        hasPassword: !!hod.password
-      } : null
-    });
-
+    let hod;
     let isUserModel = false;
 
-    // If not found in HOD model, try User model
-    if (!hod) {
-      console.log('HOD not found in HOD model, trying User model');
-      hod = await User.findOne({ 
+    if (isTeaching && branchCode) {
+      // Teaching HOD - requires department/branch
+      const normalizedBranchCode = branchCode.toUpperCase();
+
+      // Try HOD model first since that's the primary model
+      hod = await HOD.findOne({ 
         email: normalizedEmail,
-        role: 'hod',
-        campus: normalizedCampus,
-        branchCode: normalizedBranchCode
+        'department.code': normalizedBranchCode,
+        'department.campusType': campusType,
+        hodType: 'teaching'
       });
-      isUserModel = !!hod;
-      
-      console.log('HOD search result in User model:', {
+
+      console.log('HOD search result in HOD model (teaching):', {
         found: !!hod,
         hodDetails: hod ? {
           id: hod._id,
           email: hod.email,
-          campus: hod.campus,
-          branchCode: hod.branchCode,
-          status: hod.isActive,
-          hasPassword: !!hod.password
+          department: hod.department,
+          status: hod.status,
+          hasPassword: !!hod.password,
+          hodType: hod.hodType
+        } : null
+      });
+
+      // If not found in HOD model, try User model
+      if (!hod) {
+        console.log('HOD not found in HOD model, trying User model');
+        hod = await User.findOne({ 
+          email: normalizedEmail,
+          role: 'hod',
+          campus: normalizedCampus,
+          branchCode: normalizedBranchCode
+        });
+        isUserModel = !!hod;
+        
+        console.log('HOD search result in User model (teaching):', {
+          found: !!hod,
+          hodDetails: hod ? {
+            id: hod._id,
+            email: hod.email,
+            campus: hod.campus,
+            branchCode: hod.branchCode,
+            status: hod.isActive,
+            hasPassword: !!hod.password
+          } : null
+        });
+      }
+    } else {
+      // Non-teaching HOD - no department/branch required
+      // Find Principal(s) for this campus type to get the campus reference
+      let campusRefs = [];
+      
+      // Try to find Principal in Principal model
+      const principals = await Principal.find({});
+      for (const principal of principals) {
+        const campusDoc = await Campus.findOne({
+          principalId: principal._id,
+          type: campusType,
+          isActive: true
+        });
+        if (campusDoc) {
+          campusRefs.push({ ref: principal._id, model: 'Principal' });
+        }
+      }
+
+      // Try to find Principal in User model
+      const principalUsers = await User.find({ 
+        role: 'principal',
+        campus: normalizedCampus
+      });
+      for (const principalUser of principalUsers) {
+        campusRefs.push({ ref: principalUser._id, model: 'User' });
+      }
+
+      if (campusRefs.length === 0) {
+        console.log('Could not find campus reference for non-teaching HOD');
+        return res.status(401).json({ msg: 'Invalid campus' });
+      }
+
+      // Query HODs with any of the found campus references
+      const orConditions = campusRefs.map(({ ref, model }) => ({
+        campus: ref,
+        campusModel: model
+      }));
+
+      hod = await HOD.findOne({ 
+        email: normalizedEmail,
+        hodType: 'non-teaching',
+        $or: orConditions
+      });
+
+      console.log('HOD search result in HOD model (non-teaching):', {
+        found: !!hod,
+        campusRefs: campusRefs.length,
+        hodDetails: hod ? {
+          id: hod._id,
+          email: hod.email,
+          status: hod.status,
+          hasPassword: !!hod.password,
+          hodType: hod.hodType
         } : null
       });
     }
@@ -166,9 +238,14 @@ const login = async (req, res) => {
       id: hod._id.toString(),
       role: 'hod',
       campus: normalizedCampus,
-      branchCode: normalizedBranchCode,
       model: isUserModel ? 'User' : 'HOD'
     };
+
+    // Add branchCode only for teaching HODs
+    if (isTeaching && branchCode) {
+      const normalizedBranchCode = branchCode.toUpperCase();
+      tokenData.branchCode = normalizedBranchCode;
+    }
 
     console.log('Creating token with data:', tokenData);
 
@@ -188,18 +265,29 @@ const login = async (req, res) => {
       name: hod.name || hod.email.split('@')[0],
       email: hod.email,
       campus: normalizedCampus,
-      branchCode: normalizedBranchCode,
       role: 'hod',
       isActive: isUserModel ? hod.isActive : (hod.status === 'active'),
       lastLogin: hod.lastLogin,
       hodLeaveRequests: hod.hodLeaveRequests || []
     };
 
+    // Add branchCode only for teaching HODs
+    if (isTeaching && branchCode) {
+      const normalizedBranchCode = branchCode.toUpperCase();
+      userResponse.branchCode = normalizedBranchCode;
+    }
+
+    // Add hodType if available
+    if (hod.hodType) {
+      userResponse.hodType = hod.hodType;
+    }
+
     console.log('Login successful for HOD:', {
       id: hod._id,
       email: hod.email,
       campus: normalizedCampus,
-      branchCode: normalizedBranchCode,
+      branchCode: isTeaching && branchCode ? branchCode.toUpperCase() : 'N/A',
+      hodType: hod.hodType || 'teaching',
       model: tokenData.model
     });
 
@@ -218,25 +306,39 @@ const getProfile = async (req, res) => {
   try {
     console.log('Getting HOD profile, token data:', req.user);
     
-    if (!req.user || !req.user.id || !req.user.branchCode || !req.user.campus || !req.user.model) {
+    if (!req.user || !req.user.id || !req.user.campus || !req.user.model) {
       console.log('Invalid token data:', req.user);
       return res.status(401).json({ msg: 'Invalid token data' });
     }
 
+    // branchCode is only required for teaching HODs
+    const isTeaching = req.user.hodType !== 'non-teaching' && !!req.user.branchCode;
+
     let hod;
     if (req.user.model === 'User') {
+      // User model is only for teaching HODs
       hod = await User.findOne({
         _id: req.user.id,
         role: 'hod',
         campus: req.user.campus,
         branchCode: req.user.branchCode
-}).select('-password');
-    } else {
-      hod = await HOD.findOne({
-        _id: req.user.id,
-        'department.code': req.user.branchCode,
-        'department.campusType': req.user.campus.charAt(0).toUpperCase() + req.user.campus.slice(1)
       }).select('-password');
+    } else {
+      // HOD model - handle both teaching and non-teaching
+      if (isTeaching) {
+        hod = await HOD.findOne({
+          _id: req.user.id,
+          'department.code': req.user.branchCode,
+          'department.campusType': req.user.campus.charAt(0).toUpperCase() + req.user.campus.slice(1),
+          hodType: 'teaching'
+        }).select('-password');
+      } else {
+        // Non-teaching HOD - find by ID and hodType only
+        hod = await HOD.findOne({
+          _id: req.user.id,
+          hodType: 'non-teaching'
+        }).select('-password');
+      }
     }
     
     if (!hod) {
@@ -258,7 +360,7 @@ const getProfile = async (req, res) => {
       model: req.user.model
     });
 
-    // Prepare response based on model
+    // Prepare response based on model and HOD type
     const response = req.user.model === 'User' ? {
       id: hod._id,
       name: hod.name,
@@ -268,17 +370,19 @@ const getProfile = async (req, res) => {
       role: 'hod',
       isActive: hod.isActive,
       lastLogin: hod.lastLogin,
-      hodLeaveRequests: hod.hodLeaveRequests || []
+      hodLeaveRequests: hod.hodLeaveRequests || [],
+      hodType: 'teaching'
     } : {
       id: hod._id,
       name: hod.name,
       email: hod.email,
       campus: req.user.campus,
-      branchCode: hod.department.code,
+      branchCode: isTeaching && hod.department ? hod.department.code : undefined,
       role: 'hod',
       isActive: hod.status === 'active',
       lastLogin: hod.lastLogin,
-      hodLeaveRequests: hod.hodLeaveRequests || []
+      hodLeaveRequests: hod.hodLeaveRequests || [],
+      hodType: hod.hodType || 'teaching'
     };
 
     res.json(response);
@@ -339,17 +443,50 @@ const getDepartmentLeaves = async (req, res) => {
   try {
     console.log('Getting department leaves, token data:', req.user);
     
-    if (!req.user || !req.user.id || !req.user.branchCode || !req.user.campus || !req.user.model) {
+    if (!req.user || !req.user.id || !req.user.campus || !req.user.model) {
       console.log('Invalid token data:', req.user);
       return res.status(401).json({ msg: 'Invalid token data' });
     }
 
-    // Get all employees in this department with populated leave requests
-    const employees = await Employee.find({
-      department: req.user.branchCode,
-      campus: req.user.campus.toLowerCase()
-    })
-    .select('name email employeeId department leaveRequests')
+    // Get HOD to determine type
+    let hod;
+    if (req.user.model === 'User') {
+      hod = await User.findOne({
+        _id: req.user.id,
+        role: 'hod',
+        campus: req.user.campus,
+        branchCode: req.user.branchCode
+      });
+    } else {
+      hod = await HOD.findById(req.user.id);
+    }
+
+    if (!hod) {
+      return res.status(404).json({ msg: 'HOD not found' });
+    }
+
+    // Build query based on HOD type
+    let employeeQuery = {
+      campus: req.user.campus.toLowerCase(),
+      status: 'active'
+    };
+
+    if (hod.hodType === 'teaching') {
+      // Teaching HOD: get employees by department
+      if (!req.user.branchCode) {
+        return res.status(400).json({ msg: 'Branch code required for teaching HOD' });
+      }
+      employeeQuery.department = req.user.branchCode;
+      employeeQuery.employeeType = 'teaching';
+    } else {
+      // Non-teaching HOD: get employees assigned to this HOD
+      employeeQuery.assignedHodId = hod._id;
+      employeeQuery.employeeType = 'non-teaching';
+    }
+
+    // Get all employees matching the query with populated leave requests
+    const employees = await Employee.find(employeeQuery)
+    .select('name email employeeId department employeeType assignedHodId leaveRequests')
     .populate({
       path: 'leaveRequests.alternateSchedule.periods.substituteFaculty',
       select: 'name'
@@ -368,16 +505,17 @@ const getDepartmentLeaves = async (req, res) => {
         employeeId: employee._id,
         employeeName: employee.name,
         employeeEmail: employee.email,
-        employeeDepartment: employee.department,
+        employeeDepartment: employee.employeeType === 'non-teaching' ? 'Non-Teaching' : (employee.department || 'N/A'),
         employeeEmployeeId: employee.employeeId,
-        alternateSchedule: request.alternateSchedule.map(schedule => ({
+        employeeType: employee.employeeType,
+        alternateSchedule: request.alternateSchedule ? request.alternateSchedule.map(schedule => ({
           date: schedule.date,
           periods: schedule.periods.map(period => ({
             periodNumber: period.periodNumber,
             substituteFaculty: period.substituteFaculty ? period.substituteFaculty.name : 'Unknown Faculty',
             assignedClass: period.assignedClass
           }))
-        }))
+        })) : []
       }));
       return [...acc, ...employeeLeaves];
     }, []);
@@ -440,19 +578,39 @@ const updateLeaveRequest = async (req, res) => {
     });
 
     // Find the employee with the leave request
-    const employee = await Employee.findOne({
+    // For teaching HODs: match by department and branchCode
+    // For non-teaching HODs: match by assignedHodId
+    let employeeQuery = {
       _id: employeeId,
       'leaveRequests._id': leaveRequestId,
-      department: req.user.branchCode,
       campus: req.user.campus.toLowerCase()
-    });
+    };
+
+    // Determine HOD type from token or fetch HOD
+    const hod = await HOD.findById(hodId);
+    if (!hod) {
+      console.log('HOD not found:', hodId);
+      return res.status(404).json({ msg: 'HOD not found' });
+    }
+
+    if (hod.hodType === 'teaching') {
+      // Teaching HOD: match by department
+      employeeQuery.department = req.user.branchCode;
+      employeeQuery.employeeType = 'teaching';
+    } else {
+      // Non-teaching HOD: match by assignedHodId
+      employeeQuery.assignedHodId = hodId;
+      employeeQuery.employeeType = 'non-teaching';
+    }
+
+    const employee = await Employee.findOne(employeeQuery);
 
     if (!employee) {
       console.log('Employee or leave request not found:', {
         employeeId,
         leaveRequestId,
-        department: req.user.branchCode,
-        campus: req.user.campus
+        hodType: hod.hodType,
+        query: employeeQuery
       });
       return res.status(404).json({ msg: 'Employee or leave request not found' });
     }
@@ -467,12 +625,6 @@ const updateLeaveRequest = async (req, res) => {
       return res.status(404).json({ msg: 'Leave request not found' });
     }
 
-    const hod = await HOD.findById(hodId);
-    if (!hod) {
-      console.log('HOD not found:', hodId);
-      return res.status(404).json({ msg: 'HOD not found' });
-    }
-
     // Update leave request status
     leaveRequest.hodStatus = status;
     leaveRequest.hodRemarks = remarks;
@@ -480,11 +632,19 @@ const updateLeaveRequest = async (req, res) => {
 
     if (status === 'Rejected') {
       leaveRequest.status = 'Rejected';
-      leaveRequest.rejectionBy = 'HOD'; // <-- Add this line
+      leaveRequest.rejectionBy = 'HOD';
       await sendLeaveRejectionEmail(leaveRequest, employee, hod);
     } else if (status === 'Approved') {
-      leaveRequest.status = 'Forwarded by HOD';
-      await sendPrincipalNotification(leaveRequest, employee, hod);
+      // Determine forward destination based on employee type
+      if (employee.employeeType === 'non-teaching') {
+        // Non-teaching: forward to HR
+        leaveRequest.status = 'Forwarded to HR';
+        // No HR notification - status change only
+      } else {
+        // Teaching: forward to Principal (existing flow)
+        leaveRequest.status = 'Forwarded by HOD';
+        await sendPrincipalNotification(leaveRequest, employee, hod);
+      }
     }
 
     // Save the employee document to persist the leave request changes
@@ -518,8 +678,11 @@ const applyHodLeave = async (req, res) => {
     }
 
     // Find HOD based on model type
+    const isTeaching = req.user.hodType !== 'non-teaching' && !!req.user.branchCode;
+    
     let hod;
     if (req.user.model === 'User') {
+      // User model is only for teaching HODs
       hod = await User.findOne({
         _id: req.user.id,
         role: 'hod',
@@ -527,11 +690,21 @@ const applyHodLeave = async (req, res) => {
         branchCode: req.user.branchCode
       });
     } else {
-      hod = await HOD.findOne({
-        _id: req.user.id,
-        'department.code': req.user.branchCode,
-        'department.campusType': req.user.campus.charAt(0).toUpperCase() + req.user.campus.slice(1)
-      });
+      // HOD model - handle both teaching and non-teaching
+      if (isTeaching) {
+        hod = await HOD.findOne({
+          _id: req.user.id,
+          'department.code': req.user.branchCode,
+          'department.campusType': req.user.campus.charAt(0).toUpperCase() + req.user.campus.slice(1),
+          hodType: 'teaching'
+        });
+      } else {
+        // Non-teaching HOD - find by ID and hodType only
+        hod = await HOD.findOne({
+          _id: req.user.id,
+          hodType: 'non-teaching'
+        });
+      }
     }
 
     if (!hod) {
@@ -568,8 +741,11 @@ const applyHodLeave = async (req, res) => {
 // Get HOD's own leave requests
 const getHodLeaves = async (req, res) => {
   try {
+    const isTeaching = req.user.hodType !== 'non-teaching' && !!req.user.branchCode;
+    
     let hod;
     if (req.user.model === 'User') {
+      // User model is only for teaching HODs
       hod = await User.findOne({
         _id: req.user.id,
         role: 'hod',
@@ -577,11 +753,21 @@ const getHodLeaves = async (req, res) => {
         branchCode: req.user.branchCode
       }).select('hodLeaveRequests leaveBalance');
     } else {
-      hod = await HOD.findOne({
-        _id: req.user.id,
-        'department.code': req.user.branchCode,
-        'department.campusType': req.user.campus.charAt(0).toUpperCase() + req.user.campus.slice(1)
-      }).select('hodLeaveRequests leaveBalance');
+      // HOD model - handle both teaching and non-teaching
+      if (isTeaching) {
+        hod = await HOD.findOne({
+          _id: req.user.id,
+          'department.code': req.user.branchCode,
+          'department.campusType': req.user.campus.charAt(0).toUpperCase() + req.user.campus.slice(1),
+          hodType: 'teaching'
+        }).select('hodLeaveRequests leaveBalance');
+      } else {
+        // Non-teaching HOD - find by ID and hodType only
+        hod = await HOD.findOne({
+          _id: req.user.id,
+          hodType: 'non-teaching'
+        }).select('hodLeaveRequests leaveBalance');
+      }
     }
 
     if (!hod) {
@@ -603,16 +789,49 @@ const getDepartmentEmployees = async (req, res) => {
   try {
     console.log('Getting department employees for HOD:', req.user);
 
-    const { branchCode, campus } = req.user;
+    const { campus } = req.user;
     
-    // Find all employees in the HOD's department
-    const employees = await Employee.find({
-      department: branchCode,
+    // Get HOD to determine type
+    let hod;
+    if (req.user.model === 'User') {
+      hod = await User.findOne({
+        _id: req.user.id,
+        role: 'hod',
+        campus: req.user.campus,
+        branchCode: req.user.branchCode
+      });
+    } else {
+      hod = await HOD.findById(req.user.id);
+    }
+
+    if (!hod) {
+      return res.status(404).json({ msg: 'HOD not found' });
+    }
+
+    // Build query based on HOD type
+    let employeeQuery = {
       campus: campus.toLowerCase(),
       status: 'active'
-    }).select('name email employeeId department phoneNumber leaveBalance status role roleDisplayName designation');
+    };
 
-    console.log(`Found ${employees.length} employees for department ${branchCode} in ${campus} campus`);
+    if (hod.hodType === 'teaching') {
+      // Teaching HOD: get employees by department
+      if (!req.user.branchCode) {
+        return res.status(400).json({ msg: 'Branch code required for teaching HOD' });
+      }
+      employeeQuery.department = req.user.branchCode;
+      employeeQuery.employeeType = 'teaching';
+    } else {
+      // Non-teaching HOD: get employees assigned to this HOD
+      employeeQuery.assignedHodId = hod._id;
+      employeeQuery.employeeType = 'non-teaching';
+    }
+
+    // Find all employees matching the query
+    const employees = await Employee.find(employeeQuery)
+      .select('name email employeeId department employeeType assignedHodId phoneNumber leaveBalance status role roleDisplayName designation');
+
+    console.log(`Found ${employees.length} employees for ${hod.hodType} HOD in ${campus} campus`);
 
     res.json(employees);
   } catch (error) {
@@ -628,11 +847,15 @@ const getDashboard = async (req, res) => {
       id: req.user.id,
       model: req.user.model,
       campus: req.user.campus,
-      branchCode: req.user.branchCode
+      branchCode: req.user.branchCode,
+      hodType: req.user.hodType
     });
 
+    const isTeaching = req.user.hodType !== 'non-teaching' && !!req.user.branchCode;
+    
     let hod;
     if (req.user.model === 'User') {
+      // User model is only for teaching HODs
       hod = await User.findOne({
         _id: req.user.id,
         role: 'hod',
@@ -640,11 +863,21 @@ const getDashboard = async (req, res) => {
         branchCode: req.user.branchCode
       }).select('-password').populate('campus');
     } else {
-      hod = await HOD.findOne({
-        _id: req.user.id,
-        'department.code': req.user.branchCode,
-        'department.campusType': req.user.campus.charAt(0).toUpperCase() + req.user.campus.slice(1)
-      }).select('-password').populate('campus');
+      // HOD model - handle both teaching and non-teaching
+      if (isTeaching) {
+        hod = await HOD.findOne({
+          _id: req.user.id,
+          'department.code': req.user.branchCode,
+          'department.campusType': req.user.campus.charAt(0).toUpperCase() + req.user.campus.slice(1),
+          hodType: 'teaching'
+        }).select('-password').populate('campus');
+      } else {
+        // Non-teaching HOD - find by ID and hodType only
+        hod = await HOD.findOne({
+          _id: req.user.id,
+          hodType: 'non-teaching'
+        }).select('-password').populate('campus');
+      }
     }
 
     if (!hod) {
@@ -657,22 +890,38 @@ const getDashboard = async (req, res) => {
       name: hod.name,
       email: hod.email,
       campus: req.user.campus,
-      branchCode: req.user.branchCode
+      branchCode: req.user.branchCode,
+      hodType: hod.hodType
     });
 
-    // Get all employees in this department with populated leave requests
-    const employees = await Employee.find({
-      department: req.user.branchCode,
+    // Build query based on HOD type
+    let employeeQuery = {
       campus: req.user.campus.toLowerCase(),
       status: 'active'
-    })
-    .select('name email employeeId department phoneNumber leaveBalance status role roleDisplayName designation leaveRequests')
+    };
+
+    if (hod.hodType === 'teaching') {
+      // Teaching HOD: get employees by department
+      if (!req.user.branchCode) {
+        return res.status(400).json({ msg: 'Branch code required for teaching HOD' });
+      }
+      employeeQuery.department = req.user.branchCode;
+      employeeQuery.employeeType = 'teaching';
+    } else {
+      // Non-teaching HOD: get employees assigned to this HOD
+      employeeQuery.assignedHodId = hod._id;
+      employeeQuery.employeeType = 'non-teaching';
+    }
+
+    // Get all employees matching the query with populated leave requests
+    const employees = await Employee.find(employeeQuery)
+    .select('name email employeeId department employeeType assignedHodId phoneNumber leaveBalance status role roleDisplayName designation leaveRequests')
     .populate({
       path: 'leaveRequests.alternateSchedule.periods.substituteFaculty',
       select: 'name'
     });
 
-    console.log(`Found ${employees.length} employees in department`);
+    console.log(`Found ${employees.length} employees for ${hod.hodType} HOD`);
 
     // Collect all leave requests from employees with populated faculty details
     const departmentLeaves = employees.reduce((acc, employee) => {
@@ -686,17 +935,18 @@ const getDashboard = async (req, res) => {
         employeeId: employee._id,
         employeeName: employee.name,
         employeeEmail: employee.email,
-        employeeDepartment: employee.department,
+        employeeDepartment: employee.employeeType === 'non-teaching' ? 'Non-Teaching' : (employee.department || 'N/A'),
         employeeEmployeeId: employee.employeeId,
         employeePhoneNumber: employee.phoneNumber,
-        alternateSchedule: leave.alternateSchedule.map(schedule => ({
+        employeeType: employee.employeeType,
+        alternateSchedule: leave.alternateSchedule ? leave.alternateSchedule.map(schedule => ({
           date: schedule.date,
           periods: schedule.periods.map(period => ({
             periodNumber: period.periodNumber,
             substituteFaculty: period.substituteFaculty ? period.substituteFaculty.name : 'Unknown Faculty',
             assignedClass: period.assignedClass
           }))
-        }))
+        })) : []
       }));
       return [...acc, ...employeeLeaves];
     }, []);
@@ -712,7 +962,9 @@ const getDashboard = async (req, res) => {
       pendingLeaves: departmentLeaves.filter(leave => leave.status === 'Pending').length,
       approvedLeaves: departmentLeaves.filter(leave => leave.status === 'Approved').length,
       rejectedLeaves: departmentLeaves.filter(leave => leave.status === 'Rejected').length,
-      forwardedLeaves: departmentLeaves.filter(leave => leave.status === 'Forwarded by HOD').length
+      forwardedLeaves: departmentLeaves.filter(leave => 
+        leave.status === 'Forwarded by HOD' || leave.status === 'Forwarded to HR'
+      ).length
     };
 
     console.log('Department stats:', stats);
@@ -949,17 +1201,36 @@ const resetEmployeePassword = async (req, res) => {
 // Get CCL work requests
 const getCCLWorkRequests = async (req, res) => {
   try {
+    const isTeaching = req.user.hodType !== 'non-teaching' && !!req.user.branchCode;
+    
     console.log('Getting CCL work requests for HOD:', {
       department: req.user.branchCode,
-      campus: req.user.campus
+      campus: req.user.campus,
+      hodType: req.user.hodType
     });
 
-    // Get all employees in this department
-    const employees = await Employee.find({
-      department: req.user.branchCode,
-      campus: req.user.campus.toLowerCase()
-    })
-    .select('name email employeeId department')
+    // Build employee query based on HOD type
+    let employeeQuery = {
+      campus: req.user.campus.toLowerCase(),
+      status: 'active'
+    };
+
+    if (isTeaching) {
+      // Teaching HOD: get employees by department
+      if (!req.user.branchCode) {
+        return res.status(400).json({ msg: 'Branch code required for teaching HOD' });
+      }
+      employeeQuery.department = req.user.branchCode;
+      employeeQuery.employeeType = 'teaching';
+    } else {
+      // Non-teaching HOD: get employees assigned to this HOD
+      employeeQuery.assignedHodId = req.user.id;
+      employeeQuery.employeeType = 'non-teaching';
+    }
+
+    // Get all employees in this department or assigned to this HOD
+    const employees = await Employee.find(employeeQuery)
+    .select('name email employeeId department employeeType assignedHodId')
     .populate({
       path: 'cclWork',
       match: { status: { $in: ['Pending', 'Forwarded to Principal', 'Approved', 'Rejected'] } },

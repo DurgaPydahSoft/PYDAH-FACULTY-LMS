@@ -1,6 +1,57 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { FaUserTie, FaUsers, FaFileExcel, FaDownload, FaUpload, FaTimes } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
+import { toast } from 'react-toastify';
+import { API_BASE_URL } from '../../config';
+
+// Non-Teaching HOD Select Component
+const NonTeachingHodSelect = ({ value, onChange, required }) => {
+  const [nonTeachingHODs, setNonTeachingHODs] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchNonTeachingHODs();
+  }, []);
+
+  const fetchNonTeachingHODs = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/hr/hods/non-teaching`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setNonTeachingHODs(data);
+      } else {
+        toast.error('Failed to fetch non-teaching HODs');
+      }
+    } catch (error) {
+      console.error('Error fetching non-teaching HODs:', error);
+      toast.error('Error fetching non-teaching HODs');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <select
+      className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
+      value={value}
+      onChange={onChange}
+      required={required}
+      disabled={loading}
+    >
+      <option value="">{loading ? 'Loading...' : 'Select Non-Teaching HOD'}</option>
+      {nonTeachingHODs.map(hod => (
+        <option key={hod._id} value={hod._id}>
+          {hod.name} ({hod.email})
+        </option>
+      ))}
+    </select>
+  );
+};
 
 const EmployeeOperationsSection = ({
   // Single Employee Registration Props
@@ -154,6 +205,30 @@ const EmployeeOperationsSection = ({
               }}
               className="space-y-4"
             >
+              {/* Employee Type Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Employee Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                  className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
+                  value={newEmployee.employeeType}
+                  onChange={e => {
+                    const employeeType = e.target.value;
+                    setNewEmployee({ 
+                      ...newEmployee, 
+                      employeeType,
+                      department: employeeType === 'teaching' ? newEmployee.department : '',
+                      assignedHodId: employeeType === 'non-teaching' ? newEmployee.assignedHodId : ''
+                    });
+                  }}
+                  required
+                >
+                  <option value="teaching">Teaching</option>
+                  <option value="non-teaching">Non-Teaching</option>
+                </select>
+              </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input
                   type="text"
@@ -209,17 +284,25 @@ const EmployeeOperationsSection = ({
                   <option value="">Select Campus</option>
                   <option value={user?.campus?.name}>{user?.campus?.name}</option>
                 </select>
-                <select
-                  className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
-                  value={newEmployee.department}
-                  onChange={e => setNewEmployee({ ...newEmployee, department: e.target.value })}
-                  required
-                >
-                  <option value="">Select Department</option>
-                  {branches.map(branch => (
-                    <option key={branch.code} value={branch.code}>{branch.name} ({branch.code})</option>
-                  ))}
-                </select>
+                {newEmployee.employeeType === 'teaching' ? (
+                  <select
+                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
+                    value={newEmployee.department}
+                    onChange={e => setNewEmployee({ ...newEmployee, department: e.target.value })}
+                    required
+                  >
+                    <option value="">Select Department</option>
+                    {branches.map(branch => (
+                      <option key={branch.code} value={branch.code}>{branch.name} ({branch.code})</option>
+                    ))}
+                  </select>
+                ) : (
+                  <NonTeachingHodSelect
+                    value={newEmployee.assignedHodId}
+                    onChange={e => setNewEmployee({ ...newEmployee, assignedHodId: e.target.value })}
+                    required
+                  />
+                )}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input

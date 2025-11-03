@@ -124,12 +124,29 @@ exports.registerEmployee = async (req, res) => {
       department,
       role,
       customRole,
-      leaveBalanceByExperience
+      leaveBalanceByExperience,
+      employeeType,
+      assignedHodId
     } = req.body;
 
     // Validate required fields
-    if (!name || !password || !employeeId || !department) {
+    if (!name || !password || !employeeId) {
       return res.status(400).json({ msg: 'Please provide all required fields' });
+    }
+
+    // Validate employeeType
+    if (!employeeType || !['teaching', 'non-teaching'].includes(employeeType)) {
+      return res.status(400).json({ msg: 'Please provide valid employee type (teaching or non-teaching)' });
+    }
+
+    // For teaching employees, department is required
+    if (employeeType === 'teaching' && !department) {
+      return res.status(400).json({ msg: 'Department is required for teaching employees' });
+    }
+
+    // For non-teaching employees, assignedHodId is required
+    if (employeeType === 'non-teaching' && !assignedHodId) {
+      return res.status(400).json({ msg: 'HOD assignment is required for non-teaching employees' });
     }
 
     // Validate email format only if email is provided
@@ -159,8 +176,24 @@ exports.registerEmployee = async (req, res) => {
       return res.status(404).json({ msg: 'HR not found' });
     }
 
-    // Validate role for campus only if role is provided
-    if (role && role.trim() !== '') {
+    // Validate assignedHodId for non-teaching employees
+    if (employeeType === 'non-teaching' && assignedHodId) {
+      const { HOD } = require('../models');
+      const assignedHod = await HOD.findById(assignedHodId);
+      if (!assignedHod || assignedHod.hodType !== 'non-teaching') {
+        return res.status(400).json({ msg: 'Invalid HOD selected. Please select a non-teaching HOD.' });
+      }
+      // Verify HOD belongs to same campus
+      const campusDoc = await require('../models').Campus.findOne({ 
+        $or: [{ type: hr.campus.type }, { name: hr.campus.name }] 
+      });
+      if (!campusDoc || (assignedHod.campusModel === 'Principal' && campusDoc.principalId.toString() !== assignedHod.campus.toString())) {
+        return res.status(400).json({ msg: 'Selected HOD does not belong to your campus.' });
+      }
+    }
+
+    // Validate role for campus only if role is provided (for teaching employees)
+    if (employeeType === 'teaching' && role && role.trim() !== '') {
     try {
       Employee.validateRoleForCampus(hr.campus.name.toLowerCase(), role);
     } catch (error) {
@@ -184,19 +217,18 @@ exports.registerEmployee = async (req, res) => {
       }
     } else {
       // Default role if none provided
-      roleDisplayName = 'Faculty';
+      roleDisplayName = employeeType === 'teaching' ? 'Faculty' : 'Non-Teaching Staff';
     }
 
     // Create new employee
     const leaveBalanceExpNum = typeof leaveBalanceByExperience === 'number' ? leaveBalanceByExperience : (leaveBalanceByExperience ? Number(leaveBalanceByExperience) : 0);
-    const employee = new Employee({
+    const employeeData = {
       name,
       email: email && email.trim() !== '' ? email.toLowerCase().trim() : null,
       password,
       phoneNumber,
       employeeId,
-      department,
-      branchCode: department, // For compatibility
+      employeeType,
       role,
       roleDisplayName,
       campus: hr.campus.name.toLowerCase(),
@@ -204,7 +236,18 @@ exports.registerEmployee = async (req, res) => {
       leaveBalance: leaveBalanceExpNum > 0 ? leaveBalanceExpNum : 12,
       cclBalance: 0, // Default CCL balance
       leaveBalanceByExperience: leaveBalanceExpNum
-    });
+    };
+
+    // Add department and branchCode for teaching employees
+    if (employeeType === 'teaching') {
+      employeeData.department = department;
+      employeeData.branchCode = department;
+    } else {
+      // For non-teaching, add assignedHodId
+      employeeData.assignedHodId = assignedHodId;
+    }
+
+    const employee = new Employee(employeeData);
 
     await employee.save();
 
@@ -718,10 +761,11 @@ exports.updateLeaveRequestStatus = async (req, res) => {
     }
 
     // Check if the request is in the correct status for HR action
-    if (leaveRequest.status !== 'Forwarded by HOD') {
+    // HR can approve requests that are "Forwarded to HR" (non-teaching) or "Forwarded by HOD" (teaching)
+    if (leaveRequest.status !== 'Forwarded to HR' && leaveRequest.status !== 'Forwarded by HOD') {
       return res.status(400).json({ 
         success: false, 
-        msg: 'Leave request is not in "Forwarded by HOD" status' 
+        msg: 'Leave request must be in "Forwarded to HR" or "Forwarded by HOD" status' 
       });
     }
 
@@ -815,6 +859,7 @@ exports.getCampusLeaveRequests = async (req, res) => {
       status,
       department,
       leaveType,
+      employeeType,
       startDate,
       endDate,
       page = 1,
@@ -826,6 +871,9 @@ exports.getCampusLeaveRequests = async (req, res) => {
     if (department) {
       employeeQuery.department = department;
     }
+    if (employeeType) {
+      employeeQuery.employeeType = employeeType;
+    }
     if (search) {
       employeeQuery.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -835,7 +883,7 @@ exports.getCampusLeaveRequests = async (req, res) => {
     }
 
     const employees = await Employee.find(employeeQuery)
-      .select('name email department employeeId leaveRequests')
+      .select('name email department employeeId employeeType leaveRequests')
       .lean();
 
     // Aggregate all leave requests
@@ -849,7 +897,8 @@ exports.getCampusLeaveRequests = async (req, res) => {
             employeeName: employee.name,
             employeeEmail: employee.email,
             employeeEmployeeId: employee.employeeId,
-            employeeDepartment: employee.department
+            employeeDepartment: employee.employeeType === 'non-teaching' ? 'Non-Teaching' : (employee.department || 'N/A'),
+            employeeType: employee.employeeType || 'teaching'
           });
         });
       }
@@ -909,10 +958,69 @@ exports.getCampusLeaveRequests = async (req, res) => {
   }
 };
 
-// Get all HODs
+// Get all HODs (filtered by campus)
 exports.getAllHODs = async (req, res) => {
   try {
-    const hods = await HOD.find({}).populate('department', 'name code');
+    // Get HR's campus
+    const hr = await HR.findById(req.user.id);
+    if (!hr || !hr.campus) {
+      return res.status(400).json({ msg: 'HR campus information not found' });
+    }
+
+    const campusType = hr.campus.type || (hr.campus.name ? hr.campus.name.charAt(0).toUpperCase() + hr.campus.name.slice(1) : null);
+    const campusName = hr.campus.name;
+
+    // Find Campus document
+    const { Campus } = require('../models');
+    const campusDoc = await Campus.findOne({ $or: [{ type: campusType }, { name: campusName }] });
+    if (!campusDoc) {
+      return res.status(400).json({ msg: 'Campus document not found' });
+    }
+
+    // Find HODs for this campus (by matching campus reference)
+    let hods;
+    if (campusDoc.principalId) {
+      // HODs linked to Principal model
+      hods = await HOD.find({
+        campus: campusDoc.principalId,
+        campusModel: 'Principal'
+      }).lean(); // Use lean() to get plain JavaScript objects
+    } else {
+      // Try User model principal
+      const { User } = require('../models');
+      const principalUser = await User.findOne({ role: 'principal', campus: campusDoc.name.toLowerCase() });
+      if (principalUser) {
+        hods = await HOD.find({
+          campus: principalUser._id,
+          campusModel: 'User'
+        }).lean(); // Use lean() to get plain JavaScript objects
+      } else {
+        hods = [];
+      }
+    }
+
+    // Set default hodType for HODs that don't have it (backward compatibility)
+    // Also update in database for future queries
+    const hodsToUpdate = hods.filter(hod => !hod.hodType);
+    if (hodsToUpdate.length > 0) {
+      const hodIds = hodsToUpdate.map(hod => hod._id);
+      await HOD.updateMany(
+        { _id: { $in: hodIds } },
+        { $set: { hodType: 'teaching' } }
+      );
+      // Update in-memory array
+      hods = hods.map(hod => ({
+        ...hod,
+        hodType: hod.hodType || 'teaching'
+      }));
+    } else {
+      // Just ensure hodType is set in response (don't update DB if already set)
+      hods = hods.map(hod => ({
+        ...hod,
+        hodType: hod.hodType || 'teaching'
+      }));
+    }
+    
     res.json(hods);
   } catch (error) {
     console.error('Get HODs Error:', error);
@@ -920,15 +1028,70 @@ exports.getAllHODs = async (req, res) => {
   }
 };
 
+// Get non-teaching HODs (for employee registration)
+exports.getNonTeachingHODs = async (req, res) => {
+  try {
+    // Get HR's campus
+    const hr = await HR.findById(req.user.id);
+    if (!hr || !hr.campus) {
+      return res.status(400).json({ msg: 'HR campus information not found' });
+    }
+
+    const campusType = hr.campus.type || (hr.campus.name ? hr.campus.name.charAt(0).toUpperCase() + hr.campus.name.slice(1) : null);
+    const campusName = hr.campus.name;
+
+    // Find Campus document
+    const { Campus } = require('../models');
+    const campusDoc = await Campus.findOne({ $or: [{ type: campusType }, { name: campusName }] });
+    if (!campusDoc) {
+      return res.status(400).json({ msg: 'Campus document not found' });
+    }
+
+    // Find non-teaching HODs for this campus
+    let hods;
+    if (campusDoc.principalId) {
+      hods = await HOD.find({
+        campus: campusDoc.principalId,
+        campusModel: 'Principal',
+        hodType: 'non-teaching',
+        status: 'active'
+      }).select('name email _id');
+    } else {
+      const { User } = require('../models');
+      const principalUser = await User.findOne({ role: 'principal', campus: campusDoc.name.toLowerCase() });
+      if (principalUser) {
+        hods = await HOD.find({
+          campus: principalUser._id,
+          campusModel: 'User',
+          hodType: 'non-teaching',
+          status: 'active'
+        }).select('name email _id');
+      } else {
+        hods = [];
+      }
+    }
+    
+    res.json(hods);
+  } catch (error) {
+    console.error('Get Non-Teaching HODs Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
 // Create HOD
 exports.createHOD = async (req, res) => {
   try {
-    const { name, email, password, department, HODId } = req.body;
+    const { name, email, password, department, HODId, hodType } = req.body;
     const hrId = req.user.id;
 
     // Validate email
     if (!validateEmail(email)) {
       return res.status(400).json({ msg: 'Invalid email format' });
+    }
+
+    // Validate hodType
+    if (!hodType || !['teaching', 'non-teaching'].includes(hodType)) {
+      return res.status(400).json({ msg: 'Please provide valid HOD type (teaching or non-teaching)' });
     }
 
     // Check if email already exists
@@ -937,12 +1100,14 @@ exports.createHOD = async (req, res) => {
       return res.status(400).json({ msg: 'HOD with this email already exists' });
     }
 
-    // Check if department is provided and has required fields
-    if (!department || !department.name || !department.code) {
-      return res.status(400).json({ 
-        msg: 'Department information is required with name and code',
-        receivedDepartment: department
-      });
+    // For teaching HODs, department is required
+    if (hodType === 'teaching') {
+      if (!department || !department.name || !department.code) {
+        return res.status(400).json({ 
+          msg: 'Department information is required with name and code for teaching HODs',
+          receivedDepartment: department
+        });
+      }
     }
 
     // Find HR to determine campus info
@@ -979,30 +1144,42 @@ exports.createHOD = async (req, res) => {
       return res.status(400).json({ msg: 'No principal found for this campus to associate HOD with' });
     }
 
+    // Validate password
+    if (!password || password.trim().length < 6) {
+      return res.status(400).json({ msg: 'Password is required and must be at least 6 characters' });
+    }
+
     // Create new HOD with required fields (including campus and campusModel to satisfy schema validation)
-    const hod = new HOD({
+    const hodData = {
       name: name.trim(),
       email: email.toLowerCase().trim(),
-      password: password || 'defaultPassword',
+      password: password.trim(), // Password is required and validated
       HODId: HODId || email.toLowerCase(),
-      department: {
-        name: department.name.trim(),
-        code: department.code.trim().toUpperCase(),
-        campusType: department.campusType || campusDoc.type || campusType || 'Engineering'
-      },
+      hodType: hodType,
       status: 'active',
       lastLogin: null,
       createdBy: hrId,
       createdByModel: 'HR',
       campus: campusRef,
       campusModel: campusModel
-    });
+    };
+
+    // Add department only for teaching HODs
+    if (hodType === 'teaching') {
+      hodData.department = {
+        name: department.name.trim(),
+        code: department.code.trim().toUpperCase(),
+        campusType: department.campusType || campusDoc.type || campusType || 'Engineering'
+      };
+    }
+
+    const hod = new HOD(hodData);
 
     // Save and return
     const savedHOD = await hod.save();
 
-    // If campus has branch entries, link hodId to branch if codes match
-    if (Array.isArray(campusDoc.branches) && campusDoc.branches.length > 0) {
+    // If teaching HOD and campus has branch entries, link hodId to branch if codes match
+    if (hodType === 'teaching' && Array.isArray(campusDoc.branches) && campusDoc.branches.length > 0) {
       const branch = campusDoc.branches.find(b => b.code === department.code.trim().toUpperCase());
       if (branch) {
         branch.hodId = savedHOD._id;
@@ -1068,7 +1245,8 @@ exports.updateHOD = async (req, res) => {
     if (status) hod.status = status;
 
     const updatedHOD = await hod.save();
-    const populatedHOD = await HOD.findById(updatedHOD._id).populate('department', 'name code');
+    // Department is embedded, no need to populate
+    const populatedHOD = await HOD.findById(updatedHOD._id);
     
     res.json(populatedHOD);
   } catch (error) {
