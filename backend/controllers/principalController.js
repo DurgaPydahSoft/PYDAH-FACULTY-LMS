@@ -1077,8 +1077,13 @@ approvedNumberOfDays,
         finalNumberOfDays: finalNumberOfDays
       });
 
-      // Send approval notification to employee
-      await sendEmployeePrincipalApprovalNotification(leaveRequest, employee);
+      // Send approval notification to employee, but don't block the update if it fails
+      try {
+        await sendEmployeePrincipalApprovalNotification(leaveRequest, employee);
+      } catch (emailError) {
+        console.error('Error sending approval email (non-blocking):', emailError.message);
+        // Continue with the update even if email fails
+      }
 
     } else if (action === 'reject') {
       // Check if already rejected
@@ -1143,8 +1148,13 @@ approvedNumberOfDays,
         endDate: leaveRequest.endDate
       });
 
-      // Send rejection notification to employee
-      await sendEmployeePrincipalRejectionNotification(leaveRequest, employee);
+      // Send rejection notification to employee, but don't block the update if it fails
+      try {
+        await sendEmployeePrincipalRejectionNotification(leaveRequest, employee);
+      } catch (emailError) {
+        console.error('Error sending rejection email (non-blocking):', emailError.message);
+        // Continue with the update even if email fails
+      }
     }
 
     res.json({ 

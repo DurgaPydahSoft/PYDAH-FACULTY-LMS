@@ -5,7 +5,8 @@ const LeaveDateEditModal = ({
   onClose, 
   leaveRequest, 
   onApprove, 
-  onReject 
+  onReject,
+  action // 'approve' or 'reject' - determines which button to show
 }) => {
   const [formData, setFormData] = useState({
     approvedStartDate: '',
@@ -147,7 +148,7 @@ const LeaveDateEditModal = ({
       <div className="bg-white rounded-lg shadow-xl p-3 sm:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-start mb-4">
           <h3 className="text-lg sm:text-xl font-bold text-primary">
-            Review & Approve Leave Request
+            {action === 'reject' ? 'Review & Reject Leave Request' : 'Review & Approve Leave Request'}
           </h3>
           <button
             onClick={onClose}
@@ -322,20 +323,26 @@ const LeaveDateEditModal = ({
             >
               Cancel
             </button>
-            <button
-              onClick={() => handleSubmit('reject')}
-              className="px-4 py-2 text-white bg-red-500 rounded-md hover:bg-red-600 transition-colors"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Rejecting...' : 'Reject'}
-            </button>
-            <button
-              onClick={() => handleSubmit('approve')}
-              className="px-4 py-2 text-white bg-green-500 rounded-md hover:bg-green-600 transition-colors"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Approving...' : 'Approve'}
-            </button>
+            {/* Only show reject button if action is 'reject' or action is not specified (show both) */}
+            {(action === 'reject' || !action) && (
+              <button
+                onClick={() => handleSubmit('reject')}
+                className="px-4 py-2 text-white bg-red-500 rounded-md hover:bg-red-600 transition-colors"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Rejecting...' : 'Reject'}
+              </button>
+            )}
+            {/* Only show approve button if action is 'approve' or action is not specified (show both) */}
+            {(action === 'approve' || !action) && (
+              <button
+                onClick={() => handleSubmit('approve')}
+                className="px-4 py-2 text-white bg-green-500 rounded-md hover:bg-green-600 transition-colors"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Approving...' : 'Approve'}
+              </button>
+            )}
           </div>
         </div>
       </div>

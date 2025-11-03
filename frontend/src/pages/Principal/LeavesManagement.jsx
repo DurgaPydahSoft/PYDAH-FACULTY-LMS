@@ -936,7 +936,8 @@ const allLeaveRows = [
                             ${row.status === 'Approved' ? 'bg-green-100 text-green-800' :
                                                             row.status === 'Rejected' ? 'bg-red-100 text-red-800' :
                                                                 row.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
-                                                                    'bg-yellow-100 text-yellow-800'}`}
+                                                                    row.status === 'Forwarded to HR' ? 'bg-purple-100 text-purple-800' :
+                                                                        'bg-yellow-100 text-yellow-800'}`}
                                                     >
                                                         {row.status || 'N/A'}
                                                     </span>
@@ -1093,7 +1094,8 @@ const allLeaveRows = [
                   ${leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
                                         leave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
                                             leave.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
-                                                'bg-yellow-100 text-yellow-800'}`}
+                                                leave.status === 'Forwarded to HR' ? 'bg-purple-100 text-purple-800' :
+                                                    'bg-yellow-100 text-yellow-800'}`}
                                 >
                                     {leave.status || 'N/A'}
                                 </span>
@@ -1122,7 +1124,8 @@ const allLeaveRows = [
                     ${leave.status === 'Approved' ? 'bg-green-100 text-green-800' :
                                             leave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
                                                 leave.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
-                                                    'bg-yellow-100 text-yellow-800'}`}
+                                                    leave.status === 'Forwarded to HR' ? 'bg-purple-100 text-purple-800' :
+                                                        'bg-yellow-100 text-yellow-800'}`}
                                     >
                                         {leave.status || 'N/A'}
                                     </span>
@@ -1272,7 +1275,8 @@ const allLeaveRows = [
                       ${selectedLeave.status === 'Approved' ? 'bg-green-100 text-green-800' :
                                                 selectedLeave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
                                                     selectedLeave.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
-                                                        'bg-yellow-100 text-yellow-800'}`}
+                                                        selectedLeave.status === 'Forwarded to HR' ? 'bg-purple-100 text-purple-800' :
+                                                            'bg-yellow-100 text-yellow-800'}`}
                                         >
                                             {selectedLeave.status || 'N/A'}
                                         </span>
@@ -1393,6 +1397,7 @@ const allLeaveRows = [
                                             onClick={() => {
                                                 setShowLeaveDetailsModal(false);
                                                 setSelectedLeaveForEdit(selectedLeave);
+                                                setSelectedAction('approve');
                                                 setShowDateEditModal(true);
                                             }}
                                             className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors"
@@ -1404,6 +1409,7 @@ const allLeaveRows = [
                                         onClick={() => {
                                             setShowLeaveDetailsModal(false);
                                             setSelectedLeaveForEdit(selectedLeave);
+                                            setSelectedAction('reject');
                                             setShowDateEditModal(true);
                                         }}
                                         className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition-colors"
@@ -1423,8 +1429,10 @@ const allLeaveRows = [
                 onClose={() => {
                     setShowDateEditModal(false);
                     setSelectedLeaveForEdit(null);
+                    setSelectedAction(null);
                 }}
                 leaveRequest={selectedLeaveForEdit}
+                action={selectedAction} // Pass the action to determine which button to show
                 onApprove={handleApproveWithDates}
                 onReject={handleRejectWithDates}
             />
