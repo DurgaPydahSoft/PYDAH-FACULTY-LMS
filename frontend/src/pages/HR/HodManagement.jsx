@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import axiosInstance from '../../utils/axiosConfig';
-import { FaUserTie, FaPencilAlt, FaKey, FaTrash } from 'react-icons/fa';
+import HodPasswordResetModal from '../../components/HodPasswordResetModal';
 
 const HodManagement = ({ onHodUpdate, campus }) => {
   const [hods, setHods] = useState([]);
@@ -19,6 +19,14 @@ const HodManagement = ({ onHodUpdate, campus }) => {
   const [selectedHod, setSelectedHod] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+    phoneNumber: '',
+    department: '',
+    status: ''
+  });
   const [error, setError] = useState('');
 
   // Debug effect to log branches state changes with more details
@@ -151,14 +159,6 @@ const HodManagement = ({ onHodUpdate, campus }) => {
     return true;
   };
   
-  // Helper to check if edit form is dirty and valid
-  const isEditFormDirty = selectedHod && (
-    formData.name !== selectedHod.name ||
-    formData.email !== selectedHod.email ||
-    formData.branchCode !== (selectedHod.department?.code || selectedHod.branchCode || '')
-  );
-  
-  const isEditFormBranchValid = safeBranches.some(b => b.code === formData.branchCode);
 
   // Handle create HOD
   const handleCreateHOD = async (e) => {
@@ -284,66 +284,72 @@ const HodManagement = ({ onHodUpdate, campus }) => {
   // Handle edit HOD
   const handleEditClick = (hod) => {
     setSelectedHod(hod);
-    setFormData({
+    setEditForm({
       name: hod.name,
       email: hod.email,
-      branchCode: hod.department?.code || hod.branchCode || '',
-      HODId: hod.HODId || '',
-      password: 'defaultPassword' // Keep password for form consistency
+      phoneNumber: hod.phoneNumber || '',
+      department: hod.department?.code || hod.branchCode || '',
+      status: hod.status || (hod.isActive ? 'active' : 'inactive')
     });
     setShowEditModal(true);
   };
+  
+  // Helper to check if edit form is dirty and valid
+  const isEditFormDirty = selectedHod && (
+    editForm.name !== selectedHod.name ||
+    editForm.email !== selectedHod.email ||
+    editForm.phoneNumber !== (selectedHod.phoneNumber || '') ||
+    editForm.department !== (selectedHod.department?.code || selectedHod.branchCode || '') ||
+    editForm.status !== (selectedHod.status || (selectedHod.isActive ? 'active' : 'inactive'))
+  );
+  
+  const isEditFormDepartmentValid = selectedHod?.hodType === 'non-teaching' || safeBranches.some(b => b.code === editForm.department);
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedHod) return;
+    if (!selectedHod || !isEditFormDirty || !isEditFormDepartmentValid) return;
     
-    if (!validateForm()) return;
-
     try {
-      // Determine campus type robustly (support campus prop or current user)
-      const currentUser = (() => {
-        try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
-      })();
-
-      let derivedCampus = null;
-      if (typeof campus === 'string') derivedCampus = campus;
-      else if (campus && typeof campus === 'object') derivedCampus = campus.type || campus.name;
-      else if (currentUser && currentUser.campus) derivedCampus = currentUser.campus.type || currentUser.campus.name;
-
-      const campusType = derivedCampus ? String(derivedCampus).charAt(0).toUpperCase() + String(derivedCampus).slice(1) : 'Engineering';
-
-      // Find the selected branch from branches array
-      const selectedBranch = safeBranches.find(branch => branch.code === formData.branchCode);
-      if (!selectedBranch) {
-        throw new Error('Invalid branch selected');
-      }
-
-      const updateRes = await axiosInstance.put(`/hr/hods/${selectedHod._id}`, {
-        name: formData.name,
-        email: formData.email,
-        HODId: formData.HODId || formData.email.toLowerCase(),
-        department: {
-          name: selectedBranch.name,
-          code: formData.branchCode,
-          campusType: campusType
+      // Build update payload
+      const updatePayload = {
+        name: editForm.name,
+        email: editForm.email,
+        phoneNumber: editForm.phoneNumber,
+        status: editForm.status
+      };
+      
+      // Only include department if it's a teaching HOD and department has changed
+      if (selectedHod.hodType !== 'non-teaching') {
+        const currentUser = (() => {
+          try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
+        })();
+        
+        let derivedCampus = null;
+        if (typeof campus === 'string') derivedCampus = campus;
+        else if (campus && typeof campus === 'object') derivedCampus = campus.type || campus.name;
+        else if (currentUser && currentUser.campus) derivedCampus = currentUser.campus.type || currentUser.campus.name;
+        
+        const campusType = derivedCampus ? String(derivedCampus).charAt(0).toUpperCase() + String(derivedCampus).slice(1) : 'Engineering';
+        
+        if (editForm.department !== (selectedHod.department?.code || selectedHod.branchCode || '') && 
+            safeBranches.some(b => b.code === editForm.department)) {
+          const branch = safeBranches.find(b => b.code === editForm.department);
+          updatePayload.department = {
+            name: branch.name,
+            code: branch.code,
+            campusType: campusType
+          };
         }
-      });
-
-      // Update local list with returned data
-      if (updateRes?.data) {
-        const updated = updateRes.data;
-        setHods(prev => prev.map(h => (h._id === updated._id ? updated : h)));
       }
+      
+      const response = await axiosInstance.put(`/hr/hods/${selectedHod._id}`, updatePayload);
 
       setShowEditModal(false);
-      toast.success('HOD updated successfully');
-      if (onHodUpdate) onHodUpdate();
+      toast.success('HOD details updated successfully');
+      if (onHodUpdate) onHodUpdate(); // Refresh the HOD list
     } catch (error) {
-      console.error('Update HOD Error:', error);
-      const errorMsg = error.response?.data?.msg || 'Failed to update HOD';
-      setError(errorMsg);
-      toast.error(errorMsg);
+      console.error('Error updating HOD:', error);
+      toast.error(error.response?.data?.msg || 'Failed to update HOD');
     }
   };
 
@@ -363,418 +369,437 @@ const HodManagement = ({ onHodUpdate, campus }) => {
     }
   };
 
-  // Handle password reset
-  const handleResetPassword = async (newPassword) => {
-    if (!selectedHod) return;
-
-    try {
-      await axiosInstance.post(`/hr/hods/${selectedHod._id}/reset-password`, {
-        newPassword
-      });
-      toast.success('Password reset successfully');
-      setShowPasswordResetModal(false);
-    } catch (error) {
-      console.error('Reset Password Error:', error);
-      toast.error(error.response?.data?.msg || 'Failed to reset password');
-    }
+  const handleResetPassword = (hod) => {
+    setSelectedHod(hod);
+    setShowPasswordResetModal(true);
   };
+  
+  const token = localStorage.getItem('token');
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="p-4 md:p-6 mt-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">HOD Management</h1>
-          <p className="text-gray-600">Manage Head of Department assignments</p>
-        </div>
+        <h2 className="text-2xl font-bold text-primary">HOD Management</h2>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="w-full md:w-auto bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 flex items-center"
+          className="w-full md:w-auto bg-primary text-white px-6 py-2.5 rounded-lg hover:bg-primary/90 transition-all duration-300 flex items-center justify-center gap-2"
         >
-          <FaUserTie className="mr-2" /> Create HOD
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+          </svg>
+          Create HOD
         </button>
       </div>
 
-      {/* HODs Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        {/* Table for md+ screens */}
+        <div className="overflow-x-auto hidden md:block">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {hods.map((hod) => (
-                <tr key={hod._id} className="hover:bg-gray-50">
+                <tr key={hod._id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                        <FaUserTie className="h-5 w-5 text-indigo-600" />
+                      <div className="h-10 w-10 flex-shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-primary font-semibold text-lg">
+                          {hod.name.charAt(0).toUpperCase()}
+                        </span>
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900">{hod.name}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {hod.email}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{hod.email}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex flex-col gap-1">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                        {hod.hodType === 'non-teaching' ? 'Non-Teaching' : (hod.department?.name || 'N/A')}
-                      </span>
+                    <div className="group relative">
+                      <span className="text-sm text-gray-900">{hod.department?.code || hod.branchCode || (hod.hodType === 'non-teaching' ? 'Non-Teaching' : 'Unknown')}</span>
+                      {hod.hodType === 'teaching' && (hod.department?.code || hod.branchCode) && (
+                        <div className="hidden group-hover:block absolute z-10 bg-gray-900 text-white text-xs rounded py-1 px-2 left-0 -bottom-8 whitespace-nowrap">
+                          {branches.find(b => b.code === (hod.department?.code || hod.branchCode))?.name || hod.department?.name || 'Unknown'}
+                        </div>
+                      )}
                       {hod.hodType === 'non-teaching' && (
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                          Non-Teaching HOD
-                        </span>
+                        <div className="mt-1">
+                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                            Non-Teaching HOD
+                          </span>
+                        </div>
                       )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                      {hod.status || 'Active'}
+                    <div className="text-sm text-gray-900">{hod.phoneNumber || 'N/A'}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold
+                      ${(hod.status === 'active' || hod.isActive)
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'}`}
+                    >
+                      {hod.status || (hod.isActive ? 'Active' : 'Inactive')}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                     <button
                       onClick={() => handleEditClick(hod)}
-                      className="text-indigo-600 hover:text-indigo-900"
-                      title="Edit"
+                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
                     >
-                      <FaPencilAlt />
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                      </svg>
+                      Edit
                     </button>
                     <button
-                      onClick={() => {
-                        setSelectedHod(hod);
-                        setShowPasswordResetModal(true);
-                      }}
-                      className="text-yellow-600 hover:text-yellow-900 ml-2"
-                      title="Reset Password"
+                      onClick={() => handleResetPassword(hod)}
+                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors"
                     >
-                      <FaKey />
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                      </svg>
+                      Reset Password
                     </button>
                     <button
                       onClick={() => handleDeleteHod(hod._id)}
-                      className="text-red-600 hover:text-red-900 ml-2"
-                      title="Delete"
+                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
                     >
-                      <FaTrash />
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      Delete
                     </button>
                   </td>
                 </tr>
               ))}
-              {hods.length === 0 && (
-                <tr>
-                  <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
-                    No HODs found. Click "Create HOD" to add a new one.
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
+        </div>
+
+        {/* Card layout for small screens */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 md:hidden">
+          {hods.map((hod) => (
+            <div key={hod._id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 flex-shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-primary font-semibold text-xl">
+                      {hod.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{hod.name}</h3>
+                    <p className="text-sm text-gray-500">{hod.email}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center text-sm text-gray-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm3 1h6v4H7V5zm6 6H7v2h6v-2z" clipRule="evenodd" />
+                  </svg>
+                  <span className="ml-1">{hod.hodType === 'non-teaching' ? 'Non-Teaching' : (branches.find(b => b.code === (hod.department?.code || hod.branchCode))?.name || hod.department?.name || hod.department?.code || hod.branchCode || 'Unknown')}</span>
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                  </svg>
+                  <span className="font-medium">Phone:</span>
+                  <span className="ml-1">{hod.phoneNumber || 'N/A'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Status:</span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-semibold
+                    ${(hod.status === 'active' || hod.isActive)
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-red-100 text-red-800'}`}
+                  >
+                    {hod.status || (hod.isActive ? 'Active' : 'Inactive')}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleEditClick(hod)}
+                  className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                  </svg>
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleResetPassword(hod)}
+                  className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                  </svg>
+                  Reset Password
+                </button>
+                <button
+                  onClick={() => handleDeleteHod(hod._id)}
+                  className="inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Create HOD Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowCreateModal(false)}></div>
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-              <div>
-                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100">
-                  <FaUserTie className="h-6 w-6 text-indigo-600" />
-                </div>
-                <div className="mt-3 text-center sm:mt-5">
-                  <h3 className="text-lg leading-6 font-medium text-gray-900">Create New HOD</h3>
-                  <div className="mt-4 space-y-4">
-                    <div>
-                      <label htmlFor="hodType" className="block text-sm font-medium text-gray-700 text-left">HOD Type <span className="text-red-500">*</span></label>
-                      <select
-                        id="hodType"
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        value={formData.hodType}
-                        onChange={(e) => {
-                          const hodType = e.target.value;
-                          setFormData({
-                            ...formData,
-                            hodType,
-                            branchCode: hodType === 'teaching' ? formData.branchCode : ''
-                          });
-                        }}
-                        required
-                      >
-                        <option value="teaching">Teaching</option>
-                        <option value="non-teaching">Non-Teaching</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label htmlFor="name" className="block text-sm font-medium text-gray-700 text-left">Name</label>
-                      <input
-                        type="text"
-                        id="name"
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        value={formData.name}
-                        onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 text-left">Email</label>
-                      <input
-                        type="email"
-                        id="email"
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        value={formData.email}
-                        onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="hodId" className="block text-sm font-medium text-gray-700 text-left">HOD ID</label>
-                      <input
-                        type="text"
-                        id="hodId"
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        placeholder="Enter HOD ID (optional)"
-                        value={formData.HODId}
-                        onChange={(e) => setFormData({...formData, HODId: e.target.value})}
-                      />
-                      <p className="mt-1 text-xs text-gray-500">If left blank, email will be used as HOD ID</p>
-                    </div>
-                    <div>
-                      <label htmlFor="password" className="block text-sm font-medium text-gray-700 text-left">Password <span className="text-red-500">*</span></label>
-                      <input
-                        type="password"
-                        id="password"
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        placeholder="Enter password"
-                        value={formData.password}
-                        onChange={(e) => setFormData({...formData, password: e.target.value})}
-                        required
-                        minLength={6}
-                      />
-                      <p className="mt-1 text-xs text-gray-500">Minimum 6 characters</p>
-                    </div>
-                    {formData.hodType === 'teaching' && (
-                      <div>
-                        <label htmlFor="branchCode" className="block text-sm font-medium text-gray-700 text-left">Branch <span className="text-red-500">*</span></label>
-                        <div className="relative">
-                          <select
-                            id="branchCode"
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                            value={formData.branchCode}
-                            onChange={(e) => setFormData({...formData, branchCode: e.target.value})}
-                            required
-                          >
-                            <option value="">Select Branch</option>
-                            {Array.isArray(branches) && branches.length > 0 ? (
-                              branches.map((branch) => (
-                                <option key={branch.code} value={branch.code}>
-                                  {branch.name} ({branch.code})
-                                </option>
-                              ))
-                            ) : (
-                              <option disabled>No branches available</option>
-                            )}
-                          </select>
-                          {!loading && branches.length === 0 && (
-                            <div className="mt-2 p-2 bg-yellow-50 text-yellow-700 text-sm rounded">
-                              <p>No branches found for your campus.</p>
-                              <p className="text-xs mt-1">Debug info: {JSON.stringify({
-                                branchesCount: branches.length,
-                                isArray: Array.isArray(branches),
-                                sample: branches.slice(0, 2)
-                              })}</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {formData.hodType === 'non-teaching' && (
-                      <div className="mt-2 p-3 bg-blue-50 text-blue-700 text-sm rounded">
-                        <p>Non-teaching HODs do not require branch selection.</p>
-                      </div>
-                    )}
-                    {error && (
-                      <div className="mt-2 text-sm text-red-600">
-                        {error}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
-                  <button
-                    type="button"
-                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:col-start-2 sm:text-sm disabled:opacity-50"
-                    onClick={handleCreateHOD}
-                    disabled={!formData.name || !formData.email || !formData.password || formData.password.length < 6 || (formData.hodType === 'teaching' && !formData.branchCode)}
-                  >
-                    Create HOD
-                  </button>
-                  <button
-                    type="button"
-                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm"
-                    onClick={() => {
-                      setShowCreateModal(false);
-                      setError('');
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto border border-gray-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-primary">Create New HOD</h2>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-gray-400 hover:text-gray-700 text-2xl font-bold focus:outline-none"
+                aria-label="Close"
+              >
+                ×
+              </button>
             </div>
+            <form onSubmit={handleCreateHOD} className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-gray-700 text-sm font-semibold mb-1">HOD Type <span className="text-red-500">*</span></label>
+                  <select
+                    value={formData.hodType}
+                    onChange={(e) => {
+                      const hodType = e.target.value;
+                      setFormData({
+                        ...formData,
+                        hodType,
+                        branchCode: hodType === 'teaching' ? formData.branchCode : ''
+                      });
+                    }}
+                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    required
+                  >
+                    <option value="teaching">Teaching</option>
+                    <option value="non-teaching">Non-Teaching</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-700 text-sm font-semibold mb-1">Name</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 text-sm font-semibold mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 text-sm font-semibold mb-1">HOD ID <span className="text-gray-400 text-xs">(optional)</span></label>
+                  <input
+                    type="text"
+                    value={formData.HODId}
+                    onChange={(e) => setFormData({...formData, HODId: e.target.value})}
+                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    placeholder="Leave empty to use email as ID"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 text-sm font-semibold mb-1">Password <span className="text-red-500">*</span></label>
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    required
+                    minLength={6}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Minimum 6 characters</p>
+                </div>
+                {formData.hodType === 'teaching' && (
+                  <div className="sm:col-span-2">
+                    <label className="block text-gray-700 text-sm font-semibold mb-1">Branch</label>
+                    <select
+                      value={formData.branchCode}
+                      onChange={(e) => setFormData({...formData, branchCode: e.target.value})}
+                      className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                      required
+                    >
+                      <option value="">Select a branch</option>
+                      {(branches || []).map((branch) => (
+                        <option key={branch._id || branch.code} value={branch.code}>
+                          {`${branch.name} (${branch.code})`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {formData.hodType === 'non-teaching' && (
+                  <div className="sm:col-span-2 mt-2 p-3 bg-blue-50 text-blue-700 text-sm rounded">
+                    <p>Non-teaching HODs do not require branch selection.</p>
+                  </div>
+                )}
+              </div>
+              {error && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded text-sm">
+                  {error}
+                </div>
+              )}
+              <div className="flex justify-end gap-3 mt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setError('');
+                  }}
+                  className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!formData.name || !formData.email || !formData.password || formData.password.length < 6 || (formData.hodType === 'teaching' && !formData.branchCode)}
+                  className="bg-primary text-white px-5 py-2 rounded-lg font-semibold shadow hover:bg-primary-dark transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Create
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
       {/* Edit HOD Modal */}
       {showEditModal && selectedHod && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowEditModal(false)}></div>
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-              <div>
-                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100">
-                  <FaPencilAlt className="h-6 w-6 text-indigo-600" />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-4 lg:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg lg:text-xl font-bold mb-4">Edit HOD Details</h3>
+            <form onSubmit={handleEditSubmit}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Name</label>
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                    className="mt-1 block w-full p-2 lg:p-3 rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                  />
                 </div>
-                <div className="mt-3 text-center sm:mt-5">
-                  <h3 className="text-lg leading-6 font-medium text-gray-900">Edit HOD</h3>
-                  <div className="mt-4 space-y-4">
-                    <div>
-                      <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 text-left">Name</label>
-                      <input
-                        type="text"
-                        id="edit-name"
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        value={formData.name}
-                        onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="edit-email" className="block text-sm font-medium text-gray-700 text-left">Email</label>
-                      <input
-                        type="email"
-                        id="edit-email"
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        value={formData.email}
-                        onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">HOD ID</label>
-                      <input
-                        type="text"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                        placeholder="Enter HOD ID (optional)"
-                        value={formData.HODId}
-                        onChange={(e) => setFormData({ ...formData, HODId: e.target.value })}
-                      />
-                      <p className="mt-1 text-xs text-gray-500">If left blank, email will be used as HOD ID</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Department <span className="text-red-500">*</span></label>
-                      <select
-                        id="edit-branchCode"
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                        value={formData.branchCode}
-                        onChange={(e) => setFormData({ ...formData, branchCode: e.target.value })}
-                        required
-                      >
-                        <option value="">Select Department</option>
-                        {Array.isArray(branches) && branches.length > 0 ? (
-                          branches.map((branch) => (
-                            <option key={branch.code} value={branch.code}>
-                              {branch.name} ({branch.code})
-                            </option>
-                          ))
-                        ) : (
-                          <option disabled>Loading departments...</option>
-                        )}
-                      </select>
-                    </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <input
+                    type="email"
+                    value={editForm.email}
+                    onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                    className="mt-1 block w-full p-2 lg:p-3 rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Phone Number</label>
+                  <input
+                    type="text"
+                    value={editForm.phoneNumber}
+                    onChange={(e) => setEditForm({...editForm, phoneNumber: e.target.value})}
+                    className="mt-1 block w-full p-2 lg:p-3 rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
+                  />
+                </div>
+                {selectedHod.hodType !== 'non-teaching' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Department</label>
+                    <select
+                      value={editForm.department}
+                      onChange={(e) => setEditForm({...editForm, department: e.target.value})}
+                      className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                      required
+                    >
+                      <option value="">Select a branch</option>
+                      {branches.filter(b => b.isActive).map(branch => (
+                        <option key={branch.code} value={branch.code}>
+                          {`${branch.name} (${branch.code})`}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Status</label>
+                  <select
+                    value={editForm.status}
+                    onChange={(e) => setEditForm({...editForm, status: e.target.value})}
+                    className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
+                    required
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
                 </div>
               </div>
-              <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+              <div className="mt-6 flex justify-end space-x-3">
                 <button
                   type="button"
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:col-start-2 sm:text-sm disabled:opacity-50"
-                  onClick={handleEditSubmit}
-                  disabled={!formData.name || !formData.email || (selectedHod?.hodType !== 'non-teaching' && !formData.branchCode)}
-                >
-                  Save Changes
-                </button>
-                <button
-                  type="button"
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm"
                   onClick={() => setShowEditModal(false)}
+                  className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300"
                 >
                   Cancel
                 </button>
+                <button
+                  type="submit"
+                  className={`bg-primary text-white px-3 lg:px-4 py-2 rounded-md hover:bg-primary-dark ${(!isEditFormDirty || !isEditFormDepartmentValid) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={!isEditFormDirty || !isEditFormDepartmentValid}
+                >
+                  Save Changes
+                </button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       )}
 
-      {/* Reset Password Modal */}
-      {showPasswordResetModal && selectedHod && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setShowPasswordResetModal(false)}></div>
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-            <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
-              <div>
-                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100">
-                  <FaKey className="h-6 w-6 text-yellow-600" />
-                </div>
-                <div className="mt-3 text-center sm:mt-5">
-                  <h3 className="text-lg leading-6 font-medium text-gray-900">Reset Password</h3>
-                  <div className="mt-4">
-                    <p className="text-sm text-gray-500">
-                      Reset password for <span className="font-medium">{selectedHod.name}</span>?
-                    </p>
-                    <p className="mt-2 text-sm text-gray-500">
-                      A new password will be generated and sent to their email.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
-                <button
-                  type="button"
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-yellow-600 text-base font-medium text-white hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 sm:col-start-2 sm:text-sm"
-                  onClick={() => handleResetPassword('newRandomPassword123')}
-                >
-                  Reset Password
-                </button>
-                <button
-                  type="button"
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:col-start-1 sm:text-sm"
-                  onClick={() => setShowPasswordResetModal(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Password Reset Modal */}
+      <HodPasswordResetModal
+        show={showPasswordResetModal}
+        onClose={() => {
+          setShowPasswordResetModal(false);
+          setSelectedHod(null);
+        }}
+        hod={selectedHod}
+        token={token}
+        loading={resetPasswordLoading}
+        setLoading={setResetPasswordLoading}
+      />
     </div>
   );
 };

@@ -25,6 +25,59 @@ import HodManagement from "./HodManagement";
 
 const API_BASE_URL = config.API_BASE_URL;
 
+// Non-Teaching HOD Select Component for Edit Modal
+const EditNonTeachingHodSelect = ({ value, onChange }) => {
+  const [nonTeachingHODs, setNonTeachingHODs] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchNonTeachingHODs();
+  }, []);
+
+  const fetchNonTeachingHODs = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/hr/hods/non-teaching`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setNonTeachingHODs(data);
+      } else {
+        toast.error('Failed to fetch non-teaching HODs');
+      }
+    } catch (error) {
+      console.error('Error fetching non-teaching HODs:', error);
+      toast.error('Error fetching non-teaching HODs');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Assigned HOD
+      </label>
+      <select
+        className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
+        value={value}
+        onChange={onChange}
+        disabled={loading}
+      >
+        <option value="">{loading ? 'Loading...' : 'Select Non-Teaching HOD'}</option>
+        {nonTeachingHODs.map(hod => (
+          <option key={hod._id} value={hod._id}>
+            {hod.name} ({hod.email})
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+};
+
 const HRDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -73,6 +126,8 @@ const HRDashboard = () => {
     branchCode: "",
     leaveBalance: 12,
     leaveBalanceByExperience: "",
+    employeeType: "teaching",
+    assignedHodId: "",
   });
   const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
   const [selectedEmployeeForReset, setSelectedEmployeeForReset] =
@@ -404,6 +459,8 @@ const HRDashboard = () => {
         employee.leaveBalanceByExperience !== undefined
           ? employee.leaveBalanceByExperience
           : "",
+      employeeType: employee.employeeType || "teaching",
+      assignedHodId: employee.assignedHodId || "",
     });
     setShowEditModal(true);
     console.log("Edit modal should be open now");
@@ -413,18 +470,29 @@ const HRDashboard = () => {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
+      const isNonTeaching = editEmployee?.employeeType === 'non-teaching';
+      
       const updatePayload = {
         name: editForm.name,
         email: editForm.email,
         phoneNumber: editForm.phoneNumber,
-        role: editForm.role,
-        customRole: editForm.role === "other" ? editForm.customRole : "",
-        department: editForm.department,
         status: editForm.status,
-        branchCode: editForm.branchCode,
         leaveBalance: parseInt(editForm.leaveBalance),
         leaveBalanceByExperience: parseInt(editForm.leaveBalanceByExperience),
       };
+      
+      // Only include role and department for teaching employees
+      if (!isNonTeaching) {
+        updatePayload.role = editForm.role;
+        updatePayload.customRole = editForm.role === "other" ? editForm.customRole : "";
+        updatePayload.department = editForm.department;
+        updatePayload.branchCode = editForm.branchCode;
+      } else {
+        // For non-teaching employees, include assignedHodId if changed
+        if (editForm.assignedHodId && editForm.assignedHodId !== editEmployee?.assignedHodId) {
+          updatePayload.assignedHodId = editForm.assignedHodId;
+        }
+      }
       const response = await fetch(
         `${API_BASE_URL}/hr/employees/${editEmployee._id}`,
         {
@@ -1360,73 +1428,87 @@ const HRDashboard = () => {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Department
-                  </label>
-                  <select
-                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
-                    value={editForm.department}
-                    onChange={(e) =>
-                      setEditForm({
-                        ...editForm,
-                        department: e.target.value,
-                        branchCode: e.target.value,
-                      })
-                    }
-                    required
-                  >
-                    <option value="">Select Department</option>
-                    {branches.map((branch) => (
-                      <option key={branch.code} value={branch.code}>
-                        {branch.name} ({branch.code})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Role
-                  </label>
-                  <select
-                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
-                    value={editForm.role}
-                    onChange={(e) => {
-                      const selectedRole = e.target.value;
-                      setEditForm({
-                        ...editForm,
-                        role: selectedRole,
-                        customRole:
-                          selectedRole === "other" ? editForm.customRole : "",
-                      });
-                    }}
-                  >
-                    <option value="">Select Role</option>
-                    {getCampusRoles(user?.campus?.name).map((role) => (
-                      <option key={role.value} value={role.value}>
-                        {role.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              {editForm.role === "other" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Custom Role
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
-                    value={editForm.customRole}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, customRole: e.target.value })
-                    }
-                    placeholder="Enter custom role"
-                    required
-                  />
-                </div>
+              {/* Department and Role fields - Only for teaching employees */}
+              {editEmployee?.employeeType !== 'non-teaching' && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Department
+                      </label>
+                      <select
+                        className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
+                        value={editForm.department}
+                        onChange={(e) =>
+                          setEditForm({
+                            ...editForm,
+                            department: e.target.value,
+                            branchCode: e.target.value,
+                          })
+                        }
+                        required
+                      >
+                        <option value="">Select Department</option>
+                        {branches.map((branch) => (
+                          <option key={branch.code} value={branch.code}>
+                            {branch.name} ({branch.code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Role
+                      </label>
+                      <select
+                        className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
+                        value={editForm.role}
+                        onChange={(e) => {
+                          const selectedRole = e.target.value;
+                          setEditForm({
+                            ...editForm,
+                            role: selectedRole,
+                            customRole:
+                              selectedRole === "other" ? editForm.customRole : "",
+                          });
+                        }}
+                      >
+                        <option value="">Select Role</option>
+                        {getCampusRoles(user?.campus?.name).map((role) => (
+                          <option key={role.value} value={role.value}>
+                            {role.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  {editForm.role === "other" && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Custom Role
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
+                        value={editForm.customRole}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, customRole: e.target.value })
+                        }
+                        placeholder="Enter custom role"
+                        required
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+              {/* HOD Selection - Only for non-teaching employees */}
+              {editEmployee?.employeeType === 'non-teaching' && (
+                <EditNonTeachingHodSelect
+                  value={editForm.assignedHodId}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, assignedHodId: e.target.value })
+                  }
+                />
               )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>

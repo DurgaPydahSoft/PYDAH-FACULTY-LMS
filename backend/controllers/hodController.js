@@ -633,7 +633,13 @@ const updateLeaveRequest = async (req, res) => {
     if (status === 'Rejected') {
       leaveRequest.status = 'Rejected';
       leaveRequest.rejectionBy = 'HOD';
-      await sendLeaveRejectionEmail(leaveRequest, employee, hod);
+      // Try to send rejection email, but don't block the update if it fails
+      try {
+        await sendLeaveRejectionEmail(leaveRequest, employee, hod);
+      } catch (emailError) {
+        console.error('Error sending rejection email (non-blocking):', emailError.message);
+        // Continue with the update even if email fails
+      }
     } else if (status === 'Approved') {
       // Determine forward destination based on employee type
       if (employee.employeeType === 'non-teaching') {
@@ -643,7 +649,13 @@ const updateLeaveRequest = async (req, res) => {
       } else {
         // Teaching: forward to Principal (existing flow)
         leaveRequest.status = 'Forwarded by HOD';
-        await sendPrincipalNotification(leaveRequest, employee, hod);
+        // Try to send principal notification, but don't block the update if it fails
+        try {
+          await sendPrincipalNotification(leaveRequest, employee, hod);
+        } catch (emailError) {
+          console.error('Error sending principal notification email (non-blocking):', emailError.message);
+          // Continue with the update even if email fails
+        }
       }
     }
 

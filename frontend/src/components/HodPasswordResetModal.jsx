@@ -29,8 +29,13 @@ const HodPasswordResetModal = ({
       setLoading(true);
       console.log('Attempting to reset password for HOD:', hod._id);
 
+      // Determine the endpoint based on the role (principal or hr)
+      const endpoint = hod.model === 'User' || hod.model === 'Principal' 
+        ? `/principal/hods/${hod._id}/reset-password?model=${hod.model || 'HOD'}`
+        : `/hr/hods/${hod._id}/reset-password`;
+      
       const response = await axios.post(
-        `${API_BASE_URL}/principal/hods/${hod._id}/reset-password?model=${hod.model || 'HOD'}`,
+        `${API_BASE_URL}${endpoint}`,
         { newPassword },
         {
           headers: {
