@@ -746,7 +746,7 @@ const PrincipalDashboard = () => {
                             <strong>Reason:</strong> {request.reason}
                           </p>
                           <p className="text-sm text-gray-600">
-                            <strong>Assigned To:</strong> {request.assignedTo}
+                            <strong>Assigned By:</strong> {request.assignedTo}
                           </p>
                           <p className="text-sm text-gray-600">
                             <strong>Date:</strong> {request.date ? new Date(request.date).toLocaleDateString() : 'N/A'}

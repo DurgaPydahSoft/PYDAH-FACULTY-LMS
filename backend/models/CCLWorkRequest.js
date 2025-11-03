@@ -12,7 +12,6 @@ const cclWorkRequestSchema = new mongoose.Schema({
   },
   assignedTo: {
     type: String,
-    enum: ['Principal', 'Dean', 'Vice Principal', 'DD'],
     required: true
   },
   reason: {

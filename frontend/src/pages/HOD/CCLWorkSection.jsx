@@ -60,7 +60,7 @@ const CCLWorkSection = ({
                 <strong>Date:</strong> {new Date(cclWork.date).toLocaleDateString()}
               </p>
               <p className="text-sm text-gray-600">
-                <strong>Assigned To:</strong> {cclWork.assignedTo}
+                <strong>Assigned By:</strong> {cclWork.assignedTo}
               </p>
              
             </div>

@@ -431,7 +431,7 @@ const allLeaveRows = [
         ]];
 
         const cclHeaders = [[
-            'S. No', 'Name', 'Employee ID', 'Dept', 'Date', 'Assigned To', 'Reason', 'Status'
+            'S. No', 'Name', 'Employee ID', 'Dept', 'Date', 'Assigned By', 'Reason', 'Status'
         ]];
 
         // Create PDF in A4 portrait mode
@@ -571,7 +571,7 @@ const allLeaveRows = [
                         2: { cellWidth: 25, halign: 'center' }, // Employee ID
                         3: { cellWidth: 20, halign: 'center' }, // Dept
                         4: { cellWidth: 20, halign: 'center' }, // Date
-                        5: { cellWidth: 25, halign: 'center' }, // Assigned To
+                        5: { cellWidth: 25, halign: 'center' }, // Assigned By
                         6: { cellWidth: 35, halign: 'left', overflow: 'linebreak' }, // Reason
                         7: { cellWidth: 18, halign: 'center' }, // Status
                     },

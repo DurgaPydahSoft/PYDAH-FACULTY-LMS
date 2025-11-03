@@ -92,7 +92,7 @@ const CCLWorkRequestForm = ({ onSubmit, onClose }) => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Assigned To <span className="text-red-500">*</span>
+              Assigned By <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -100,7 +100,7 @@ const CCLWorkRequestForm = ({ onSubmit, onClose }) => {
               value={formData.assignedTo}
               onChange={handleChange}
               required
-              placeholder="Enter role or person (e.g., Principal)"
+              placeholder="Enter name of person who assigned the work"
               className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500"
             />
           </div>
