@@ -27,7 +27,7 @@ const CCLWorkSection = ({
   };
 
   return (
-    <div className="p-2 mt-6">
+    <div className="p-2 mt-12">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-primary">CCL Work Requests</h2>
       </div>
