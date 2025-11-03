@@ -1230,29 +1230,32 @@ const getCCLWorkRequests = async (req, res) => {
 
     // Get all employees in this department or assigned to this HOD
     const employees = await Employee.find(employeeQuery)
-    .select('name email employeeId department employeeType assignedHodId')
+    .select('name email employeeId department employeeType assignedHodId phoneNumber')
     .populate({
       path: 'cclWork',
-      match: { status: { $in: ['Pending', 'Forwarded to Principal', 'Approved', 'Rejected'] } },
+      match: { status: 'Pending' }, // Only get pending requests for HOD
       options: { sort: { createdAt: -1 } }
     });
     console.log(`Found ${employees.length} employees in department`);
 
-    // Collect all CCL work requests
+    // Collect all pending CCL work requests
     const cclWorkRequests = employees.reduce((acc, employee) => {
-      if (!employee.cclWork || !Array.isArray(employee.cclWork)) {
-        console.log(`No CCL work requests found for employee ${employee.employeeId}`);
+      if (!employee.cclWork || !Array.isArray(employee.cclWork) || employee.cclWork.length === 0) {
+        console.log(`No pending CCL work requests found for employee ${employee.employeeId}`);
         return acc;
       }
 
-      const employeeRequests = employee.cclWork.map(request => ({
-        ...request.toObject(),
-        employeeName: employee.name,
-        employeeEmail: employee.email,
-        employeeDepartment: employee.department,
-        employeeEmployeeId: employee.employeeId,
-        employeePhoneNumber: employee.phoneNumber
-      }));
+      const employeeRequests = employee.cclWork
+        .filter(request => request.status === 'Pending') // Double check status
+        .map(request => ({
+          ...request.toObject(),
+          employeeName: employee.name,
+          employeeEmail: employee.email,
+          employeeDepartment: employee.employeeType === 'non-teaching' ? 'Non-Teaching' : (employee.department || 'N/A'),
+          employeeEmployeeId: employee.employeeId,
+          employeePhoneNumber: employee.phoneNumber,
+          employeeType: employee.employeeType || 'teaching'
+        }));
       
       console.log(`Found ${employeeRequests.length} pending CCL work requests for employee ${employee.employeeId}`);
       return [...acc, ...employeeRequests];
@@ -1315,21 +1318,42 @@ const updateCCLWorkRequestStatus = async (req, res) => {
     });
 
     // Find the employee who submitted the request
-    const employee = await Employee.findOne({
+    const isTeaching = req.user.hodType !== 'non-teaching' && !!branchCode;
+    
+    let employeeQuery = {
       _id: cclWorkRequest.submittedBy,
-      department: branchCode,
       campus: campus.toLowerCase()
-    });
+    };
+
+    if (isTeaching) {
+      // Teaching HOD: check by department
+      if (!branchCode) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'Branch code required for teaching HOD' 
+        });
+      }
+      employeeQuery.department = branchCode;
+      employeeQuery.employeeType = 'teaching';
+    } else {
+      // Non-teaching HOD: check by assignedHodId
+      employeeQuery.assignedHodId = req.user.id;
+      employeeQuery.employeeType = 'non-teaching';
+    }
+
+    const employee = await Employee.findOne(employeeQuery);
 
     if (!employee) {
-      console.log('Employee not found or not in department:', {
+      console.log('Employee not found or not authorized:', {
         submittedBy: cclWorkRequest.submittedBy,
-        department: branchCode,
-        campus: campus.toLowerCase()
+        branchCode,
+        campus: campus.toLowerCase(),
+        isTeaching,
+        hodId: req.user.id
       });
       return res.status(404).json({ 
         success: false,
-        message: 'Employee not found or not in your department' 
+        message: 'Employee not found or not authorized' 
       });
     }
 

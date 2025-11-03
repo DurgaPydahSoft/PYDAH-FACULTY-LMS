@@ -542,30 +542,73 @@ const submitCCLWorkRequest = async (req, res) => {
       });
     }
 
-    // Generate unique cclRequestId
+    // Generate unique cclRequestId with retry logic to handle race conditions
     const currentYear = new Date(date).getFullYear();
-    const dept = employee.department || 'GEN';
-    // Find max sequence for this year+dept
-    const regex = new RegExp(`^CCLW${currentYear}${dept}`);
-    const lastRequest = await CCLWorkRequest.findOne({ cclRequestId: { $regex: regex } })
-      .sort({ cclRequestId: -1 });
-    let nextSeq = '0001';
-    if (lastRequest && lastRequest.cclRequestId) {
-      const lastSeq = parseInt(lastRequest.cclRequestId.slice(-4));
-      if (!isNaN(lastSeq)) nextSeq = (lastSeq + 1).toString().padStart(4, '0');
+    // Use 'NT' for non-teaching employees, otherwise use department code or 'GEN'
+    const dept = employee.employeeType === 'non-teaching' ? 'NT' : (employee.department || 'GEN');
+    
+    let cclRequestId;
+    let attempts = 0;
+    const maxAttempts = 10;
+    let cclWorkRequest;
+    
+    while (attempts < maxAttempts) {
+      // Find all requests for this year+dept pattern
+      const prefix = `CCLW${currentYear}${dept}`;
+      const regex = new RegExp(`^${prefix}\\d{4}$`);
+      
+      // Get all matching requests and extract sequence numbers
+      const matchingRequests = await CCLWorkRequest.find({ 
+        cclRequestId: { $regex: regex } 
+      }).select('cclRequestId').lean();
+      
+      let maxSeq = 0;
+      matchingRequests.forEach(req => {
+        const seqStr = req.cclRequestId.slice(-4); // Get last 4 digits
+        const seqNum = parseInt(seqStr, 10);
+        if (!isNaN(seqNum) && seqNum > maxSeq) {
+          maxSeq = seqNum;
+        }
+      });
+      
+      // Generate next sequence
+      const nextSeq = (maxSeq + 1).toString().padStart(4, '0');
+      cclRequestId = `${prefix}${nextSeq}`;
+      
+      // Try to create the document
+      try {
+        cclWorkRequest = new CCLWorkRequest({
+          submittedBy: employeeId,
+          date: new Date(date),
+          assignedTo,
+          reason,
+          status: 'Pending',
+          cclRequestId
+        });
+        
+        // Save the CCL work request
+        await cclWorkRequest.save();
+        
+        // Success! Break out of retry loop
+        break;
+      } catch (saveError) {
+        // If duplicate key error, retry with incremented sequence
+        if (saveError.code === 11000 && saveError.keyPattern?.cclRequestId) {
+          attempts++;
+          console.log(`Duplicate CCL request ID detected (${cclRequestId}), retrying... Attempt ${attempts}/${maxAttempts}`);
+          // Wait a bit before retry (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 50 * attempts));
+          continue;
+        }
+        // Other errors, throw them
+        throw saveError;
+      }
     }
-    const cclRequestId = `CCLW${currentYear}${dept}${nextSeq}`;
-    const cclWorkRequest = new CCLWorkRequest({
-      submittedBy: employeeId,
-      date: new Date(date),
-      assignedTo,
-      reason,
-      status: 'Pending',
-      cclRequestId
-    });
-
-    // Save the CCL work request
-    await cclWorkRequest.save();
+    
+    // If we exhausted all attempts, return error
+    if (attempts >= maxAttempts) {
+      throw new Error('Failed to generate unique CCL request ID after multiple attempts');
+    }
 
     // Add the CCL work request to employee's cclWork array
     employee.cclWork.push(cclWorkRequest._id);

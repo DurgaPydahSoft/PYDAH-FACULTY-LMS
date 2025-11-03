@@ -294,7 +294,7 @@ exports.getCampusRoles = async (req, res) => {
 // Get all employees for HR's campus
 exports.getCampusEmployees = async (req, res) => {
   try {
-    const { search, department, status } = req.query;
+    const { search, department, status, employeeType } = req.query;
     
     // Build query
     let query = {
@@ -310,9 +310,14 @@ exports.getCampusEmployees = async (req, res) => {
       ];
     }
 
-    // Add department filter
+    // Add department filter (only for teaching employees)
     if (department) {
       query.department = department;
+    }
+
+    // Add employee type filter
+    if (employeeType) {
+      query.employeeType = employeeType;
     }
 
     // Add status filter
@@ -321,7 +326,7 @@ exports.getCampusEmployees = async (req, res) => {
     }
 
     const employees = await Employee.find(query)
-      .select('name email employeeId department status phoneNumber designation role branchCode leaveBalance leaveBalanceByExperience profilePicture')
+      .select('name email employeeId department employeeType assignedHodId status phoneNumber designation role roleDisplayName branchCode leaveBalance leaveBalanceByExperience profilePicture')
       .sort({ name: 1 });
 
     res.json(employees);

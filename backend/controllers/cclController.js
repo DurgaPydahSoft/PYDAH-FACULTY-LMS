@@ -1,34 +1,121 @@
 const { Employee } = require('../models');
+const CCLWorkRequest = require('../models/CCLWorkRequest');
 
 // Submit CCL work request
 exports.submitCCLWork = async (req, res) => {
   try {
-    const { date, periods, reason, isHalfDay, assignedTo } = req.body;
+    const { date, assignedTo, reason, isHalfDay } = req.body;
     const employeeId = req.user.id;
 
-    const employee = await Employee.findById(employeeId);
-    if (!employee) {
-      return res.status(404).json({ msg: 'Employee not found' });
+    console.log('Submitting CCL work request:', {
+      employeeId,
+      date,
+      assignedTo,
+      reason,
+      isHalfDay
+    });
+
+    // Validate required fields
+    if (!date || !assignedTo || !reason) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide all required fields: date, assignedTo, and reason'
+      });
     }
 
-    // Create new CCL work entry
-    employee.cclWork.push({
-      date: new Date(date),
-      periods,
-      reason,
-      assignedTo,
-      isHalfDay: !!isHalfDay
-    });
+    // Find the employee
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: 'Employee not found'
+      });
+    }
 
-    await employee.save();
+    // Generate unique cclRequestId with retry logic to handle race conditions
+    const currentYear = new Date(date).getFullYear();
+    // Use 'NT' for non-teaching employees, otherwise use department code or 'GEN'
+    const dept = employee.employeeType === 'non-teaching' ? 'NT' : (employee.department || 'GEN');
+    
+    let cclRequestId;
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (attempts < maxAttempts) {
+      // Find all requests for this year+dept pattern
+      const prefix = `CCLW${currentYear}${dept}`;
+      const regex = new RegExp(`^${prefix}\\d{4}$`);
+      
+      // Get all matching requests and extract sequence numbers
+      const matchingRequests = await CCLWorkRequest.find({ 
+        cclRequestId: { $regex: regex } 
+      }).select('cclRequestId').lean();
+      
+      let maxSeq = 0;
+      matchingRequests.forEach(req => {
+        const seqStr = req.cclRequestId.slice(-4); // Get last 4 digits
+        const seqNum = parseInt(seqStr, 10);
+        if (!isNaN(seqNum) && seqNum > maxSeq) {
+          maxSeq = seqNum;
+        }
+      });
+      
+      // Generate next sequence
+      const nextSeq = (maxSeq + 1).toString().padStart(4, '0');
+      cclRequestId = `${prefix}${nextSeq}`;
+      
+      // Try to create the document
+      try {
+        const cclWorkRequest = new CCLWorkRequest({
+          submittedBy: employeeId,
+          date: new Date(date),
+          assignedTo,
+          reason,
+          status: 'Pending',
+          cclRequestId
+        });
+        
+        // Save the CCL work request
+        await cclWorkRequest.save();
+        
+        // Success! Add the CCL work request ID to employee's cclWork array
+        employee.cclWork.push(cclWorkRequest._id);
+        await employee.save();
+        
+        console.log('CCL work request created successfully:', {
+          requestId: cclWorkRequest._id,
+          employeeId: employee._id,
+          cclRequestId: cclWorkRequest.cclRequestId
+        });
 
-    res.json({
-      msg: 'CCL work request submitted successfully',
-      cclWork: employee.cclWork[employee.cclWork.length - 1]
-    });
+        return res.status(201).json({
+          success: true,
+          message: 'CCL work request submitted successfully',
+          data: cclWorkRequest
+        });
+      } catch (saveError) {
+        // If duplicate key error, retry with incremented sequence
+        if (saveError.code === 11000 && saveError.keyPattern?.cclRequestId) {
+          attempts++;
+          console.log(`Duplicate CCL request ID detected (${cclRequestId}), retrying... Attempt ${attempts}/${maxAttempts}`);
+          // Wait a bit before retry (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 50 * attempts));
+          continue;
+        }
+        // Other errors, throw them
+        throw saveError;
+      }
+    }
+    
+    // If we exhausted all attempts, return error
+    throw new Error('Failed to generate unique CCL request ID after multiple attempts');
+    
   } catch (error) {
     console.error('Submit CCL Work Error:', error);
-    res.status(500).json({ msg: error.message || 'Server error' });
+    res.status(500).json({ 
+      success: false,
+      message: error.message || 'Server error' 
+    });
   }
 };
 
@@ -39,20 +126,29 @@ exports.getCCLWorkHistory = async (req, res) => {
 
     const employee = await Employee.findById(employeeId)
       .select('cclWork cclBalance cclHistory')
-      .populate('cclWork.periods.originalFaculty', 'name employeeId');
+      .populate({
+        path: 'cclWork',
+        model: 'CCLWorkRequest'
+      });
 
     if (!employee) {
       return res.status(404).json({ msg: 'Employee not found' });
     }
 
     res.json({
-      cclWork: employee.cclWork,
-      cclBalance: employee.cclBalance,
-      cclHistory: employee.cclHistory
+      success: true,
+      data: {
+        cclWork: employee.cclWork || [],
+        cclBalance: employee.cclBalance || 0,
+        cclHistory: employee.cclHistory || []
+      }
     });
   } catch (error) {
     console.error('Get CCL Work History Error:', error);
-    res.status(500).json({ msg: error.message || 'Server error' });
+    res.status(500).json({ 
+      success: false,
+      message: error.message || 'Server error' 
+    });
   }
 };
 

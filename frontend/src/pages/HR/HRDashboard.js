@@ -40,6 +40,7 @@ const HRDashboard = () => {
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("");
   const [status, setStatus] = useState("");
+  const [employeeType, setEmployeeType] = useState(""); // Add employee type filter
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [newEmployee, setNewEmployee] = useState({
     firstName: "",
@@ -108,7 +109,7 @@ const HRDashboard = () => {
     fetchEmployees();
     fetchRoles();
     fetchHRBranches();
-  }, [search, department, status]);
+  }, [search, department, status, employeeType]);
 
   const fetchHRBranches = async () => {
     if (!user?.campus?.name) return;
@@ -185,6 +186,7 @@ const HRDashboard = () => {
       if (search) queryParams.append("search", search);
       if (department) queryParams.append("department", department);
       if (status) queryParams.append("status", status);
+      if (employeeType) queryParams.append("employeeType", employeeType);
       // Add timestamp to prevent caching
       queryParams.append("_t", Date.now());
 
@@ -1093,6 +1095,8 @@ const HRDashboard = () => {
             setDepartment={setDepartment}
             status={status}
             setStatus={setStatus}
+            employeeType={employeeType}
+            setEmployeeType={setEmployeeType}
             branches={branches}
             onEditEmployee={handleEditClick}
             onResetPassword={(employee) => {

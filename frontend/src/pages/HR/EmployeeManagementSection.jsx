@@ -12,6 +12,8 @@ const EmployeeManagementSection = ({
   setDepartment,
   status,
   setStatus,
+  employeeType,
+  setEmployeeType,
   branches,
   onEditEmployee,
   onResetPassword,
@@ -34,7 +36,7 @@ const EmployeeManagementSection = ({
 
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <input
             type="text"
             className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
@@ -51,6 +53,15 @@ const EmployeeManagementSection = ({
             {branches.map(branch => (
               <option key={branch.code} value={branch.code}>{branch.name} ({branch.code})</option>
             ))}
+          </select>
+          <select
+            className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
+            value={employeeType}
+            onChange={e => setEmployeeType(e.target.value)}
+          >
+            <option value="">All Types</option>
+            <option value="teaching">Teaching</option>
+            <option value="non-teaching">Non-Teaching</option>
           </select>
           <select
             className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
@@ -102,7 +113,9 @@ const EmployeeManagementSection = ({
                   <div className="text-sm text-gray-500">{employee.employeeId}</div>
                   <div className="text-sm text-gray-500">{employee.email}</div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{employee.department}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                  {employee.employeeType === 'non-teaching' ? 'Non-Teaching' : (employee.department || 'N/A')}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{employee.leaveBalance || 12}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${employee.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{employee.status}</span>
@@ -168,7 +181,15 @@ const EmployeeManagementSection = ({
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Department:</span>
-                <span className="text-gray-800 font-medium">{employee.department}</span>
+                <span className="text-gray-800 font-medium">
+                  {employee.employeeType === 'non-teaching' ? 'Non-Teaching' : (employee.department || 'N/A')}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Employee Type:</span>
+                <span className="text-gray-800 font-medium">
+                  {employee.employeeType === 'non-teaching' ? 'Non-Teaching' : 'Teaching'}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Leave Balance:</span>

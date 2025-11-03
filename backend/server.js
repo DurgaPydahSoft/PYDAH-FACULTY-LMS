@@ -7,6 +7,7 @@ const hodRoutes = require("./routes/hodRoutes"); // Import HOD routes
 const superAdminRoutes = require("./routes/superAdminRoutes"); // Import Super Admin routes
 const principalRoutes = require("./routes/principalRoutes"); // Import Principal routes
 const hrRoutes = require("./routes/hrRoutes");
+const cclRoutes = require("./routes/cclRoutes"); // Import CCL routes
 const path = require("path");
 
 const cors = require("cors");
@@ -71,6 +72,7 @@ app.use("/api/hod", hodRoutes);
 app.use("/api/super-admin", superAdminRoutes);
 app.use("/api/principal", principalRoutes);
 app.use("/api/hr", hrRoutes);
+app.use("/api/ccl", cclRoutes); // CCL routes
 
 // Debug route to check if server is running
 app.get("/api/health", (req, res) => {
