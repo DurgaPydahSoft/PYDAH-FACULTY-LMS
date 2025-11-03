@@ -45,7 +45,7 @@ const EmployeeManagementSection = ({
   const currentEmployees = filteredEmployees.slice(startIndex, endIndex);
 
   return (
-    <div className="p-6 mt-4">
+    <div className="p-6 mt-10">
       <h2 className="text-2xl font-bold text-primary mb-6">Employee Management</h2>
 
       {/* Search Bar */}

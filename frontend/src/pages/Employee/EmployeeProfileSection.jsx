@@ -28,7 +28,7 @@ const EmployeeProfileSection = ({ employee }) => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+    <div className="bg-white main-content rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
       {/* Profile Section */}
       <div className="flex flex-col items-center sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">

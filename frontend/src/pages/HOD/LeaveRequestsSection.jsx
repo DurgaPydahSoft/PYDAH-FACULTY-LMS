@@ -123,7 +123,7 @@ const LeaveRequestsSection = ({
   }, [leaveRequests, search, statusFilter, leaveTypeFilter, startDateFilter, endDateFilter]);
 
   return (
-    <div className="p-4 sm:p-6 mt-4">
+    <div className="p-4 sm:p-6 mt-12">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl sm:text-2xl font-bold text-primary">Leave Requests</h2>
       </div>

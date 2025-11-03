@@ -3,7 +3,7 @@ import { FaUserCircle, FaEnvelope, FaBuilding, FaPhone } from 'react-icons/fa';
 
 const ProfileSection = ({ hod }) => {
   return (
-    <div className="p-6 mt-4">
+    <div className="p-6 mt-10">
       <h2 className="text-2xl font-bold text-primary mb-6">Your Profile</h2>
       
       <div className="bg-white rounded-xl shadow p-6">

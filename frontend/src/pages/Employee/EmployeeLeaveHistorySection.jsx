@@ -3,7 +3,7 @@ import { FaHistory, FaTrash } from 'react-icons/fa';
 
 const EmployeeLeaveHistorySection = ({ leaveHistory, onSelect, onDelete }) => {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+    <div className="bg-white main-content rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
       <div className="flex items-center gap-2 mb-4 sm:mb-6">
         <FaHistory className="text-primary text-xl" />
         <h2 className="text-lg sm:text-xl font-semibold text-primary">Leave History</h2>
