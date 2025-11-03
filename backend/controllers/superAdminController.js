@@ -394,7 +394,7 @@ exports.getDashboard = async (req, res) => {
 // Create HR
 exports.createHR = async (req, res) => {
   try {
-    const { name, email, password, campusId } = req.body;
+    const { name, email, password, campusId, leaveBalance, leaveBalanceByExperience } = req.body;
 
     // Validate input
     if (!name || !email || !password || !campusId) {
@@ -423,7 +423,9 @@ exports.createHR = async (req, res) => {
         name: campus.name,
         location: campus.location
       },
-      status: 'active'
+      status: 'active',
+      leaveBalance: leaveBalance ? parseInt(leaveBalance) : 12,
+      leaveBalanceByExperience: leaveBalanceByExperience ? parseInt(leaveBalanceByExperience) : 0
     });
 
     await hr.save();
@@ -435,7 +437,9 @@ exports.createHR = async (req, res) => {
         name: hr.name,
         email: hr.email,
         campus: hr.campus,
-        status: hr.status
+        status: hr.status,
+        leaveBalance: hr.leaveBalance,
+        leaveBalanceByExperience: hr.leaveBalanceByExperience
       }
     });
   } catch (error) {
@@ -530,7 +534,7 @@ exports.resetHRPassword = async (req, res) => {
 // Update HR
 exports.updateHR = async (req, res) => {
   try {
-    const { name, email } = req.body;
+    const { name, email, leaveBalance, leaveBalanceByExperience } = req.body;
     const hrId = req.params.id;
 
     const hr = await HR.findById(hrId);
@@ -551,6 +555,8 @@ exports.updateHR = async (req, res) => {
     }
 
     if (name) hr.name = name;
+    if (leaveBalance !== undefined) hr.leaveBalance = parseInt(leaveBalance);
+    if (leaveBalanceByExperience !== undefined) hr.leaveBalanceByExperience = parseInt(leaveBalanceByExperience);
 
     await hr.save();
 
@@ -561,7 +567,9 @@ exports.updateHR = async (req, res) => {
         name: hr.name,
         email: hr.email,
         campus: hr.campus,
-        status: hr.status
+        status: hr.status,
+        leaveBalance: hr.leaveBalance,
+        leaveBalanceByExperience: hr.leaveBalanceByExperience
       }
     });
   } catch (error) {
@@ -782,6 +790,109 @@ exports.deleteEmployee = async (req, res) => {
     });
   } catch (error) {
     console.error('Delete Employee Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// Get all HR Leave Requests (for SuperAdmin)
+exports.getHRLeaveRequests = async (req, res) => {
+  try {
+    const { status, campus } = req.query;
+
+    // Build query for HRs
+    let hrQuery = { status: 'active' };
+    if (campus) {
+      hrQuery['campus.type'] = campus;
+    }
+
+    // Find all active HRs
+    const hrs = await HR.find(hrQuery).select('name email campus leaveRequests');
+
+    // Extract and enrich leave requests
+    let allLeaveRequests = [];
+    hrs.forEach(hr => {
+      if (Array.isArray(hr.leaveRequests) && hr.leaveRequests.length > 0) {
+        hr.leaveRequests.forEach(request => {
+          // Apply status filter if provided
+          if (status && request.status !== status) {
+            return;
+          }
+
+          allLeaveRequests.push({
+            ...request.toObject(),
+            hrId: hr._id,
+            hrName: hr.name,
+            hrEmail: hr.email,
+            hrCampus: hr.campus.name || hr.campus.type || 'Unknown'
+          });
+        });
+      }
+    });
+
+    // Sort by appliedOn date, most recent first
+    allLeaveRequests.sort((a, b) => new Date(b.appliedOn) - new Date(a.appliedOn));
+
+    res.json({
+      success: true,
+      leaveRequests: allLeaveRequests,
+      total: allLeaveRequests.length
+    });
+  } catch (error) {
+    console.error('Get HR Leave Requests Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// Update HR Leave Request (SuperAdmin approval/rejection)
+exports.updateHRLeaveRequest = async (req, res) => {
+  try {
+    const { hrId, leaveRequestId } = req.params;
+    const { status, remarks } = req.body;
+
+    if (!status || !['Approved', 'Rejected'].includes(status)) {
+      return res.status(400).json({ msg: 'Please provide valid status (Approved/Rejected)' });
+    }
+
+    const hr = await HR.findById(hrId);
+    if (!hr) {
+      return res.status(404).json({ msg: 'HR not found' });
+    }
+
+    const leaveRequest = hr.leaveRequests.id(leaveRequestId);
+    if (!leaveRequest) {
+      return res.status(404).json({ msg: 'Leave request not found' });
+    }
+
+    // Only allow SuperAdmin to update pending or forwarded requests
+    if (!['Pending', 'Forwarded to SuperAdmin'].includes(leaveRequest.status)) {
+      return res.status(400).json({ msg: 'Leave request cannot be modified in current status' });
+    }
+
+    leaveRequest.status = status;
+    leaveRequest.rejectionBy = status === 'Rejected' ? 'SuperAdmin' : undefined;
+    leaveRequest.superAdminRemarks = remarks || '';
+    leaveRequest.superAdminApprovalDate = new Date();
+
+    // If approved, deduct leave balance for CL
+    if (status === 'Approved' && leaveRequest.leaveType === 'CL') {
+      const daysToDeduct = leaveRequest.numberOfDays || 0;
+      if (hr.leaveBalance < daysToDeduct) {
+        return res.status(400).json({ 
+          msg: `Insufficient leave balance for HR. Available: ${hr.leaveBalance} days, Required: ${daysToDeduct} days` 
+        });
+      }
+      hr.leaveBalance -= daysToDeduct;
+    }
+
+    await hr.save();
+
+    res.json({
+      success: true,
+      msg: `HR leave request ${status.toLowerCase()} successfully`,
+      leaveRequest: leaveRequest.toObject()
+    });
+  } catch (error) {
+    console.error('Update HR Leave Request Error:', error);
     res.status(500).json({ msg: 'Server error' });
   }
 }; 

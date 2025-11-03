@@ -30,6 +30,11 @@ router.post('/employees/bulk', hrController.bulkRegisterEmployees);
 router.get('/leave-requests', hrController.getCampusLeaveRequests);
 router.put('/leave-requests/:id/update-status', hrController.updateLeaveRequestStatus);
 
+// HR's own leave requests
+router.post('/my-leaves', hrController.applyHRLeave);
+router.get('/my-leaves', hrController.getHRLeaveRequests);
+router.put('/my-leaves/:leaveRequestId', hrController.updateOwnLeaveRequest);
+
 // HR Task Management
 router.post('/tasks', taskController.createTask);
 router.get('/tasks', taskController.listTasks);

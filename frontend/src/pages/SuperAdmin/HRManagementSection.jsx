@@ -183,6 +183,37 @@ const HRManagementSection = ({
                     ))}
                 </select>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="flex text-sm font-medium text-gray-700 mb-1 items-center gap-1">
+                    Leave Balance
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="30"
+                    value={hrFormData.leaveBalance}
+                    onChange={(e) => setHrFormData({...hrFormData, leaveBalance: e.target.value})}
+                    className="w-full p-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Default: 12 days</p>
+                </div>
+                <div>
+                  <label className="flex text-sm font-medium text-gray-700 mb-1 items-center gap-1">
+                    Leave Balance by Experience
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="30"
+                    value={hrFormData.leaveBalanceByExperience}
+                    onChange={(e) => setHrFormData({...hrFormData, leaveBalanceByExperience: e.target.value})}
+                    className="w-full p-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Optional (default: 0)</p>
+                </div>
+              </div>
               <div className="flex justify-end space-x-3 mt-6">
                 <button
                   type="button"
@@ -236,6 +267,31 @@ const HRManagementSection = ({
                   className="w-full p-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary"
                   required
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Leave Balance</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="30"
+                    value={editHRData.leaveBalance || 12}
+                    onChange={e => setEditHRData({ ...editHRData, leaveBalance: e.target.value })}
+                    className="w-full p-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Leave Balance by Experience</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="30"
+                    value={editHRData.leaveBalanceByExperience || 0}
+                    onChange={e => setEditHRData({ ...editHRData, leaveBalanceByExperience: e.target.value })}
+                    className="w-full p-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary"
+                  />
+                </div>
               </div>
               <div className="flex justify-end space-x-3 mt-6">
                 <button

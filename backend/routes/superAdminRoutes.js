@@ -45,4 +45,8 @@ router.put('/employees/:id/status', SuperAdminController.updateEmployeeStatus);
 router.post('/employees/:id/reset-password', SuperAdminController.resetEmployeePassword);
 router.delete('/employees/:id', SuperAdminController.deleteEmployee);
 
+// HR Leave Requests management
+router.get('/hr-leave-requests', SuperAdminController.getHRLeaveRequests);
+router.put('/hr-leave-requests/:hrId/:leaveRequestId', SuperAdminController.updateHRLeaveRequest);
+
 module.exports = router; 

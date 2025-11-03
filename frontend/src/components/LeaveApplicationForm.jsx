@@ -12,9 +12,9 @@ const LEAVE_TYPES = [
 
 const PERIODS = [1, 2, 3, 4, 5, 6, 7];
 
-const LeaveApplicationForm = ({ onSubmit, onClose, employee }) => {
+const LeaveApplicationForm = ({ onSubmit, onClose, employee, isHR = false }) => {
   // Check if employee is non-teaching
-  const isNonTeaching = employee?.employeeType === 'non-teaching';
+  const isNonTeaching = employee?.employeeType === 'non-teaching' || isHR;
   
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -52,10 +52,10 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee }) => {
   const [facultySearchQuery, setFacultySearchQuery] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch CCL work days when CCL is selected
+  // Fetch CCL work days when CCL is selected (skip for HR)
   useEffect(() => {
     const fetchCCLWorkDays = async () => {
-      if (formData.leaveType === 'CCL') {
+      if (formData.leaveType === 'CCL' && !isHR) {
         try {
           const token = localStorage.getItem('token');
           const response = await fetch(`${API_BASE_URL}/employee/ccl-work-history`, {
@@ -71,30 +71,57 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee }) => {
           console.error('Error fetching CCL work days:', error);
           setError('Failed to fetch CCL work days');
         }
+      } else if (formData.leaveType === 'CCL' && isHR) {
+        // HR doesn't have CCL work history, so set empty array
+        setAvailableCCLDays([]);
       }
     };
 
     fetchCCLWorkDays();
-  }, [formData.leaveType]);
+  }, [formData.leaveType, isHR]);
 
   // Fetch leave balance
   useEffect(() => {
     const fetchLeaveBalance = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/employee/leave-balance`, {
+        const endpoint = isHR 
+          ? `${API_BASE_URL}/hr/my-leaves` 
+          : `${API_BASE_URL}/employee/leave-balance`;
+        
+        const response = await fetch(endpoint, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) throw new Error('Failed to fetch leave balance');
+        if (!response.ok) {
+          // For HR, if endpoint doesn't exist yet, use default values
+          if (isHR && response.status === 404) {
+            setLeaveBalance({ leaveBalance: 12, cclBalance: 0 });
+            return;
+          }
+          throw new Error('Failed to fetch leave balance');
+        }
         const data = await response.json();
-        setLeaveBalance(data);
+        // HR endpoint returns { success, leaveRequests, leaveBalance, leaveBalanceByExperience }
+        if (isHR && data.success) {
+          setLeaveBalance({ 
+            leaveBalance: data.leaveBalance || 12, 
+            cclBalance: 0 // HR doesn't have CCL balance for now
+          });
+        } else {
+          setLeaveBalance(data);
+        }
       } catch (error) {
         console.error('Error:', error);
-        toast.error('Failed to fetch leave balance');
+        // For HR, set default values instead of showing error
+        if (isHR) {
+          setLeaveBalance({ leaveBalance: 12, cclBalance: 0 });
+        } else {
+          toast.error('Failed to fetch leave balance');
+        }
       }
     };
     fetchLeaveBalance();
-  }, []);
+  }, [isHR]);
 
   // Fetch faculty list - only for teaching employees
   useEffect(() => {
@@ -500,6 +527,13 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee }) => {
       }
 
       console.log('Sending request with data:', formattedData);
+
+      // For HR, use the onSubmit callback directly instead of calling employee endpoint
+      if (isHR) {
+        // HR uses different data format - call the onSubmit callback with formatted data
+        await onSubmit(formattedData);
+        return;
+      }
 
       const response = await fetch(`${API_BASE_URL}/employee/leave-request`, {
         method: 'POST',

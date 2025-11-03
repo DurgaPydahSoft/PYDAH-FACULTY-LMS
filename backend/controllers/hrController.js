@@ -1332,3 +1332,194 @@ exports.getDepartments = async (req, res) => {
     res.status(500).json({ msg: 'Server error' });
   }
 };
+
+// Apply for HR Leave (goes to SuperAdmin)
+exports.applyHRLeave = async (req, res) => {
+  try {
+    const {
+      leaveType,
+      isHalfDay,
+      session,
+      startDate,
+      endDate,
+      numberOfDays,
+      reason,
+      odTimeType,
+      odStartTime,
+      odEndTime
+    } = req.body;
+
+    // Validate required fields
+    if (!leaveType || !startDate || !endDate || !numberOfDays || !reason) {
+      return res.status(400).json({ msg: 'Please provide all required fields' });
+    }
+
+    // Validate session for half-day leave
+    if (isHalfDay && !session) {
+      return res.status(400).json({ msg: 'Please select session for half-day leave' });
+    }
+
+    // Find HR
+    const hr = await HR.findById(req.user.id);
+    if (!hr) {
+      return res.status(404).json({ msg: 'HR not found' });
+    }
+
+    // Check for existing leave request with same dates and status
+    const existingRequest = hr.leaveRequests.find(request => 
+      request.startDate === startDate && 
+      request.endDate === endDate && 
+      request.status === 'Pending'
+    );
+
+    if (existingRequest) {
+      return res.status(400).json({ 
+        msg: 'A pending leave request already exists for these dates' 
+      });
+    }
+
+    // Generate leaveRequestId
+    const currentYear = new Date().getFullYear();
+    const deptCode = 'HR';
+    let sequenceNumber = 1;
+    
+    // Find the latest leave request ID for this year and department
+    const latestRequest = await HR.aggregate([
+      { $unwind: '$leaveRequests' },
+      { $match: { 
+        'leaveRequests.leaveType': leaveType,
+        'leaveRequests.leaveRequestId': { $regex: `^${leaveType}${currentYear}${deptCode}` }
+      }},
+      { $sort: { 'leaveRequests.leaveRequestId': -1 } },
+      { $limit: 1 },
+      { $project: { leaveRequestId: '$leaveRequests.leaveRequestId' } }
+    ]);
+
+    if (latestRequest.length > 0) {
+      const lastSequence = parseInt(latestRequest[0].leaveRequestId.slice(-4));
+      if (!isNaN(lastSequence)) sequenceNumber = lastSequence + 1;
+    }
+
+    const leaveRequestId = `${leaveType}${currentYear}${deptCode}${sequenceNumber.toString().padStart(4, '0')}`;
+
+    // Create new leave request
+    const newLeaveRequest = {
+      leaveRequestId,
+      leaveType,
+      isHalfDay: isHalfDay || false,
+      session: isHalfDay ? session : undefined,
+      startDate,
+      endDate,
+      numberOfDays: isHalfDay ? 0.5 : numberOfDays,
+      reason,
+      status: 'Forwarded to SuperAdmin', // Goes directly to SuperAdmin
+      appliedOn: new Date().toISOString().split('T')[0]
+    };
+
+    // Add OD-specific fields
+    if (leaveType === 'OD') {
+      if (odTimeType === 'custom' && odStartTime && odEndTime) {
+        // Store custom time in remarks or create a separate field if needed
+        newLeaveRequest.remarks = `OD Time: ${odStartTime} - ${odEndTime}`;
+      }
+      if (odTimeType === 'half') {
+        newLeaveRequest.isHalfDay = true;
+      }
+    }
+
+    hr.leaveRequests.push(newLeaveRequest);
+    await hr.save();
+
+    // Send notification to SuperAdmin (optional - can be added later)
+    // await sendSuperAdminNotification(leaveRequest, hr);
+
+    res.status(201).json({
+      success: true,
+      msg: 'Leave request submitted successfully. It will be reviewed by SuperAdmin.',
+      leaveRequest: newLeaveRequest
+    });
+  } catch (error) {
+    console.error('Apply HR Leave Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// Get HR's own leave requests
+exports.getHRLeaveRequests = async (req, res) => {
+  try {
+    const hr = await HR.findById(req.user.id).select('leaveRequests leaveBalance leaveBalanceByExperience');
+    if (!hr) {
+      return res.status(404).json({ msg: 'HR not found' });
+    }
+
+    const leaveRequests = hr.leaveRequests || [];
+    
+    // Sort by appliedOn date, most recent first
+    leaveRequests.sort((a, b) => new Date(b.appliedOn) - new Date(a.appliedOn));
+
+    res.json({
+      success: true,
+      leaveRequests,
+      leaveBalance: hr.leaveBalance || 12,
+      leaveBalanceByExperience: hr.leaveBalanceByExperience || 0
+    });
+  } catch (error) {
+    console.error('Get HR Leave Requests Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// HR can approve/reject their own leave requests
+exports.updateOwnLeaveRequest = async (req, res) => {
+  try {
+    const { leaveRequestId } = req.params;
+    const { status, remarks } = req.body;
+
+    if (!status || !['Approved', 'Rejected'].includes(status)) {
+      return res.status(400).json({ msg: 'Please provide valid status (Approved/Rejected)' });
+    }
+
+    const hr = await HR.findById(req.user.id);
+    if (!hr) {
+      return res.status(404).json({ msg: 'HR not found' });
+    }
+
+    const leaveRequest = hr.leaveRequests.id(leaveRequestId);
+    if (!leaveRequest) {
+      return res.status(404).json({ msg: 'Leave request not found' });
+    }
+
+    // Only allow HR to update their own pending or forwarded requests
+    if (!['Pending', 'Forwarded to SuperAdmin'].includes(leaveRequest.status)) {
+      return res.status(400).json({ msg: 'Leave request cannot be modified in current status' });
+    }
+
+    leaveRequest.status = status;
+    leaveRequest.rejectionBy = status === 'Rejected' ? 'HR' : undefined;
+    if (remarks) {
+      leaveRequest.remarks = remarks;
+    }
+
+    // If approved, deduct leave balance for CL
+    if (status === 'Approved' && leaveRequest.leaveType === 'CL') {
+      const daysToDeduct = leaveRequest.numberOfDays || 0;
+      if (hr.leaveBalance < daysToDeduct) {
+        return res.status(400).json({ 
+          msg: `Insufficient leave balance. Available: ${hr.leaveBalance} days, Required: ${daysToDeduct} days` 
+        });
+      }
+      hr.leaveBalance -= daysToDeduct;
+    }
+
+    await hr.save();
+
+    res.json({
+      success: true,
+      msg: `Leave request ${status.toLowerCase()} successfully`,
+      leaveRequest
+    });
+  } catch (error) {
+    console.error('Update Own Leave Request Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};

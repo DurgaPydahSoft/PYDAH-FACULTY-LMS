@@ -40,10 +40,12 @@ const SuperAdminDashboard = () => {
     name: '',
     email: '',
     password: '',
-    campusName: ''
+    campusName: '',
+    leaveBalance: 12,
+    leaveBalanceByExperience: 0
   });
   const [showEditHRModal, setShowEditHRModal] = useState(false);
-  const [editHRData, setEditHRData] = useState({ _id: '', name: '', email: '' });
+  const [editHRData, setEditHRData] = useState({ _id: '', name: '', email: '', leaveBalance: 12, leaveBalanceByExperience: 0 });
   const [showResetHRPasswordModal, setShowResetHRPasswordModal] = useState(false);
   const [resetHRPasswordData, setResetHRPasswordData] = useState({ hrId: null, newPassword: '' });
   
@@ -172,7 +174,9 @@ const SuperAdminDashboard = () => {
           name: hrFormData.name,
           email: hrFormData.email,
           password: hrFormData.password,
-          campusId: selectedCampus._id
+          campusId: selectedCampus._id,
+          leaveBalance: parseInt(hrFormData.leaveBalance) || 12,
+          leaveBalanceByExperience: parseInt(hrFormData.leaveBalanceByExperience) || 0
         },
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -180,7 +184,7 @@ const SuperAdminDashboard = () => {
       );
 
       setShowCreateHRModal(false);
-      setHrFormData({ name: '', email: '', password: '', campusName: '' });
+      setHrFormData({ name: '', email: '', password: '', campusName: '', leaveBalance: 12, leaveBalanceByExperience: 0 });
       await fetchHRs();
       
     } catch (error) {
@@ -289,7 +293,13 @@ const SuperAdminDashboard = () => {
   };
 
   const handleEditHR = (hr) => {
-    setEditHRData({ _id: hr._id, name: hr.name, email: hr.email });
+    setEditHRData({ 
+      _id: hr._id, 
+      name: hr.name, 
+      email: hr.email,
+      leaveBalance: hr.leaveBalance || 12,
+      leaveBalanceByExperience: hr.leaveBalanceByExperience || 0
+    });
     setShowEditHRModal(true);
   };
 
@@ -299,12 +309,17 @@ const SuperAdminDashboard = () => {
       const token = localStorage.getItem('token');
       await axios.put(
         `${API_BASE_URL}/super-admin/hrs/${editHRData._id}`,
-        { name: editHRData.name, email: editHRData.email },
+        { 
+          name: editHRData.name, 
+          email: editHRData.email,
+          leaveBalance: parseInt(editHRData.leaveBalance) || 12,
+          leaveBalanceByExperience: parseInt(editHRData.leaveBalanceByExperience) || 0
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       toast.success('HR details updated successfully');
       setShowEditHRModal(false);
-      setEditHRData({ _id: '', name: '', email: '' });
+      setEditHRData({ _id: '', name: '', email: '', leaveBalance: 12, leaveBalanceByExperience: 0 });
       await fetchHRs();
     } catch (error) {
       setError(error.response?.data?.msg || 'Failed to update HR details');

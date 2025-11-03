@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaBars, FaTimes, FaHome, FaUsers, FaClipboardList, FaTasks, FaUserPlus, FaUserCircle, FaSignOutAlt, FaUserTie } from 'react-icons/fa';
+import { FaBars, FaTimes, FaHome, FaUsers, FaClipboardList, FaTasks, FaUserPlus, FaUserCircle, FaSignOutAlt, FaUserTie, FaRegCalendarCheck } from 'react-icons/fa';
 
 
 const HRSidebar = ({ activeSection, onSectionChange, hr }) => {
@@ -13,6 +13,7 @@ const HRSidebar = ({ activeSection, onSectionChange, hr }) => {
     { id: 'operations', label: 'Register Employee', icon: <FaUserPlus /> },
     { id: 'hod-management', label: 'HOD Management', icon: <FaUserTie /> },
     { id: 'leaves', label: 'Leave Requests', icon: <FaTasks /> },
+    { id: 'my-leaves', label: 'My Leave Requests', icon: <FaRegCalendarCheck /> },
     { id: 'tasks', label: 'Task Management', icon: <FaTasks /> },
     { id: 'profile', label: 'Profile', icon: <FaUserCircle /> }
   ];

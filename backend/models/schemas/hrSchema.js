@@ -39,6 +39,86 @@ const hrSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  leaveBalance: {
+    type: Number,
+    default: 12
+  },
+  leaveBalanceByExperience: {
+    type: Number,
+    default: 0
+  },
+  leaveRequests: [{
+    leaveRequestId: {
+      type: String,
+      unique: false,
+      required: true
+    },
+    leaveType: {
+      type: String,
+      required: true,
+      enum: ['CL', 'CCL', 'OD']
+    },
+    isHalfDay: {
+      type: Boolean,
+      default: false
+    },
+    session: {
+      type: String,
+      enum: ['Morning', 'Afternoon']
+    },
+    startDate: {
+      type: String,
+      required: true,
+      validate: {
+        validator: function(v) {
+          return /^\d{4}-\d{2}-\d{2}$/.test(v);
+        },
+        message: props => `${props.value} is not a valid date format! Use YYYY-MM-DD`
+      }
+    },
+    endDate: {
+      type: String,
+      required: true,
+      validate: {
+        validator: function(v) {
+          return /^\d{4}-\d{2}-\d{2}$/.test(v);
+        },
+        message: props => `${props.value} is not a valid date format! Use YYYY-MM-DD`
+      }
+    },
+    numberOfDays: {
+      type: Number,
+      required: true
+    },
+    reason: {
+      type: String,
+      required: true
+    },
+    status: {
+      type: String,
+      enum: ['Pending', 'Forwarded to SuperAdmin', 'Approved', 'Rejected'],
+      default: 'Pending'
+    },
+    appliedOn: {
+      type: String,
+      default: function() {
+        return new Date().toISOString().split('T')[0];
+      }
+    },
+    remarks: {
+      type: String
+    },
+    superAdminRemarks: {
+      type: String
+    },
+    superAdminApprovalDate: {
+      type: Date
+    },
+    rejectionBy: {
+      type: String,
+      enum: ['HR', 'SuperAdmin']
+    }
+  }],
   createdAt: {
     type: Date,
     default: Date.now

@@ -937,7 +937,7 @@ const allLeaveRows = [
                                                             row.status === 'Rejected' ? 'bg-red-100 text-red-800' :
                                                                 row.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
                                                                     row.status === 'Forwarded to HR' ? 'bg-purple-100 text-purple-800' :
-                                                                        'bg-yellow-100 text-yellow-800'}`}
+                                                                    'bg-yellow-100 text-yellow-800'}`}
                                                     >
                                                         {row.status || 'N/A'}
                                                     </span>
@@ -1095,7 +1095,7 @@ const allLeaveRows = [
                                         leave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
                                             leave.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
                                                 leave.status === 'Forwarded to HR' ? 'bg-purple-100 text-purple-800' :
-                                                    'bg-yellow-100 text-yellow-800'}`}
+                                                'bg-yellow-100 text-yellow-800'}`}
                                 >
                                     {leave.status || 'N/A'}
                                 </span>
@@ -1125,7 +1125,7 @@ const allLeaveRows = [
                                             leave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
                                                 leave.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
                                                     leave.status === 'Forwarded to HR' ? 'bg-purple-100 text-purple-800' :
-                                                        'bg-yellow-100 text-yellow-800'}`}
+                                                    'bg-yellow-100 text-yellow-800'}`}
                                     >
                                         {leave.status || 'N/A'}
                                     </span>
@@ -1276,7 +1276,7 @@ const allLeaveRows = [
                                                 selectedLeave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
                                                     selectedLeave.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
                                                         selectedLeave.status === 'Forwarded to HR' ? 'bg-purple-100 text-purple-800' :
-                                                            'bg-yellow-100 text-yellow-800'}`}
+                                                        'bg-yellow-100 text-yellow-800'}`}
                                         >
                                             {selectedLeave.status || 'N/A'}
                                         </span>
