@@ -203,7 +203,7 @@ const HodDashboard = () => {
   };
 
   // Leave Management Functions
-  const handleApproveLeave = async (leaveId) => {
+  const handleApproveLeave = async (leaveId, remarks = '') => {
     try {
       const leaveRequest = leaveRequests.find(leave => leave._id === leaveId);
       if (!leaveRequest) {
@@ -213,7 +213,7 @@ const HodDashboard = () => {
 
       await axios.put(
         `${API_BASE_URL}/hod/leaves/${leaveRequest.employeeId}/${leaveId}`,
-        { status: 'Approved' , remarks},
+        { status: 'Approved', remarks: remarks || '' },
         {
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -226,10 +226,11 @@ const HodDashboard = () => {
     } catch (error) {
       console.error('Error approving leave request:', error);
       toast.error(error.response?.data?.msg || 'Failed to approve leave request');
+      throw error; // Re-throw to allow LeaveRequestsSection to handle it
     }
   };
 
-  const handleRejectLeave = async (leaveId, remarks) => {
+  const handleRejectLeave = async (leaveId, remarks = '') => {
     try {
       const leaveRequest = leaveRequests.find(leave => leave._id === leaveId);
       if (!leaveRequest) {
@@ -239,7 +240,7 @@ const HodDashboard = () => {
 
       await axios.put(
         `${API_BASE_URL}/hod/leaves/${leaveRequest.employeeId}/${leaveId}`,
-        { status: 'Rejected', remarks },
+        { status: 'Rejected', remarks: remarks || '' },
         {
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -252,6 +253,7 @@ const HodDashboard = () => {
     } catch (error) {
       console.error('Error rejecting leave request:', error);
       toast.error(error.response?.data?.msg || 'Failed to reject leave request');
+      throw error; // Re-throw to allow LeaveRequestsSection to handle it
     }
   };
 
