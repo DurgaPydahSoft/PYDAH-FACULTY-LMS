@@ -277,12 +277,18 @@ const processAttendanceData = async (parsedData, hrId, hrCampus, worksheet = nul
   // Get all unique employee IDs from the Excel
   const employeeIds = [...new Set(parsedData.map(row => mapExcelHeaders(row).employeeId).filter(Boolean))];
   
-  // Fetch all employees in one query
+  console.log('Looking for employee IDs:', employeeIds);
+  console.log('HR Campus:', hrCampus);
+  
+  // Fetch all employees in one query (campus is stored as lowercase string in Employee)
   const employees = await Employee.find({
     employeeId: { $in: employeeIds },
-    campus: hrCampus
-  }).select('employeeId name department leaveRequests employeeType');
-
+    campus: hrCampus.toLowerCase()
+  }).select('employeeId name department leaveRequests employeeType campus');
+  
+  console.log('Found employees:', employees.length);
+  console.log('Employee IDs found:', employees.map(e => e.employeeId));
+  
   // Create a map for quick lookup
   const employeeMap = employees.reduce((acc, emp) => {
     acc[emp.employeeId] = emp;
@@ -360,24 +366,85 @@ const processAttendanceData = async (parsedData, hrId, hrCampus, worksheet = nul
     // Try to parse various date formats
     if (!dateRegex.test(rowDate)) {
       try {
-        // Try common date formats
+        // Check if date is an Excel serial date number (common when dates are copied from Excel)
         let parsedDate = null;
         
-        // Format: "03-Nov-2025" or "03/Nov/2025"
-        const datePattern1 = /(\d{1,2})[-\/](\w+)[-\/](\d{4})/;
-        const match1 = rowDate.match(datePattern1);
-        if (match1) {
-          const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-          const monthIndex = monthNames.findIndex(m => m === match1[2].substring(0, 3).toLowerCase());
-          if (monthIndex !== -1) {
-            parsedDate = new Date(parseInt(match1[3]), monthIndex, parseInt(match1[1]));
+        // If rowDate is a number, it might be an Excel serial date
+        if (typeof rowDate === 'number' || (!isNaN(parseFloat(rowDate)) && isFinite(rowDate))) {
+          const excelSerialDate = parseFloat(rowDate);
+          // Excel serial dates start from Jan 1, 1900 (serial 1)
+          // Dates are typically between 1 and ~50000 (for dates up to year 2100)
+          if (excelSerialDate > 0 && excelSerialDate < 100000) {
+            try {
+              // Use xlsx library's date conversion utility if available
+              // Otherwise, manually convert Excel serial date
+              // Excel serial date 1 = Jan 1, 1900
+              // But Excel incorrectly treats 1900 as a leap year, so we account for that
+              
+              // Excel epoch: January 1, 1900 (serial 1)
+              // JavaScript epoch: January 1, 1970 (Unix epoch)
+              
+              // Excel incorrectly considers 1900 as a leap year, so serial 60 = Feb 29, 1900
+              // But Feb 29, 1900 doesn't exist, so dates before March 1, 1900 need adjustment
+              
+              // For dates on or after March 1, 1900: days = serial - 1
+              // For dates before March 1, 1900: days = serial - 1 (same, but Excel's bug is already accounted)
+              
+              // Excel serial date conversion
+              // Excel serial date 1 = Jan 1, 1900
+              // Excel incorrectly treats 1900 as a leap year (Feb 29, 1900 doesn't exist)
+              // Excel serial 60 = Feb 29, 1900 (doesn't exist, Excel bug)
+              // Excel serial 61 = March 1, 1900 (correct)
+              
+              // For dates >= serial 61, we need to subtract 1 extra day to account for the non-existent Feb 29, 1900
+              // Formula: days = serial - 1 - (serial >= 61 ? 1 : 0)
+              // Simplified: days = serial - 2 for dates >= 61, serial - 1 for dates < 61
+              
+              let daysSince1900;
+              if (excelSerialDate >= 61) {
+                // Account for Excel's incorrect leap year in 1900
+                daysSince1900 = excelSerialDate - 2;
+              } else {
+                daysSince1900 = excelSerialDate - 1;
+              }
+              
+              // Excel epoch: January 1, 1900
+              const excelEpoch = new Date(Date.UTC(1900, 0, 1));
+              parsedDate = new Date(excelEpoch.getTime() + daysSince1900 * 24 * 60 * 60 * 1000);
+              
+              // Validate the date is reasonable (between 1900 and 2100)
+              const year = parsedDate.getUTCFullYear();
+              if (year >= 1900 && year <= 2100 && !isNaN(parsedDate.getTime())) {
+                // Format as YYYY-MM-DD
+                const month = String(parsedDate.getUTCMonth() + 1).padStart(2, '0');
+                const day = String(parsedDate.getUTCDate()).padStart(2, '0');
+                formattedDate = `${year}-${month}-${day}`;
+              }
+            } catch (e) {
+              console.log('Excel date conversion error:', e);
+              // If Excel date parsing fails, try other methods
+            }
+          }
+        }
+        
+        // If not Excel serial date, try common date string formats
+        if (!parsedDate || isNaN(parsedDate.getTime())) {
+          // Format: "03-Nov-2025" or "03/Nov/2025"
+          const datePattern1 = /(\d{1,2})[-\/](\w+)[-\/](\d{4})/;
+          const match1 = rowDate.toString().match(datePattern1);
+          if (match1) {
+            const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+            const monthIndex = monthNames.findIndex(m => m === match1[2].substring(0, 3).toLowerCase());
+            if (monthIndex !== -1) {
+              parsedDate = new Date(parseInt(match1[3]), monthIndex, parseInt(match1[1]));
+            }
           }
         }
         
         // Format: "Nov 03 2025"
         if (!parsedDate || isNaN(parsedDate.getTime())) {
           const datePattern2 = /(\w+)\s+(\d{1,2})\s+(\d{4})/;
-          const match2 = rowDate.match(datePattern2);
+          const match2 = rowDate.toString().match(datePattern2);
           if (match2) {
             const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
             const monthIndex = monthNames.findIndex(m => m === match2[1].substring(0, 3).toLowerCase());
@@ -407,13 +474,13 @@ const processAttendanceData = async (parsedData, hrId, hrCampus, worksheet = nul
     // Check if employee exists
     const employee = employeeMap[employeeId];
     if (!employee) {
-      errors.push({ row: i + 1, employeeId, error: 'Employee not found in database' });
+      errors.push({ row: i + 1, employeeId, error: `Employee not found in database for campus ${hrCampus}` });
       continue;
     }
     
-    // Check if employee belongs to HR's campus
-    if (employee.campus !== hrCampus) {
-      errors.push({ row: i + 1, employeeId, error: 'Employee does not belong to your campus' });
+    // Verify employee belongs to HR's campus (already filtered in query, but double-check)
+    if (employee.campus && employee.campus.toLowerCase() !== hrCampus.toLowerCase()) {
+      errors.push({ row: i + 1, employeeId, error: `Employee belongs to ${employee.campus} campus, not ${hrCampus}` });
       continue;
     }
     
@@ -881,95 +948,80 @@ exports.uploadAttendancePreview = asyncHandler(async (req, res) => {
       return res.status(400).json({ msg: 'Excel file has no sheets' });
     }
     
-    // Process all sheets
-    const allProcessedData = [];
-    const allErrors = [];
-    const allWarnings = [];
-    let headerMapping = {};
-    let detectedFormat = null;
+    // Process only the first sheet (traditional/vertical format only)
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
     
-    for (const sheetName of workbook.SheetNames) {
-      const worksheet = workbook.Sheets[sheetName];
-      
-      if (!worksheet) {
-        allWarnings.push({ warning: `Sheet "${sheetName}" is empty and skipped.` });
-        continue;
-      }
-      
-      // Detect format type for this sheet
-      const formatType = detectFormatType(worksheet);
-      if (!detectedFormat) detectedFormat = formatType;
-      
-      if (formatType === 'horizontal') {
-        // Parse horizontal format
-        const { attendanceRecords, errors: sheetErrors, warnings: sheetWarnings } = 
-          await parseHorizontalFormat(worksheet, hrCampus);
-        
-        allErrors.push(...sheetErrors.map(e => ({ ...e, sheet: sheetName })));
-        allWarnings.push(...sheetWarnings.map(w => ({ ...w, sheet: sheetName })));
-        
-        // Process horizontal format data
-        const { processedData: sheetData, errors: procErrors, warnings: procWarnings } = 
-          await processHorizontalAttendanceData(attendanceRecords, req.user.id, hrCampus);
-        
-        allProcessedData.push(...sheetData);
-        allErrors.push(...procErrors.map(e => ({ ...e, sheet: sheetName })));
-        allWarnings.push(...procWarnings.map(w => ({ ...w, sheet: sheetName })));
-      } else {
-        // Parse vertical format
-        const data = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-        
-        if (data.length === 0) {
-          allWarnings.push({ warning: `Sheet "${sheetName}" has no data rows.` });
-          continue;
-        }
-        
-        // Detect header mapping from first row for display purposes
-        if (data.length > 0 && Object.keys(headerMapping).length === 0) {
-          const firstRow = data[0];
-          const sampleMapping = mapExcelHeaders(firstRow);
-          const detectedHeaders = Object.keys(firstRow);
-          
-          const findMappedHeader = (mappedValue) => {
-            if (!mappedValue) return 'Not Found';
-            for (const header in firstRow) {
-              if (firstRow[header] === mappedValue) {
-                return header;
-              }
-            }
-            return 'Not Found';
-          };
-          
-          headerMapping = {
-            employeeId: findMappedHeader(sampleMapping.employeeId),
-            date: findMappedHeader(sampleMapping.date),
-            inTime: findMappedHeader(sampleMapping.inTime),
-            outTime: findMappedHeader(sampleMapping.outTime),
-            detectedHeaders: detectedHeaders
-          };
-        }
-        
-        // Process vertical format data
-        const { processedData: sheetData, errors: procErrors, warnings: procWarnings } = 
-          await processAttendanceData(data, req.user.id, hrCampus, worksheet);
-        
-        allProcessedData.push(...sheetData);
-        allErrors.push(...procErrors.map(e => ({ ...e, sheet: sheetName })));
-        allWarnings.push(...procWarnings.map(w => ({ ...w, sheet: sheetName })));
-      }
+    if (!worksheet) {
+      return res.status(400).json({ msg: 'First sheet is empty' });
     }
     
-    if (allProcessedData.length === 0) {
+    // Parse traditional/vertical format (each row is an attendance record)
+    const data = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+    
+    console.log('Excel data rows:', data.length);
+    if (data.length > 0) {
+      console.log('First row sample:', JSON.stringify(data[0], null, 2));
+    }
+    
+    if (data.length === 0) {
+      return res.status(400).json({ msg: 'Sheet has no data rows' });
+    }
+    
+    // Detect header mapping from first row for display purposes
+    let headerMapping = {};
+    if (data.length > 0) {
+      const firstRow = data[0];
+      const sampleMapping = mapExcelHeaders(firstRow);
+      const detectedHeaders = Object.keys(firstRow);
+      
+      console.log('Detected headers:', detectedHeaders);
+      console.log('Mapped headers:', sampleMapping);
+      
+      const findMappedHeader = (mappedValue) => {
+        if (!mappedValue) return 'Not Found';
+        for (const header in firstRow) {
+          if (firstRow[header] === mappedValue) {
+            return header;
+          }
+        }
+        return 'Not Found';
+      };
+      
+      headerMapping = {
+        employeeId: findMappedHeader(sampleMapping.employeeId),
+        date: findMappedHeader(sampleMapping.date),
+        inTime: findMappedHeader(sampleMapping.inTime),
+        outTime: findMappedHeader(sampleMapping.outTime),
+        detectedHeaders: detectedHeaders
+      };
+      
+      console.log('Header mapping:', headerMapping);
+    }
+    
+    // Process vertical/traditional format data
+    const { processedData, errors, warnings } = 
+      await processAttendanceData(data, req.user.id, hrCampus, worksheet);
+    
+    console.log('Processed data count:', processedData.length);
+    console.log('Errors count:', errors.length);
+    console.log('Warnings count:', warnings.length);
+    if (errors.length > 0) {
+      console.log('Sample errors:', errors.slice(0, 5));
+    }
+    
+    if (processedData.length === 0) {
       return res.status(400).json({ 
-        msg: 'No valid attendance data found in any sheet. Please check the Excel format.',
-        errors: allErrors,
-        warnings: allWarnings
+        msg: 'No valid attendance data found in the sheet. Please check the Excel format.',
+        errors: errors,
+        warnings: warnings,
+        debug: {
+          totalRows: data.length,
+          headerMapping: headerMapping,
+          sampleRow: data[0] || null
+        }
       });
     }
-    
-    const processedData = allProcessedData;
-    const errors = allErrors;
-    const warnings = allWarnings;
 
     res.json({
       success: true,
@@ -977,8 +1029,8 @@ exports.uploadAttendancePreview = asyncHandler(async (req, res) => {
       errors,
       warnings,
       headerMapping,
-      format: detectedFormat || 'vertical',
-      sheetsProcessed: workbook.SheetNames.length,
+      format: 'vertical',
+      sheetsProcessed: 1,
       summary: {
         total: processedData.length,
         errors: errors.length,

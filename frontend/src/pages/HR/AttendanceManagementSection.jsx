@@ -69,13 +69,27 @@ const AttendanceManagementSection = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.msg || 'Failed to upload file');
+        // Show detailed error information
+        let errorMessage = data.msg || 'Failed to upload file';
+        if (data.errors && data.errors.length > 0) {
+          errorMessage += `\n\nErrors:\n${data.errors.slice(0, 5).map((e, i) => `${i + 1}. ${e.error || e.warning || 'Unknown error'}`).join('\n')}`;
+          if (data.errors.length > 5) {
+            errorMessage += `\n... and ${data.errors.length - 5} more errors`;
+          }
+        }
+        if (data.debug) {
+          console.error('Debug info:', data.debug);
+          console.error('Header mapping:', data.debug.headerMapping);
+          console.error('Sample row:', data.debug.sampleRow);
+        }
+        throw new Error(errorMessage);
       }
 
       setPreviewData(data);
       toast.success(`File processed successfully! ${data.summary.total} records found.`);
     } catch (error) {
       console.error('Error uploading file:', error);
+      console.error('Full error details:', error);
       toast.error(error.message || 'Failed to upload file');
       setPreviewData(null);
     } finally {
