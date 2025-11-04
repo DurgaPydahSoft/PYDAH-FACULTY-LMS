@@ -268,8 +268,8 @@ const mapExcelHeaders = (row) => {
   };
 };
 
-// Helper function to process attendance data
-const processAttendanceData = async (parsedData, hrId, hrCampus) => {
+// Helper function to process attendance data (vertical format)
+const processAttendanceData = async (parsedData, hrId, hrCampus, worksheet = null) => {
   const processedData = [];
   const errors = [];
   const warnings = [];
@@ -291,40 +291,43 @@ const processAttendanceData = async (parsedData, hrId, hrCampus) => {
 
   // Try to extract date from sheet header (for single-day reports)
   let defaultDate = null;
-  const worksheet = XLSX.utils.sheet_to_json(parsedData, { header: 1, defval: '' });
-  if (Array.isArray(worksheet) && worksheet.length > 0) {
-    // Look for date in first few rows
-    for (let i = 0; i < Math.min(5, worksheet.length); i++) {
-      const rowText = worksheet[i].join(' ');
-      // Look for patterns like "Attendance Date 03-Nov-2025" or "Nov 03 2025"
-      const dateMatch = rowText.match(/(\d{1,2})[-\/](\w+)[-\/](\d{4})|(\w+)\s+(\d{1,2})\s+(\d{4})/);
-      if (dateMatch) {
-        try {
-          if (dateMatch[3]) {
-            // Format: "03-Nov-2025"
-            const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-            const monthIndex = monthNames.findIndex(m => m === dateMatch[2].substring(0, 3).toLowerCase());
-            if (monthIndex !== -1) {
-              const parsedDate = new Date(parseInt(dateMatch[3]), monthIndex, parseInt(dateMatch[1]));
-              if (!isNaN(parsedDate.getTime())) {
-                defaultDate = parsedDate.toISOString().split('T')[0];
-                break;
+  if (worksheet) {
+    // Get raw rows to check header
+    const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+    if (Array.isArray(rawRows) && rawRows.length > 0) {
+      // Look for date in first few rows
+      for (let i = 0; i < Math.min(5, rawRows.length); i++) {
+        const rowText = rawRows[i].join(' ');
+        // Look for patterns like "Attendance Date 03-Nov-2025" or "Nov 03 2025"
+        const dateMatch = rowText.match(/(\d{1,2})[-\/](\w+)[-\/](\d{4})|(\w+)\s+(\d{1,2})\s+(\d{4})/);
+        if (dateMatch) {
+          try {
+            if (dateMatch[3]) {
+              // Format: "03-Nov-2025"
+              const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+              const monthIndex = monthNames.findIndex(m => m === dateMatch[2].substring(0, 3).toLowerCase());
+              if (monthIndex !== -1) {
+                const parsedDate = new Date(parseInt(dateMatch[3]), monthIndex, parseInt(dateMatch[1]));
+                if (!isNaN(parsedDate.getTime())) {
+                  defaultDate = parsedDate.toISOString().split('T')[0];
+                  break;
+                }
+              }
+            } else if (dateMatch[6]) {
+              // Format: "Nov 03 2025"
+              const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+              const monthIndex = monthNames.findIndex(m => m === dateMatch[4].substring(0, 3).toLowerCase());
+              if (monthIndex !== -1) {
+                const parsedDate = new Date(parseInt(dateMatch[6]), monthIndex, parseInt(dateMatch[5]));
+                if (!isNaN(parsedDate.getTime())) {
+                  defaultDate = parsedDate.toISOString().split('T')[0];
+                  break;
+                }
               }
             }
-          } else if (dateMatch[6]) {
-            // Format: "Nov 03 2025"
-            const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-            const monthIndex = monthNames.findIndex(m => m === dateMatch[4].substring(0, 3).toLowerCase());
-            if (monthIndex !== -1) {
-              const parsedDate = new Date(parseInt(dateMatch[6]), monthIndex, parseInt(dateMatch[5]));
-              if (!isNaN(parsedDate.getTime())) {
-                defaultDate = parsedDate.toISOString().split('T')[0];
-                break;
-              }
-            }
+          } catch (e) {
+            // Continue if parsing fails
           }
-        } catch (e) {
-          // Continue if parsing fails
         }
       }
     }
@@ -948,7 +951,7 @@ exports.uploadAttendancePreview = asyncHandler(async (req, res) => {
         
         // Process vertical format data
         const { processedData: sheetData, errors: procErrors, warnings: procWarnings } = 
-          await processAttendanceData(data, req.user.id, hrCampus);
+          await processAttendanceData(data, req.user.id, hrCampus, worksheet);
         
         allProcessedData.push(...sheetData);
         allErrors.push(...procErrors.map(e => ({ ...e, sheet: sheetName })));

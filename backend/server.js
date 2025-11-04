@@ -21,18 +21,52 @@ const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
       'https://pydah-faculty-lms.vercel.app',
+      'https://pydah-faculty-lms-*.vercel.app', // Pattern for preview deployments
       'http://localhost:3000',
       'http://localhost:5000'
     ];
     
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      return callback(null, true);
+    }
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // Normalize origin (remove trailing slash)
+    const normalizedOrigin = origin.replace(/\/$/, '').toLowerCase();
+    
+    // Check if origin is in allowed list
+    const isAllowed = allowedOrigins.some(allowed => {
+      const normalizedAllowed = allowed.replace(/\/$/, '').toLowerCase();
+      
+      // Exact match
+      if (normalizedOrigin === normalizedAllowed) {
+        return true;
+      }
+      
+      // Pattern match for vercel preview deployments
+      if (allowed.includes('*')) {
+        const pattern = allowed.replace(/\*/g, '.*').toLowerCase();
+        const regex = new RegExp(`^${pattern}$`);
+        return regex.test(normalizedOrigin);
+      }
+      
+      // Contains check (fallback)
+      return normalizedOrigin.includes(normalizedAllowed) || normalizedAllowed.includes(normalizedOrigin);
+    });
+    
+    if (isAllowed) {
       callback(null, true);
     } else {
       console.log('CORS blocked request from:', origin);
-      callback(new Error('Not allowed by CORS'));
+      console.log('Normalized origin:', normalizedOrigin);
+      console.log('Allowed origins:', allowedOrigins);
+      // For development or if origin contains vercel, allow it
+      if (process.env.NODE_ENV === 'development' || normalizedOrigin.includes('vercel.app')) {
+        console.log('Allowing origin due to development mode or vercel domain');
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -42,7 +76,9 @@ const corsOptions = {
     'x-auth-token',
     'Origin',
     'Accept',
-    'X-Requested-With'
+    'X-Requested-With',
+    'Access-Control-Request-Method',
+    'Access-Control-Request-Headers'
   ],
   exposedHeaders: ['Authorization'],
   credentials: true,
@@ -51,19 +87,28 @@ const corsOptions = {
   maxAge: 86400 // 24 hours
 };
 
-// // Add CORS debugging middleware
-// app.use((req, res, next) => {
-//   console.log('CORS Debug:', {
-//     origin: req.headers.origin,
-//     method: req.method,
-//     path: req.path,
-//     headers: req.headers
-//   });
-//   next();
-// });
-
+// Apply CORS middleware first (before other middleware)
 app.use(cors(corsOptions));
+
+// Handle preflight OPTIONS requests explicitly
+app.options('*', cors(corsOptions));
+
+// Add CORS debugging middleware (after CORS)
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS' || (req.path.includes('/api/') && req.headers.origin)) {
+    console.log('CORS Debug:', {
+      origin: req.headers.origin,
+      method: req.method,
+      path: req.path,
+      'access-control-request-method': req.headers['access-control-request-method']
+    });
+  }
+  next();
+});
+
+// Body parsing middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Routes
 // app.use("/api/auth", authRoutes);
