@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require("express");
+const mongoose = require("mongoose");
 const connectDB = require("./config/db");
 // const authRoutes = require("./routes/authRoutes");
 const employeeRoutes = require("./routes/employeeRoutes");
@@ -12,7 +13,12 @@ const path = require("path");
 
 const cors = require("cors");
 
-connectDB();
+// Connect to database (non-blocking - don't wait for it to start server)
+connectDB().catch(err => {
+  console.error('Database connection failed:', err);
+  // Don't exit - let server start anyway, it will retry on first request
+  // On Render, we want the server to start even if DB is temporarily unavailable
+});
 
 const app = express();
 
@@ -54,15 +60,21 @@ const corsOptions = {
       return normalizedOrigin.includes(normalizedAllowed) || normalizedAllowed.includes(normalizedOrigin);
     });
     
+    // Always allow vercel.app domains
+    if (normalizedOrigin.includes('vercel.app')) {
+      console.log('Allowing vercel.app domain:', origin);
+      return callback(null, true);
+    }
+    
     if (isAllowed) {
       callback(null, true);
     } else {
       console.log('CORS blocked request from:', origin);
       console.log('Normalized origin:', normalizedOrigin);
       console.log('Allowed origins:', allowedOrigins);
-      // For development or if origin contains vercel, allow it
-      if (process.env.NODE_ENV === 'development' || normalizedOrigin.includes('vercel.app')) {
-        console.log('Allowing origin due to development mode or vercel domain');
+      // For development, allow it
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Allowing origin due to development mode');
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
@@ -121,7 +133,13 @@ app.use("/api/ccl", cclRoutes); // CCL routes
 
 // Debug route to check if server is running
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date() });
+  const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+  res.json({ 
+    status: "ok", 
+    timestamp: new Date(),
+    database: dbStatus,
+    uptime: process.uptime()
+  });
 });
 
 app.get("/", (req, res) => {
@@ -129,12 +147,52 @@ app.get("/", (req, res) => {
 });
 
 
-// Error handling middleware
+// Error handling middleware (must be after CORS to ensure headers are set)
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   console.error('Stack:', err.stack);
-  res.status(500).json({ 
-    msg: 'Something broke!',
+  
+  // Ensure CORS headers are set even on errors
+  const origin = req.headers.origin;
+  if (origin) {
+    const normalizedOrigin = origin.replace(/\/$/, '').toLowerCase();
+    const allowedOrigins = [
+      'https://pydah-faculty-lms.vercel.app',
+      'http://localhost:3000',
+      'http://localhost:5000'
+    ];
+    
+    const isAllowed = allowedOrigins.some(allowed => {
+      const normalizedAllowed = allowed.replace(/\/$/, '').toLowerCase();
+      return normalizedOrigin === normalizedAllowed || normalizedOrigin.includes('vercel.app');
+    });
+    
+    if (isAllowed || process.env.NODE_ENV === 'development' || normalizedOrigin.includes('vercel.app')) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Credentials', 'true');
+    }
+  }
+  
+  // Handle CORS errors
+  if (err.message && err.message.includes('CORS')) {
+    return res.status(403).json({ 
+      msg: 'CORS policy blocked this request',
+      error: err.message
+    });
+  }
+  
+  // Handle multer file upload errors
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({ 
+      msg: 'File too large',
+      error: err.message
+    });
+  }
+  
+  // Handle other errors
+  const statusCode = err.statusCode || err.status || 500;
+  res.status(statusCode).json({ 
+    msg: err.message || 'Something broke!',
     error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
   });
 });
