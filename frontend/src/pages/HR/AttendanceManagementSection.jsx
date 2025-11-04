@@ -97,11 +97,44 @@ const AttendanceManagementSection = () => {
     }
   };
 
-  // Submit attendance records
+  // Submit attendance records (only valid records without errors)
   const handleSubmitAttendance = async () => {
     if (!previewData || !previewData.preview || previewData.preview.length === 0) {
       toast.error('No attendance data to submit');
       return;
+    }
+
+    // Filter out records that have errors - only submit valid records
+    const errorRows = new Set();
+    if (previewData.errors && previewData.errors.length > 0) {
+      previewData.errors.forEach(error => {
+        if (error.row) {
+          errorRows.add(error.row);
+        }
+      });
+    }
+
+    // Get only valid records (those not in error rows)
+    const validRecords = previewData.preview.filter(record => {
+      // If record has rowIndex, check if it's in error rows
+      if (record.rowIndex) {
+        return !errorRows.has(record.rowIndex);
+      }
+      // If no rowIndex, include it (shouldn't happen, but safety check)
+      return true;
+    });
+
+    if (validRecords.length === 0) {
+      toast.error('No valid records to submit. All records have errors.');
+      return;
+    }
+
+    // Show confirmation if there are errors
+    if (previewData.summary.errors > 0) {
+      const confirmMessage = `You have ${previewData.summary.errors} error(s) in your data. Only ${validRecords.length} valid record(s) will be saved. Do you want to continue?`;
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -113,7 +146,7 @@ const AttendanceManagementSection = () => {
           Authorization: `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
-          attendanceRecords: previewData.preview
+          attendanceRecords: validRecords
         })
       });
 
@@ -123,7 +156,13 @@ const AttendanceManagementSection = () => {
         throw new Error(data.msg || 'Failed to submit attendance');
       }
 
-      toast.success(`Attendance submitted successfully! ${data.summary.successful} records saved, ${data.summary.updated} updated.`);
+      const successMessage = `Attendance submitted successfully! ${data.summary.successful} record(s) saved, ${data.summary.updated} updated.`;
+      if (previewData.summary.errors > 0) {
+        toast.success(`${successMessage} ${previewData.summary.errors} record(s) with errors were skipped.`);
+      } else {
+        toast.success(successMessage);
+      }
+      
       setPreviewData(null);
       setSelectedFile(null);
       if (fileInputRef.current) {
@@ -459,27 +498,36 @@ const AttendanceManagementSection = () => {
                 </table>
               </div>
 
-              {/* Submit Button */}
-              {previewData.summary.errors === 0 && (
-                <div className="mt-6 flex justify-end">
-                  <button
-                    onClick={handleSubmitAttendance}
-                    disabled={submitting}
-                    className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    {submitting ? (
-                      <>
-                        <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Submitting...
-                      </>
-                    ) : (
-                      <>
-                        <FaCheckCircle /> Submit Attendance
-                      </>
-                    )}
-                  </button>
+              {/* Submit Button - Always show, but only valid records will be saved */}
+              <div className="mt-6 flex justify-between items-center">
+                <div className="text-sm text-gray-600">
+                  {previewData.summary.errors > 0 ? (
+                    <span className="text-orange-600 font-medium">
+                      ⚠️ {previewData.summary.errors} record(s) have errors and will be skipped. Only valid records will be saved.
+                    </span>
+                  ) : (
+                    <span className="text-green-600 font-medium">
+                      ✓ All {previewData.summary.total} record(s) are valid and ready to save.
+                    </span>
+                  )}
                 </div>
-              )}
+                <button
+                  onClick={handleSubmitAttendance}
+                  disabled={submitting || previewData.summary.total === 0}
+                  className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {submitting ? (
+                    <>
+                      <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <FaCheckCircle /> Submit Attendance
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           )}
         </div>
