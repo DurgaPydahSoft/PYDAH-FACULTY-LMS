@@ -23,6 +23,7 @@ import HRLeaveRequestsSection from "./HRLeaveRequestsSection";
 import HRTaskManagementSection from "./HRTaskManagementSection";
 import HRMyLeaveRequestsSection from "./HRMyLeaveRequestsSection";
 import HodManagement from "./HodManagement";
+import AttendanceManagementSection from "./AttendanceManagementSection";
 
 const API_BASE_URL = config.API_BASE_URL;
 
@@ -1231,6 +1232,8 @@ const HRDashboard = () => {
         );
       case "hod-management":
         return <HodManagement />;
+      case "attendance":
+        return <AttendanceManagementSection />;
       case "leaves":
         return <HRLeaveRequestsSection branches={branches} />;
       case "my-leaves":

@@ -4,6 +4,7 @@ const { protect, authorize } = require('../middleware/auth');
 const hrController = require('../controllers/hrController');
 const { upload, deleteProfilePicture } = require('../utils/s3Upload');
 const taskController = require('../controllers/taskController');
+const attendanceRoutes = require('./attendanceRoutes');
 const { Campus } = require('../models');
 
 // Public routes
@@ -107,6 +108,9 @@ router.get('/branches', async (req, res) => {
 // Profile picture management for employees
 router.post('/employees/:id/upload-profile-picture', upload.single('profilePicture'), hrController.uploadEmployeeProfilePicture);
 router.delete('/employees/:id/delete-profile-picture', hrController.deleteEmployeeProfilePicture);
+
+// Attendance Management
+router.use('/attendance', attendanceRoutes);
 
 // HOD Management
 router.get('/hods', hrController.getAllHODs);
