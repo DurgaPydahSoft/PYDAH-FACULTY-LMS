@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 // Utility function to combine class names
 function cn(...classes) {
@@ -11,18 +11,21 @@ function CircleBackground({
   circleCount = 15,
   ...props
 }) {
-  // Generate random circles with theme colors
-  const circles = useMemo(() => {
+  const [circles, setCircles] = useState([]);
+  const animationRef = useRef();
+
+  // Initialize circles with positions and velocities
+  useEffect(() => {
     const themeColors = [
-      'bg-primary/10', 'bg-primary/20', 'bg-primary/15',
-      'bg-secondary/30', 'bg-secondary/20', 'bg-secondary/25',
+      'bg-primary/30', 'bg-primary/20', 'bg-primary/30',
+      'bg-secondary/30', 'bg-primary/30', 'bg-primary-40',
       'border-primary/20', 'border-primary/30', 'border-secondary/40'
     ];
 
-    return Array.from({ length: circleCount }, (_, index) => {
-      const size = Math.random() * 120 + 40; // Random size between 40-160px
-      const left = Math.random() * 120 - 10; // Random position -10% to 110% for full coverage
-      const top = Math.random() * 120 - 10; // Random position -10% to 110% for full coverage
+    const initialCircles = Array.from({ length: circleCount }, (_, index) => {
+      const size = Math.random() * 120 ; // Random size between 40-160px
+      const left = Math.random() * 100; // Random position 0-100%
+      const top = Math.random() * 100; // Random position 0-100%
       const bgColor = themeColors[Math.floor(Math.random() * themeColors.length)];
       const borderColor = themeColors[Math.floor(Math.random() * themeColors.length)];
 
@@ -31,11 +34,57 @@ function CircleBackground({
         size,
         left,
         top,
+        velocityX: (Math.random() - 0.5) * 0.5, // Random velocity -0.25 to 0.25
+        velocityY: (Math.random() - 0.5) * 0.5, // Random velocity -0.25 to 0.25
         bgColor,
         borderColor,
       };
     });
+
+    setCircles(initialCircles);
   }, [circleCount]);
+
+  // Animation loop
+  useEffect(() => {
+    const animate = () => {
+      setCircles(prevCircles => {
+        return prevCircles.map(circle => {
+          let newLeft = circle.left + circle.velocityX;
+          let newTop = circle.top + circle.velocityY;
+          let newVelocityX = circle.velocityX;
+          let newVelocityY = circle.velocityY;
+
+          // Bounce off walls
+          if (newLeft <= 0 || newLeft >= 100) {
+            newVelocityX = -newVelocityX;
+            newLeft = Math.max(0, Math.min(100, newLeft));
+          }
+          if (newTop <= 0 || newTop >= 100) {
+            newVelocityY = -newVelocityY;
+            newTop = Math.max(0, Math.min(100, newTop));
+          }
+
+          return {
+            ...circle,
+            left: newLeft,
+            top: newTop,
+            velocityX: newVelocityX,
+            velocityY: newVelocityY,
+          };
+        });
+      });
+
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div
