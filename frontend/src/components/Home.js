@@ -414,7 +414,10 @@ const LandingPage = () => {
       <section id="about" className="py-12 sm:py-16 px-4 bg-white">
         <div className="container mx-auto">
           <div className="text-center mb-8 sm:mb-12">
-            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-primary mb-3 sm:mb-4 animate__animated animate__fadeInUp animate__delay-1s">About Pydah College</h2>
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-primary mb-3 sm:mb-4 animate__animated animate__fadeInUp animate__delay-1s relative overflow-hidden">
+              <span className="relative z-10 shimmer-text">About Pydah College</span>
+              <div className="absolute inset-0 shimmer-overlay"></div>
+            </h2>
             <div className="w-16 sm:w-20 h-1 bg-gradient-to-r from-primary to-accent mx-auto mb-4 sm:mb-6 animate__animated animate__fadeIn animate__delay-2s"></div>
             <p className="text-base sm:text-lg text-gray-600 max-w-3xl mx-auto animate__animated animate__fadeInUp animate__delay-3s">
               Leading the way in engineering education since 2009
