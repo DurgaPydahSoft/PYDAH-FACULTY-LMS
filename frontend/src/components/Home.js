@@ -6,6 +6,8 @@ import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import 'animate.css';
 import Footer from './Footer';
+import { CircleBackground } from './CircleBackground';
+
 
 // Import your images here (replace with your actual imports)
 import PIC from './images/PYDAH LOGO.png';
@@ -17,6 +19,8 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isInstallable, setIsInstallable] = useState(false);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -33,7 +37,81 @@ const LandingPage = () => {
       setIsScrolled(window.scrollY > 50);
     };
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+
+    // Check if PWA is already installed
+    const checkIfInstalled = () => {
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+        console.log('App is already installed');
+        return true;
+      }
+      if (window.navigator.standalone === true) {
+        console.log('App is already installed (iOS)');
+        return true;
+      }
+      return false;
+    };
+
+    // Check if already installed
+    if (checkIfInstalled()) {
+      setIsInstallable(false);
+      return;
+    }
+
+    // PWA install prompt handling - must be added immediately
+    let deferredPromptRef = null;
+
+    const handleBeforeInstallPrompt = (e) => {
+      console.log('beforeinstallprompt event fired');
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Stash the event so it can be triggered later
+      deferredPromptRef = e;
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+      console.log('PWA install prompt available');
+    };
+
+    const handleAppInstalled = () => {
+      console.log('appinstalled event fired');
+      setIsInstallable(false);
+      setDeferredPrompt(null);
+      deferredPromptRef = null;
+    };
+
+    // Add event listeners immediately
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    // Check PWA support
+    if ('serviceWorker' in navigator && 'BeforeInstallPromptEvent' in window) {
+      console.log('PWA is supported');
+      // For testing - show button after interaction even if beforeinstallprompt doesn't fire
+      const showInstallButton = () => {
+        if (!isInstallable) {
+          console.log('Showing install button due to user interaction');
+          setIsInstallable(true);
+        }
+      };
+      // Add a delay to allow beforeinstallprompt to fire first
+      setTimeout(() => {
+        if (!isInstallable) {
+          document.addEventListener('click', showInstallButton, { once: true });
+        }
+      }, 1000);
+    } else {
+      console.log('PWA is not supported');
+      // For browsers that don't support beforeinstallprompt, show button after interaction
+      const showInstallButton = () => {
+        setIsInstallable(true);
+      };
+      document.addEventListener('click', showInstallButton, { once: true });
+    }
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
   }, [navigate]);
 
   const toggleMobileMenu = () => {
@@ -75,6 +153,53 @@ const LandingPage = () => {
     console.log("Refreshing data...");
   };
 
+  const handleInstallClick = async () => {
+    console.log('Install button clicked, deferredPrompt:', deferredPrompt);
+    console.log('isInstallable:', isInstallable);
+
+    if (!deferredPrompt) {
+      console.log('No deferredPrompt available, trying fallback install methods');
+
+      // Check if we're on iOS
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+      if (isIOS && isSafari) {
+        // iOS Safari
+        alert('To install this app:\n1. Tap the share button (📤)\n2. Select "Add to Home Screen"\n3. Tap "Add"');
+      } else if (isIOS) {
+        // Other iOS browsers
+        alert('Please use Safari browser to install this app. In Safari, tap the share button and select "Add to Home Screen".');
+      } else {
+        // Desktop/other browsers
+        alert('PWA installation is not available. Please use Chrome, Edge, or Safari browser for installation.');
+      }
+      return;
+    }
+
+    try {
+      console.log('Prompting user for installation...');
+      const result = await deferredPrompt.prompt();
+      console.log('Prompt result:', result);
+
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log('User choice outcome:', outcome);
+
+      if (outcome === 'accepted') {
+        console.log('User accepted the install prompt');
+        setIsInstallable(false);
+        alert('App installed successfully!');
+      } else {
+        console.log('User dismissed the install prompt');
+      }
+
+      setDeferredPrompt(null);
+    } catch (error) {
+      console.error('Install prompt failed:', error);
+      alert('Installation failed. Please try again or use a different browser.');
+    }
+  };
+
   return (
     <div className="min-h-[100dvh] min-h-screen bg-white overflow-x-hidden">
       <PullToRefresh onRefresh={handleRefresh} />
@@ -97,8 +222,10 @@ const LandingPage = () => {
                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-accent rounded-full animate-pulse"></div>
               </div>
               <div className="hidden sm:block">
-                <h1 className="text-base sm:text-lg md:text-xl font-bold text-primary leading-tight">
-                  Pydah Group Institutions
+                <h1 className="text-base sm:text-lg md:text-xl font-bold leading-tight">
+                  <span className="bg-gradient-to-t from-black/80 to-primary/90 bg-clip-text text-transparent">
+                    Pydah Group Institutions
+                  </span>
                 </h1>
                 <p className="text-xs md:text-sm text-accent font-medium">Engineering Excellence</p>
               </div>
@@ -171,8 +298,9 @@ const LandingPage = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen min-w-full flex items-center justify-center pt-16 sm:pt-24 px-2 sm:px-4 bg-primary/20">
-        <div className="container grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-32 items-center relative z-20 ">
+      <section className="relative min-h-screen min-w-full flex items-center justify-center pt-16 sm:pt-24 px-2 sm:px-4 bg-gradient-to-br from-slate-50 to-blue-50">
+        <CircleBackground className="absolute inset-0 z-10">
+          <div className="container grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-32 items-center relative z-20">
           {/* Hero Content */}
           <div className="text-center lg:text-left animate__animated animate__fadeInUp px-2 sm:px-0 w-full">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-accent/20 text-accent font-medium text-sm mb-6">
@@ -180,7 +308,7 @@ const LandingPage = () => {
               Now Live - Leave Management System
             </div>
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-4 sm:mb-6">
-              <span className="bg-gradient-to-b from-primary to-primary/80 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-t from-black/80 to-primary/90 bg-clip-text text-transparent">
                 <ReactTyped
                   strings={[
                     "Smart Leave Management",
@@ -201,8 +329,8 @@ const LandingPage = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <button
                 onClick={() => navigate("/home")}
-                className="group relative px-4 sm:px-6 py-3 bg-primary text-white font-semibold rounded-xl 
-                         shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                className="group relative px-4 sm:px-6 py-3 bg-primary text-white font-semibold rounded-xl
+                         shadow-lg hover:shadow-xl hover:bg-green-600 transform hover:-translate-y-1 transition-all duration-300 overflow-hidden"
               >
                 <span className="relative z-10 flex items-center justify-center">
                   Get Started
@@ -210,12 +338,23 @@ const LandingPage = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
                 </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-accent to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-green-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </button>
-              <button className="px-4 sm:px-6 py-3 border-2 border-primary text-primary font-semibold rounded-xl
-                               hover:bg-primary hover:text-white transition-all duration-300">
-                Learn More
-              </button>
+              {isInstallable && (
+                <button
+                  onClick={handleInstallClick}
+                  className="group relative px-4 sm:px-6 py-3 bg-green-600 text-white font-semibold rounded-xl
+                           shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                >
+                  <span className="relative z-10 flex items-center justify-center">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Download App
+                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-green-700 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                </button>
+              )}
             </div>
             {/* Stats */}
             <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-200">
@@ -259,7 +398,8 @@ const LandingPage = () => {
             <div className="absolute -top-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-accent/20 rounded-full animate-bounce"></div>
             <div className="absolute -bottom-4 -left-4 w-10 h-10 sm:w-12 sm:h-12 bg-primary/20 rounded-full animate-pulse"></div>
           </div>
-        </div>
+          </div>
+        </CircleBackground>
       </section>
 
       {/* About Section */}
