@@ -6,6 +6,8 @@ import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import 'animate.css';
 import Footer from './Footer';
+import { CircleBackground } from './CircleBackground';
+
 
 // Import your images here (replace with your actual imports)
 import PIC from './images/PYDAH LOGO.png';
@@ -17,6 +19,8 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isInstallable, setIsInstallable] = useState(false);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -33,7 +37,81 @@ const LandingPage = () => {
       setIsScrolled(window.scrollY > 50);
     };
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+
+    // Check if PWA is already installed
+    const checkIfInstalled = () => {
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+        console.log('App is already installed');
+        return true;
+      }
+      if (window.navigator.standalone === true) {
+        console.log('App is already installed (iOS)');
+        return true;
+      }
+      return false;
+    };
+
+    // Check if already installed
+    if (checkIfInstalled()) {
+      setIsInstallable(false);
+      return;
+    }
+
+    // PWA install prompt handling - must be added immediately
+    let deferredPromptRef = null;
+
+    const handleBeforeInstallPrompt = (e) => {
+      console.log('beforeinstallprompt event fired');
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Stash the event so it can be triggered later
+      deferredPromptRef = e;
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+      console.log('PWA install prompt available');
+    };
+
+    const handleAppInstalled = () => {
+      console.log('appinstalled event fired');
+      setIsInstallable(false);
+      setDeferredPrompt(null);
+      deferredPromptRef = null;
+    };
+
+    // Add event listeners immediately
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    // Check PWA support
+    if ('serviceWorker' in navigator && 'BeforeInstallPromptEvent' in window) {
+      console.log('PWA is supported');
+      // For testing - show button after interaction even if beforeinstallprompt doesn't fire
+      const showInstallButton = () => {
+        if (!isInstallable) {
+          console.log('Showing install button due to user interaction');
+          setIsInstallable(true);
+        }
+      };
+      // Add a delay to allow beforeinstallprompt to fire first
+      setTimeout(() => {
+        if (!isInstallable) {
+          document.addEventListener('click', showInstallButton, { once: true });
+        }
+      }, 1000);
+    } else {
+      console.log('PWA is not supported');
+      // For browsers that don't support beforeinstallprompt, show button after interaction
+      const showInstallButton = () => {
+        setIsInstallable(true);
+      };
+      document.addEventListener('click', showInstallButton, { once: true });
+    }
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
   }, [navigate]);
 
   const toggleMobileMenu = () => {
@@ -75,6 +153,53 @@ const LandingPage = () => {
     console.log("Refreshing data...");
   };
 
+  const handleInstallClick = async () => {
+    console.log('Install button clicked, deferredPrompt:', deferredPrompt);
+    console.log('isInstallable:', isInstallable);
+
+    if (!deferredPrompt) {
+      console.log('No deferredPrompt available, trying fallback install methods');
+
+      // Check if we're on iOS
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+      if (isIOS && isSafari) {
+        // iOS Safari
+        alert('To install this app:\n1. Tap the share button (📤)\n2. Select "Add to Home Screen"\n3. Tap "Add"');
+      } else if (isIOS) {
+        // Other iOS browsers
+        alert('Please use Safari browser to install this app. In Safari, tap the share button and select "Add to Home Screen".');
+      } else {
+        // Desktop/other browsers
+        alert('PWA installation is not available. Please use Chrome, Edge, or Safari browser for installation.');
+      }
+      return;
+    }
+
+    try {
+      console.log('Prompting user for installation...');
+      const result = await deferredPrompt.prompt();
+      console.log('Prompt result:', result);
+
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log('User choice outcome:', outcome);
+
+      if (outcome === 'accepted') {
+        console.log('User accepted the install prompt');
+        setIsInstallable(false);
+        alert('App installed successfully!');
+      } else {
+        console.log('User dismissed the install prompt');
+      }
+
+      setDeferredPrompt(null);
+    } catch (error) {
+      console.error('Install prompt failed:', error);
+      alert('Installation failed. Please try again or use a different browser.');
+    }
+  };
+
   return (
     <div className="min-h-[100dvh] min-h-screen bg-white overflow-x-hidden">
       <PullToRefresh onRefresh={handleRefresh} />
@@ -89,16 +214,26 @@ const LandingPage = () => {
           <div className="flex flex-col xs:flex-row xs:items-center space-y-1 xs:space-y-0 xs:space-x-2 sm:space-x-3 animate__animated animate__fadeInLeft w-full">
             <div className="flex items-center space-x-2">
               <div className="relative">
-                <img 
+                <img
                   src={PIC}
-                  alt="Pydah Logo" 
+                  alt="Pydah Logo"
                   className="w-10 h-10 sm:w-12 sm:h-12 md:w-24 md:h-16 rounded-xl object-contain bg-white p-1"
                 />
                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-accent rounded-full animate-pulse"></div>
               </div>
+              {/* PYDAH text visible only on mobile */}
+              <div className="block sm:hidden">
+                <h1 className="text-lg font-bold leading-tight">
+                  <span className="bg-gradient-to-t from-black/80 to-primary/90 bg-clip-text ml-20 text-transparent">
+                    PYDAH
+                  </span>
+                </h1>
+              </div>
               <div className="hidden sm:block">
-                <h1 className="text-base sm:text-lg md:text-xl font-bold text-primary leading-tight">
-                  Pydah Group Institutions
+                <h1 className="text-base sm:text-lg md:text-xl font-bold leading-tight">
+                  <span className="bg-gradient-to-t from-black/80 to-primary/90 bg-clip-text text-transparent">
+                    Pydah Group Institutions
+                  </span>
                 </h1>
                 <p className="text-xs md:text-sm text-accent font-medium">Engineering Excellence</p>
               </div>
@@ -171,8 +306,9 @@ const LandingPage = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen min-w-full flex items-center justify-center pt-16 sm:pt-24 px-2 sm:px-4 bg-primary/20">
-        <div className="container grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-32 items-center relative z-20 ">
+      <section className="relative min-h-screen min-w-full flex items-center justify-center pt-16 sm:pt-24 px-2 sm:px-4 bg-primary/10">
+        <CircleBackground className="absolute inset-0 z-10">
+          <div className="container grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-32 items-center relative z-20">
           {/* Hero Content */}
           <div className="text-center lg:text-left animate__animated animate__fadeInUp px-2 sm:px-0 w-full">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-accent/20 text-accent font-medium text-sm mb-6">
@@ -180,7 +316,7 @@ const LandingPage = () => {
               Now Live - Leave Management System
             </div>
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-4 sm:mb-6">
-              <span className="bg-gradient-to-b from-primary to-primary/80 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-t from-black/80 to-primary/90 bg-clip-text text-transparent">
                 <ReactTyped
                   strings={[
                     "Smart Leave Management",
@@ -201,8 +337,8 @@ const LandingPage = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <button
                 onClick={() => navigate("/home")}
-                className="group relative px-4 sm:px-6 py-3 bg-primary text-white font-semibold rounded-xl 
-                         shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                className="group relative px-4 sm:px-6 py-3 bg-primary text-white font-semibold rounded-xl
+                         shadow-lg hover:shadow-xl hover:bg-green-600 transform hover:-translate-y-1 transition-all duration-300 overflow-hidden"
               >
                 <span className="relative z-10 flex items-center justify-center">
                   Get Started
@@ -210,15 +346,26 @@ const LandingPage = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
                 </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-accent to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-green-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </button>
-              <button className="px-4 sm:px-6 py-3 border-2 border-primary text-primary font-semibold rounded-xl
-                               hover:bg-primary hover:text-white transition-all duration-300">
-                Learn More
-              </button>
+              {isInstallable && (
+                <button
+                  onClick={handleInstallClick}
+                  className="group relative px-4 sm:px-6 py-3 bg-green-600 text-white font-semibold rounded-xl
+                           shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                >
+                  <span className="relative z-10 flex items-center justify-center">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Download App
+                  </span>
+                  {/* <div className="absolute inset-0 bg-gradient-to-r from-green-700 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div> */}
+                </button>
+              )}
             </div>
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-200">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-6 sm:mt-8 pt-4 sm:pt-6">
               <div className="text-center">
                 <div className="text-lg sm:text-xl md:text-2xl font-bold text-primary">500+</div>
                 <div className="text-xs sm:text-sm text-gray-600">Active Users</div>
@@ -259,70 +406,74 @@ const LandingPage = () => {
             <div className="absolute -top-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-accent/20 rounded-full animate-bounce"></div>
             <div className="absolute -bottom-4 -left-4 w-10 h-10 sm:w-12 sm:h-12 bg-primary/20 rounded-full animate-pulse"></div>
           </div>
-        </div>
+          </div>
+        </CircleBackground>
       </section>
 
       {/* About Section */}
       <section id="about" className="py-12 sm:py-16 px-4 bg-white">
         <div className="container mx-auto">
           <div className="text-center mb-8 sm:mb-12">
-            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-primary mb-3 sm:mb-4">About Pydah College</h2>
-            <div className="w-16 sm:w-20 h-1 bg-gradient-to-r from-primary to-accent mx-auto mb-4 sm:mb-6"></div>
-            <p className="text-base sm:text-lg text-gray-600 max-w-3xl mx-auto">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-primary mb-3 sm:mb-4 animate__animated animate__fadeInUp animate__delay-1s relative overflow-hidden">
+              <span className="relative z-10 shimmer-text">About Pydah College</span>
+              <div className="absolute inset-0 shimmer-overlay"></div>
+            </h2>
+            <div className="w-16 sm:w-20 h-1 bg-gradient-to-r from-primary to-accent mx-auto mb-4 sm:mb-6 animate__animated animate__fadeIn animate__delay-2s"></div>
+            <p className="text-base sm:text-lg text-gray-600 max-w-3xl mx-auto animate__animated animate__fadeInUp animate__delay-3s">
               Leading the way in engineering education since 2009
             </p>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-6 sm:gap-8 items-center">
-            <div className="relative order-last lg:order-first">
-              <div className="relative bg-gradient-to-br from-primary/5 to-accent/5 rounded-2xl sm:rounded-3xl p-3 sm:p-6">
+            <div className="relative order-last lg:order-first animate__animated animate__fadeInLeft animate__delay-4s">
+              <div className="relative bg-gradient-to-br from-primary/5 to-accent/5 rounded-2xl sm:rounded-3xl p-3 sm:p-6 transform hover:scale-105 transition-transform duration-500">
                 <img
                   src={PIC}
                   alt="Pydah College"
                   className="w-full h-auto rounded-xl sm:rounded-2xl shadow-lg"
                 />
               </div>
-              <div className="absolute -bottom-3 -right-3 sm:-bottom-4 sm:-right-4 bg-white rounded-lg sm:rounded-xl p-2 sm:p-3 shadow-lg">
+              <div className="absolute -bottom-3 -right-3 sm:-bottom-4 sm:-right-4 bg-white rounded-lg sm:rounded-xl p-2 sm:p-3 shadow-lg animate__animated animate__bounceIn animate__delay-5s">
                 <div className="text-lg sm:text-xl font-bold text-primary">15+</div>
                 <div className="text-xs sm:text-sm text-gray-600">Years of Excellence</div>
               </div>
             </div>
 
             <div className="space-y-4 sm:space-y-6">
-              <div className="flex items-start space-x-3 sm:space-x-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+              <div className="flex items-start space-x-3 sm:space-x-4 group animate__animated animate__fadeInRight animate__delay-6s">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 shadow-lg">
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H9m0 0H5m0 0h4M9 7h6m-6 4h6m-6 4h6" />
                   </svg>
                 </div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-semibold text-primary mb-1">Autonomous Institution</h3>
-                  <p className="text-sm sm:text-base text-gray-600">NAAC Grade A accredited institution with autonomous status, ensuring quality education.</p>
+                <div className="group-hover:translate-x-2 transition-transform duration-300">
+                  <h3 className="text-base sm:text-lg font-semibold text-primary mb-1 group-hover:text-accent transition-colors duration-300">Autonomous Institution</h3>
+                  <p className="text-sm sm:text-base text-gray-600 group-hover:text-gray-700 transition-colors duration-300">NAAC Grade A accredited institution with autonomous status, ensuring quality education.</p>
                 </div>
               </div>
 
-              <div className="flex items-start space-x-3 sm:space-x-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+              <div className="flex items-start space-x-3 sm:space-x-4 group animate__animated animate__fadeInRight animate__delay-7s">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 shadow-lg">
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-semibold text-primary mb-1">Prime Location</h3>
-                  <p className="text-sm sm:text-base text-gray-600">40-acre campus in Kakinada, Andhra Pradesh with world-class infrastructure.</p>
+                <div className="group-hover:translate-x-2 transition-transform duration-300">
+                  <h3 className="text-base sm:text-lg font-semibold text-primary mb-1 group-hover:text-accent transition-colors duration-300">Prime Location</h3>
+                  <p className="text-sm sm:text-base text-gray-600 group-hover:text-gray-700 transition-colors duration-300">40-acre campus in Kakinada, Andhra Pradesh with world-class infrastructure.</p>
                 </div>
               </div>
 
-              <div className="flex items-start space-x-3 sm:space-x-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+              <div className="flex items-start space-x-3 sm:space-x-4 group animate__animated animate__fadeInRight animate__delay-8s">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 shadow-lg">
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
                   </svg>
                 </div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-semibold text-primary mb-1">Expert Faculty</h3>
-                  <p className="text-sm sm:text-base text-gray-600">Distinguished faculty from premier institutes like IITs, ensuring top-quality education.</p>
+                <div className="group-hover:translate-x-2 transition-transform duration-300">
+                  <h3 className="text-base sm:text-lg font-semibold text-primary mb-1 group-hover:text-accent transition-colors duration-300">Expert Faculty</h3>
+                  <p className="text-sm sm:text-base text-gray-600 group-hover:text-gray-700 transition-colors duration-300">Distinguished faculty from premier institutes like IITs, ensuring top-quality education.</p>
                 </div>
               </div>
             </div>
