@@ -1,15 +1,38 @@
 {
-  "short_name": "Faculty LMS",
-  "name": "Faculty Leave Management System",
+  "short_name": "PYDAH LMS",
+  "name": "PYDAH Faculty Leave Management System",
+  "description": "Smart Leave Flow - Seamless Staff Portal for Pydah College Faculty and Staff",
   "icons": [
     {
       "src": "favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/x-icon"
+    },
+    {
+      "src": "PYDAH_LOGO.ico",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "PYDAH_LOGO.ico",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "PYDAH_LOGO.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "orientation": "portrait-primary",
+  "theme_color": "#2D2E82",
+  "background_color": "#ffffff",
+  "categories": ["education", "productivity"],
+  "lang": "en",
+  "dir": "ltr"
 } 

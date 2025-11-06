@@ -40,12 +40,20 @@ const LandingPage = () => {
 
     // Check if PWA is already installed
     const checkIfInstalled = () => {
+      // Check if running in standalone mode (installed PWA)
       if (window.matchMedia('(display-mode: standalone)').matches) {
-        console.log('App is already installed');
+        console.log('✅ App is already installed (standalone mode)');
         return true;
       }
+      // Check iOS standalone mode
       if (window.navigator.standalone === true) {
-        console.log('App is already installed (iOS)');
+        console.log('✅ App is already installed (iOS Safari)');
+        return true;
+      }
+      // Check if launched from home screen
+      if (window.matchMedia('(display-mode: fullscreen)').matches || 
+          window.matchMedia('(display-mode: minimal-ui)').matches) {
+        console.log('✅ App is already installed (fullscreen/minimal-ui)');
         return true;
       }
       return false;
@@ -61,51 +69,59 @@ const LandingPage = () => {
     let deferredPromptRef = null;
 
     const handleBeforeInstallPrompt = (e) => {
-      console.log('beforeinstallprompt event fired');
+      console.log('🎯 beforeinstallprompt event fired');
       // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
       // Stash the event so it can be triggered later
       deferredPromptRef = e;
       setDeferredPrompt(e);
       setIsInstallable(true);
-      console.log('PWA install prompt available');
+      console.log('✅ PWA install prompt available');
     };
 
     const handleAppInstalled = () => {
-      console.log('appinstalled event fired');
+      console.log('✅ appinstalled event fired - App was installed');
       setIsInstallable(false);
       setDeferredPrompt(null);
       deferredPromptRef = null;
     };
 
-    // Add event listeners immediately
+    // Add event listeners immediately (before any async operations)
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
-    // Check PWA support
-    if ('serviceWorker' in navigator && 'BeforeInstallPromptEvent' in window) {
-      console.log('PWA is supported');
-      // For testing - show button after interaction even if beforeinstallprompt doesn't fire
-      const showInstallButton = () => {
-        if (!isInstallable) {
-          console.log('Showing install button due to user interaction');
-          setIsInstallable(true);
-        }
-      };
-      // Add a delay to allow beforeinstallprompt to fire first
-      setTimeout(() => {
-        if (!isInstallable) {
-          document.addEventListener('click', showInstallButton, { once: true });
-        }
-      }, 1000);
-    } else {
-      console.log('PWA is not supported');
-      // For browsers that don't support beforeinstallprompt, show button after interaction
-      const showInstallButton = () => {
-        setIsInstallable(true);
-      };
-      document.addEventListener('click', showInstallButton, { once: true });
-    }
+    // Check PWA requirements
+    const checkPWASupport = () => {
+      const hasServiceWorker = 'serviceWorker' in navigator;
+      const hasManifest = document.querySelector('link[rel="manifest"]');
+      
+      console.log('PWA Support Check:', {
+        serviceWorker: hasServiceWorker,
+        manifest: !!hasManifest,
+        secureContext: window.isSecureContext
+      });
+
+      if (!hasServiceWorker) {
+        console.warn('⚠️ Service Worker not supported');
+      }
+      if (!hasManifest) {
+        console.warn('⚠️ Manifest not found');
+      }
+      if (!window.isSecureContext) {
+        console.warn('⚠️ Not running in secure context (HTTPS required for PWA)');
+      }
+
+      return hasServiceWorker && hasManifest;
+    };
+
+    // Wait a bit for service worker to register before checking
+    setTimeout(() => {
+      if (checkPWASupport()) {
+        console.log('✅ PWA requirements met');
+      } else {
+        console.warn('⚠️ PWA requirements not fully met');
+      }
+    }, 2000);
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
@@ -201,7 +217,7 @@ const LandingPage = () => {
   };
 
   return (
-    <div className="min-h-[100dvh] min-h-screen bg-white overflow-x-hidden">
+    <div className="  bg-white ">
       <PullToRefresh onRefresh={handleRefresh} />
       {/* Header with mobile menu */}
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
@@ -306,11 +322,12 @@ const LandingPage = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen min-w-full flex items-center justify-center pt-16 sm:pt-24 px-2 sm:px-4 bg-primary/10">
+      <section className="relative min-h-screen min-w-full flex items-center justify-center pt-16 sm:pt-24 pb-16 sm:pb-24 bg-primary/10">
         <CircleBackground className="absolute inset-0 z-10">
-          <div className="container grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-32 items-center relative z-20">
-          {/* Hero Content */}
-          <div className="text-center lg:text-left animate__animated animate__fadeInUp px-2 sm:px-0 w-full">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-8 sm:py-12 lg:py-16">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 xl:gap-20 items-center relative z-20 max-w-7xl mx-auto">
+            {/* Hero Content */}
+            <div className="text-center lg:text-left animate__animated animate__fadeInUp w-full">
             <div className="inline-flex items-center px-4 py-2 rounded-full bg-accent/20 text-accent font-medium text-sm mb-6">
               <span className="w-2 h-2 bg-accent rounded-full mr-2 animate-pulse"></span>
               Now Live - Leave Management System
@@ -319,7 +336,7 @@ const LandingPage = () => {
               <span className="bg-gradient-to-t from-black/80 to-primary/90 bg-clip-text text-transparent">
                 <ReactTyped
                   strings={[
-                    "Smart Leave Management",
+                    "Smart Leave Flow",
                     "Seamless Staff Portal",
                     "Digital Leave Tracking",
                     "A Pydah Soft Product"
@@ -379,9 +396,9 @@ const LandingPage = () => {
                 <div className="text-xs sm:text-sm text-gray-600">Support</div>
               </div>
             </div>
-          </div>
-          {/* Hero Visual */}
-          <div className="relative animate__animated animate__fadeInRight mt-8 lg:mt-0 px-2 sm:px-0 w-full">
+            </div>
+            {/* Hero Visual */}
+            <div className="relative animate__animated animate__fadeInRight mt-8 lg:mt-0 w-full">
             <div className="relative bg-white rounded-2xl sm:rounded-3xl shadow-xl overflow-hidden border border-gray-100 w-full">
               <Slider {...sliderSettings}>
                 <div className="relative h-48 sm:h-48 md:h-80 lg:h-80">
@@ -405,7 +422,8 @@ const LandingPage = () => {
             {/* Floating Elements */}
             <div className="absolute -top-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-accent/20 rounded-full animate-bounce"></div>
             <div className="absolute -bottom-4 -left-4 w-10 h-10 sm:w-12 sm:h-12 bg-primary/20 rounded-full animate-pulse"></div>
-          </div>
+            </div>
+            </div>
           </div>
         </CircleBackground>
       </section>
