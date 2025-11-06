@@ -228,7 +228,7 @@ const LandingPage = () => {
         <div className="container mx-auto px-2 sm:px-4 py-2 md:py-4 flex items-center justify-between">
           {/* Logo and Info Bar Section for mobile */}
           <div className="flex flex-col xs:flex-row xs:items-center space-y-1 xs:space-y-0 xs:space-x-2 sm:space-x-3 animate__animated animate__fadeInLeft w-full">
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 sm:space-x-3">
               <div className="relative">
                 <img
                   src={PIC}
@@ -240,7 +240,7 @@ const LandingPage = () => {
               {/* PYDAH text visible only on mobile */}
               <div className="block sm:hidden">
                 <h1 className="text-lg font-bold leading-tight">
-                  <span className="bg-gradient-to-t from-black/80 to-primary/90 bg-clip-text ml-20 text-transparent">
+                  <span className="bg-gradient-to-t from-black/80 to-primary/90 bg-clip-text text-transparent">
                     PYDAH
                   </span>
                 </h1>
