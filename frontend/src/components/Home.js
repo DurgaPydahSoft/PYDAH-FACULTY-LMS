@@ -322,8 +322,8 @@ const LandingPage = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen min-w-full flex items-center justify-center pt-16 sm:pt-24 pb-16 sm:pb-24 bg-primary/10 overflow-visible">
-        <CircleBackground className="absolute inset-0 z-10 pointer-events-none">
+      <section className="relative min-h-screen min-w-full flex items-center justify-center pt-16 sm:pt-24 pb-16 sm:pb-24 bg-primary/10">
+        <CircleBackground className="absolute inset-0 z-10">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-8 sm:py-12 lg:py-16">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 xl:gap-20 items-center relative z-20 max-w-7xl mx-auto">
             {/* Hero Content */}

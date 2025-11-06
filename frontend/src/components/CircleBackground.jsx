@@ -155,12 +155,12 @@ function CircleBackground({
     <div
       data-slot="circle-background"
       className={cn(
-        "relative w-full h-full overflow-visible block",
+        "relative w-full h-full overflow-visible",
         className
       )}
       {...props}
     >
-      <div className="absolute top-0 left-0 w-full h-full overflow-visible block">
+      <div className="absolute top-0 left-0 w-full h-full overflow-visible ">
         {circles.map((circle) => {
           const gradient = get3DGradient(circle.colorScheme, circle.rotation);
           const shadowSize = circle.size * 0.15;
