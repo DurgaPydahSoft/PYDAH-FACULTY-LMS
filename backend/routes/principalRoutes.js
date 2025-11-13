@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authPrincipal } = require('../middleware/auth');
+const taskController = require('../controllers/taskController');
 const {
   login,
   getProfile,
@@ -67,5 +68,11 @@ router.post('/branches', createBranch);
 router.get('/branches', listBranches);
 router.put('/branches/:branchId', editBranch);
 router.delete('/branches/:branchId', deleteBranch);
+
+// Task routes
+router.get('/tasks/manage', taskController.listTasksByCreator);
+router.post('/tasks', taskController.createTask);
+router.put('/tasks/:taskId', taskController.updateTask);
+router.delete('/tasks/:taskId', taskController.deleteTask);
 
 module.exports = router; 

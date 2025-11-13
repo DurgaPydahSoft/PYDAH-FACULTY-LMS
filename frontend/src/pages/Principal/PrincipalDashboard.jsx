@@ -54,6 +54,7 @@ import HodManagement from './HodManagement';
 import BranchManagement from './BranchManagement';
 import EmployeeManagement from './EmployeeManagement';
 import LeavesManagement from './LeavesManagement';
+import PrincipalTaskManagementSection from './PrincipalTaskManagementSection';
 
 
 // Add a hook to detect if the screen is mobile
@@ -799,6 +800,9 @@ const PrincipalDashboard = () => {
             </div>
           </div>
         );
+
+      case 'task-management':
+        return <PrincipalTaskManagementSection />;
 
       default:
         return (

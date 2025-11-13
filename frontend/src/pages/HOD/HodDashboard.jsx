@@ -10,6 +10,7 @@ import EmployeeManagementSection from './EmployeeManagementSection';
 import LeaveRequestsSection from './LeaveRequestsSection';
 import CCLWorkSection from './CCLWorkSection';
 import ProfileSection from './ProfileSection';
+import HodTaskManagementSection from './HodTaskManagementSection';
 
 const API_BASE_URL = config.API_BASE_URL;
 
@@ -386,6 +387,12 @@ const HodDashboard = () => {
             handleCCLRemarksSubmit={handleCCLRemarksSubmit}
           />
         );
+
+      case 'tasks':
+        return <HodTaskManagementSection />;
+
+      case 'task-management':
+        return <HodTaskManagementSection />;
 
       case 'profile':
         return <ProfileSection hod={hod} />;

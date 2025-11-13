@@ -79,6 +79,7 @@ router.post('/ccl-work', authEmployee, employeeController.submitCCLWorkRequest);
 
 // Task fetch route for employees
 router.get('/tasks', authEmployee, taskController.listTasksForEmployee);
+router.put('/tasks/:taskId/acknowledgements', authEmployee, taskController.updateTaskAcknowledgement);
 
 // Leave request routes
 router.post('/leave-request', authEmployee, employeeController.addLeaveRequest);

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaHome, FaUsers, FaUserTie, FaCalendarAlt, FaClipboardList, FaUser, FaBars, FaTimes, FaSignOutAlt } from 'react-icons/fa';
 import { FaDiagramProject } from "react-icons/fa6";
+import { FaTasks } from 'react-icons/fa';
 
 const PrincipalSidebar = ({ activeSection, onSectionChange }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -14,6 +15,7 @@ const PrincipalSidebar = ({ activeSection, onSectionChange }) => {
     { id: 'employees', label: 'Employees', icon: <FaUsers />, path: `/principal/${campus}/employees` },
     { id: 'leaves', label: 'Leave Requests', icon: <FaCalendarAlt />, path: `/principal/${campus}/leaves` },
     { id: 'ccl-work', label: 'CCL Work Requests', icon: <FaClipboardList />, path: `/principal/${campus}/ccl-work` },
+    { id: 'task-management', label: 'Task Management', icon: <FaTasks />, path: `/principal/${campus}/tasks` },
     { id: 'branches', label: 'Branch Management', icon: <FaDiagramProject />, path: `/principal/${campus}/branches` },
 
 

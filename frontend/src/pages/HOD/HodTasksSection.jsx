@@ -1,48 +1,74 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from 'react';
 import {
   FaTasks,
   FaFlag,
   FaCalendarAlt,
-  FaLink
-} from "react-icons/fa";
-import { toast } from "react-toastify";
-import config from "../../config";
-import Loading from "../../components/Loading";
+  FaLink,
+  FaClipboardCheck
+} from 'react-icons/fa';
+import { toast } from 'react-toastify';
+import config from '../../config';
+import Loading from '../../components/Loading';
 
 const API_BASE_URL = config.API_BASE_URL;
 const ACK_STATUS_OPTIONS = [
-  { value: "acknowledged", label: "Acknowledged" },
-  { value: "completed", label: "Completed" }
+  { value: 'acknowledged', label: 'Acknowledged' },
+  { value: 'completed', label: 'Completed' }
 ];
 
-const EmployeeTasksSection = () => {
+const HodTasksSection = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [selectedTask, setSelectedTask] = useState(null);
   const [saving, setSaving] = useState(false);
   const [ackForm, setAckForm] = useState({
-    status: "acknowledged",
-    comment: "",
-    proofUrl: ""
+    status: 'acknowledged',
+    comment: '',
+    proofUrl: ''
   });
+
+  const priorityStyles = (priority) => {
+    switch (priority) {
+      case 'critical':
+        return 'bg-red-100 text-red-700';
+      case 'high':
+        return 'bg-orange-100 text-orange-700';
+      case 'low':
+        return 'bg-emerald-100 text-emerald-700';
+      default:
+        return 'bg-blue-100 text-blue-700';
+    }
+  };
+
+  const acknowledgementStyles = (status) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-emerald-100 text-emerald-700';
+      case 'acknowledged':
+        return 'bg-blue-100 text-blue-700';
+      case 'pending':
+      default:
+        return 'bg-yellow-100 text-yellow-700';
+    }
+  };
 
   const fetchTasks = async () => {
     setLoading(true);
-    setError("");
+    setError('');
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${API_BASE_URL}/employee/tasks`, {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/hod/tasks`, {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
+          'Content-Type': 'application/json'
         }
       });
-      if (!response.ok) throw new Error("Failed to fetch tasks");
+      if (!response.ok) throw new Error('Failed to fetch tasks');
       const data = await response.json();
       setTasks(data);
     } catch (err) {
-      const message = err.message || "Failed to fetch tasks";
+      const message = err.message || 'Failed to fetch tasks';
       setError(message);
       toast.error(message);
     } finally {
@@ -54,37 +80,12 @@ const EmployeeTasksSection = () => {
     fetchTasks();
   }, []);
 
-  const getPriorityStyles = (priority) => {
-    switch (priority) {
-      case "critical":
-        return "bg-red-100 text-red-700";
-      case "high":
-        return "bg-orange-100 text-orange-700";
-      case "low":
-        return "bg-emerald-100 text-emerald-700";
-      default:
-        return "bg-blue-100 text-blue-700";
-    }
-  };
-
-  const getAcknowledgementStyles = (status) => {
-    switch (status) {
-      case "completed":
-        return "bg-emerald-100 text-emerald-700";
-      case "acknowledged":
-        return "bg-blue-100 text-blue-700";
-      case "pending":
-      default:
-        return "bg-yellow-100 text-yellow-700";
-    }
-  };
-
-  const openAcknowledgementModal = (task) => {
+  const openAcknowledgeModal = (task) => {
     const existingAck = task.viewerAcknowledgement || {};
     setAckForm({
-      status: existingAck.status || "acknowledged",
-      comment: existingAck.comment || "",
-      proofUrl: existingAck.proofUrl || ""
+      status: existingAck.status || 'acknowledged',
+      comment: existingAck.comment || '',
+      proofUrl: existingAck.proofUrl || ''
     });
     setSelectedTask(task);
   };
@@ -92,9 +93,9 @@ const EmployeeTasksSection = () => {
   const closeAcknowledgementModal = () => {
     setSelectedTask(null);
     setAckForm({
-      status: "acknowledged",
-      comment: "",
-      proofUrl: ""
+      status: 'acknowledged',
+      comment: '',
+      proofUrl: ''
     });
   };
 
@@ -102,16 +103,21 @@ const EmployeeTasksSection = () => {
     event.preventDefault();
     if (!selectedTask) return;
 
+    if (ackForm.status === 'completed' && !ackForm.comment.trim()) {
+      toast.error('Please add a brief completion note when marking the task as completed.');
+      return;
+    }
+
     setSaving(true);
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem('token');
       const response = await fetch(
-        `${API_BASE_URL}/employee/tasks/${selectedTask._id}/acknowledgements`,
+        `${API_BASE_URL}/hod/tasks/${selectedTask._id}/acknowledgements`,
         {
-          method: "PUT",
+          method: 'PUT',
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             status: ackForm.status,
@@ -123,11 +129,11 @@ const EmployeeTasksSection = () => {
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        throw new Error(data.msg || "Failed to update acknowledgement");
+        throw new Error(data.msg || 'Failed to update acknowledgement');
       }
 
       const data = await response.json();
-      toast.success("Task acknowledgement updated");
+      toast.success('Task acknowledgement updated');
       setTasks((prev) =>
         prev.map((task) =>
           task._id === data.task._id ? data.task : task
@@ -135,7 +141,7 @@ const EmployeeTasksSection = () => {
       );
       closeAcknowledgementModal();
     } catch (err) {
-      toast.error(err.message || "Failed to update acknowledgement");
+      toast.error(err.message || 'Failed to update acknowledgement');
     } finally {
       setSaving(false);
     }
@@ -144,15 +150,15 @@ const EmployeeTasksSection = () => {
   if (loading) return <Loading />;
 
   return (
-    <div className="bg-white main-content rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 mt-6">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6 mt-6">
       <div className="flex items-center gap-2 mb-4">
         <FaTasks className="text-primary text-xl" />
-        <h2 className="text-lg sm:text-xl font-semibold text-primary">Employee Tasks</h2>
+        <h2 className="text-lg sm:text-xl font-semibold text-primary">Tasks from HR</h2>
       </div>
       {error ? (
         <div className="text-red-500 text-sm mb-2">{error}</div>
       ) : tasks.length === 0 ? (
-        <div className="text-gray-500 text-sm">No tasks assigned by HR yet.</div>
+        <div className="text-gray-500 text-sm">No tasks assigned to you yet.</div>
       ) : (
         <div className="space-y-4">
           {tasks.map((task) => (
@@ -162,7 +168,7 @@ const EmployeeTasksSection = () => {
                   <div className="flex flex-wrap items-center gap-2 mb-2">
                     <h3 className="text-lg font-semibold text-primary">{task.title}</h3>
                     <span
-                      className={`text-xs font-semibold px-2 py-1 rounded-full uppercase tracking-wide ${getPriorityStyles(
+                      className={`text-xs font-semibold px-2 py-1 rounded-full uppercase tracking-wide ${priorityStyles(
                         task.priority
                       )}`}
                     >
@@ -177,11 +183,25 @@ const EmployeeTasksSection = () => {
                     )}
                     {task.requireAcknowledgement && (
                       <span
-                        className={`text-xs font-semibold px-2 py-1 rounded-full ${getAcknowledgementStyles(
-                          task.acknowledgementStatus || "pending"
-                        )}`}
+                        className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                          task.viewerAcknowledgement ? (
+                            task.viewerAcknowledgement.status === 'completed'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : task.viewerAcknowledgement.status === 'acknowledged'
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'bg-yellow-100 text-yellow-700'
+                          ) : 'bg-yellow-100 text-yellow-700'
+                        }`}
                       >
-                        Status: {task.acknowledgementStatus || "pending"}
+                        {task.viewerAcknowledgement ? (
+                          task.viewerAcknowledgement.status === 'completed'
+                            ? 'Completed'
+                            : task.viewerAcknowledgement.status === 'acknowledged'
+                              ? 'Acknowledged'
+                              : 'Pending'
+                        ) : (
+                          'Pending'
+                        )}
                       </span>
                     )}
                   </div>
@@ -208,6 +228,8 @@ const EmployeeTasksSection = () => {
                       </ul>
                     </div>
                   )}
+
+                  {/* Checklist removed as per updated requirements */}
                 </div>
 
                 <div className="flex flex-col gap-2 w-full md:w-auto">
@@ -217,9 +239,9 @@ const EmployeeTasksSection = () => {
                   {task.requireAcknowledgement && (
                     <button
                       className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
-                      onClick={() => openAcknowledgementModal(task)}
+                      onClick={() => openAcknowledgeModal(task)}
                     >
-                      {task.viewerAcknowledgement ? "Update Response" : "Acknowledge Task"}
+                      {task.viewerAcknowledgement ? 'Update Response' : 'Acknowledge Task'}
                     </button>
                   )}
                 </div>
@@ -268,7 +290,7 @@ const EmployeeTasksSection = () => {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 h-24 focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
                   value={ackForm.comment}
                   onChange={(e) => setAckForm((prev) => ({ ...prev, comment: e.target.value }))}
-                  placeholder="Share any remarks or updates..."
+                  placeholder="Share any progress updates or notes"
                 />
               </div>
 
@@ -297,7 +319,7 @@ const EmployeeTasksSection = () => {
                   className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-60"
                   disabled={saving}
                 >
-                  {saving ? "Saving..." : "Submit Response"}
+                  {saving ? 'Saving...' : 'Submit Response'}
                 </button>
               </div>
             </form>
@@ -308,4 +330,5 @@ const EmployeeTasksSection = () => {
   );
 };
 
-export default EmployeeTasksSection;
+export default HodTasksSection;
+

@@ -19,6 +19,7 @@ const {
   getCCLWorkRequests,
   updateCCLWorkRequestStatus
 } = require('../controllers/hodController');
+const taskController = require('../controllers/taskController');
 
 // Auth routes (no auth required)
 router.post('/register', registerHod);
@@ -51,5 +52,13 @@ router.get('/dashboard', getDashboard);
 // CCL routes
 router.get('/ccl-work-requests', getCCLWorkRequests);
 router.put('/ccl-work-requests/:workId', updateCCLWorkRequestStatus);
+
+// Task routes
+router.get('/tasks', taskController.listTasksForHod);
+router.get('/tasks/manage', taskController.listTasksByCreator);
+router.post('/tasks', taskController.createTask);
+router.put('/tasks/:taskId', taskController.updateTask);
+router.delete('/tasks/:taskId', taskController.deleteTask);
+router.put('/tasks/:taskId/acknowledgements', taskController.updateTaskAcknowledgement);
 
 module.exports = router;

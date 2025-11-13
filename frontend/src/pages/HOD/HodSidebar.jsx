@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaBars, FaTimes, FaHome, FaUsers, FaClipboardList, FaTasks, FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
+import { FaBars, FaTimes, FaHome, FaUsers, FaClipboardList, FaTasks, FaUserCircle, FaSignOutAlt, FaClipboardCheck } from 'react-icons/fa';
 
 const HodSidebar = ({ activeSection, onSectionChange, hod }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -11,6 +11,8 @@ const HodSidebar = ({ activeSection, onSectionChange, hod }) => {
     { id: 'employees', label: 'Employees', icon: <FaUsers /> },
     { id: 'leaves', label: 'Leave Requests', icon: <FaClipboardList /> },
     { id: 'ccl-work', label: 'CCL Work', icon: <FaTasks /> },
+    { id: 'tasks', label: 'My Tasks', icon: <FaClipboardCheck /> },
+    { id: 'task-management', label: 'Manage Tasks', icon: <FaTasks /> },
     { id: 'profile', label: 'Profile', icon: <FaUserCircle /> },
   ];
 
