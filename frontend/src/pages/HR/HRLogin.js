@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import config from '../../config';
 import Loading from '../../components/Loading';
+import { CircleBackground } from '../../components/CircleBackground';
 
 const API_BASE_URL = config.API_BASE_URL;
 
@@ -113,9 +114,9 @@ const HRLogin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-2 sm:p-4">
+    <CircleBackground circleCount={24} className="relative min-h-screen bg-background flex flex-col items-center justify-center p-2 sm:p-4">
       {/* Decorative Background Elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         <svg className="absolute top-0 left-0 w-20 h-20 sm:w-40 sm:h-40 text-primary/5" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
           <path fill="currentColor" d="M45.7,-78.2C58.9,-71.3,69.4,-59.1,77.2,-45.1C85,-31.1,90.1,-15.6,89.1,-0.8C88.1,14,81,28,73.1,41.1C65.2,54.2,56.5,66.4,44.8,74.5C33.1,82.6,18.6,86.6,3.3,82.3C-12,78,-24,65.4,-35.1,54.1C-46.2,42.8,-56.4,32.8,-64.1,20.8C-71.8,8.8,-77,-5.2,-74.8,-18.2C-72.6,-31.2,-63,-43.2,-51.2,-50.8C-39.4,-58.4,-25.4,-61.6,-11.8,-67.8C1.8,-74,15,-83.2,29.2,-85.1C43.4,-87,58.6,-81.6,45.7,-78.2Z" transform="translate(100 100)" />
         </svg>
@@ -124,12 +125,12 @@ const HRLogin = () => {
         </svg>
       </div>
       {/* Top SVG above card, always centered and visible */}
-      <div className="w-full flex flex-col items-center justify-center mt-4 mb-2" style={{zIndex: 2}}>
+      <div className="relative z-10 w-full flex flex-col items-center justify-center mt-4 mb-2">
         <svg className="w-14 h-14 sm:w-20 sm:h-20 text-primary" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 5C13.66 5 15 6.34 15 8C15 9.66 13.66 11 12 11C10.34 11 9 9.66 9 8C9 6.34 10.34 5 12 5ZM12 19.2C9.5 19.2 7.29 17.92 6 15.98C6.03 13.99 10 12.9 12 12.9C13.99 12.9 17.97 13.99 18 15.98C16.71 17.92 14.5 19.2 12 19.2Z" fill="currentColor"/>
         </svg>
       </div>
-      <div className="w-full max-w-[95%] sm:max-w-md bg-secondary rounded-neumorphic shadow-outerRaised p-3 sm:p-8 relative">
+      <div className="relative z-10 w-full max-w-[95%] sm:max-w-md bg-secondary rounded-neumorphic shadow-outerRaised p-3 sm:p-8">
         <div className="text-center mb-6 sm:mb-8">
           <h2 className="text-xl sm:text-3xl font-bold text-primary">HR Login</h2>
           <p className="text-xs sm:text-base text-gray-600 mt-1 sm:mt-2">Access your HR dashboard</p>
@@ -212,7 +213,7 @@ const HRLogin = () => {
           
         </div>
       </div>
-    </div>
+    </CircleBackground>
   );
 };
 

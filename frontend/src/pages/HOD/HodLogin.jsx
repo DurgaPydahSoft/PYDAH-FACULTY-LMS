@@ -5,6 +5,7 @@ import "font-awesome/css/font-awesome.min.css"; // Importing Font Awesome
 import { validateEmail } from '../../utils/validators';
 import config from '../../config';
 import Loading from '../../components/Loading';
+import { CircleBackground } from '../../components/CircleBackground';
 
 const API_BASE_URL = config.API_BASE_URL;
 
@@ -200,9 +201,9 @@ const HodLogin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 flex flex-col items-center justify-center p-2 sm:p-4 relative overflow-hidden">
+    <CircleBackground circleCount={28} className="relative min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 flex flex-col items-center justify-center p-2 sm:p-4 overflow-hidden">
       {/* Animated Gradient Background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute top-0 left-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 animate-pulse delay-1000"></div>
       </div>
@@ -210,7 +211,7 @@ const HodLogin = () => {
       {/* Back Button - Positioned absolutely */}
       <button
         onClick={() => navigate(-1)}
-        className="absolute top-4 left-4 sm:top-6 sm:left-6 z-10 w-10 h-10 sm:w-12 sm:h-12 bg-white/80 backdrop-blur-sm text-primary rounded-full shadow-lg hover:shadow-xl hover:bg-white transition-all duration-300 flex items-center justify-center group"
+        className="absolute top-4 left-4 sm:top-6 sm:left-6 z-20 w-10 h-10 sm:w-12 sm:h-12 bg-white/80 backdrop-blur-sm text-primary rounded-full shadow-lg hover:shadow-xl hover:bg-white transition-all duration-300 flex items-center justify-center group"
       >
         <svg className="w-5 h-5 sm:w-6 sm:h-6 transform group-hover:-translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M20 11H7.83L13.42 5.41L12 4L4 12L12 20L13.41 18.59L7.83 13H20V11Z" fill="currentColor"/>
@@ -456,7 +457,7 @@ const HodLogin = () => {
           </div>
         </div>
       </div>
-    </div>
+    </CircleBackground>
   );
 };
 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axiosInstance from '../../utils/axiosConfig';
 import { API_BASE_URL } from '../../config';
+import { CircleBackground } from '../../components/CircleBackground';
 
 const PrincipalLogin = () => {
   const navigate = useNavigate();
@@ -115,8 +116,8 @@ const PrincipalLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full bg-secondary rounded-neumorphic shadow-outerRaised p-8 relative">
+    <CircleBackground circleCount={24} className="relative min-h-screen bg-background flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="relative z-10 max-w-md w-full bg-secondary rounded-neumorphic shadow-outerRaised p-8">
         <div className="relative">
           <h2 className="mt-6 text-center text-3xl font-extrabold text-primary">
             Principal Login
@@ -223,7 +224,7 @@ const PrincipalLogin = () => {
           <div className="mt-4 flex justify-center">        
           <div
          onClick={() => navigate(-1)}
-          className="absolute top-2 left-2 text-primary text-center text-xs sm:text-base py-2  transition-all duration-300 flex items-center justify-center gap-2"
+          className="absolute top-2 left-2 text-primary text-center text-xs sm:text-base py-2 transition-all duration-300 flex items-center justify-center gap-2"
         >
           <svg className="w-6 h-6 sm:w-8 sm:h-8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M20 11H7.83L13.42 5.41L12 4L4 12L12 20L13.41 18.59L7.83 13H20V11Z" fill="currentColor"/>
@@ -238,7 +239,7 @@ const PrincipalLogin = () => {
           </div>
         </form>
       </div>
-    </div>
+    </CircleBackground>
   );
 };
 

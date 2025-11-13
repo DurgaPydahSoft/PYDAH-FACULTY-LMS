@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import axios from 'axios';
 import config from '../../config';
 import Loading from '../../components/Loading';
+import { CircleBackground } from '../../components/CircleBackground';
 
 // Base URL for all API calls
 const API_BASE_URL = config.API_BASE_URL;
@@ -105,9 +106,9 @@ const EmployeeLogin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-2 sm:p-4">
+    <CircleBackground circleCount={24} className="relative min-h-screen bg-background flex items-center justify-center p-2 sm:p-4">
       {/* Decorative Background Elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         <svg className="absolute top-0 left-0 w-48 h-48 sm:w-64 sm:h-64 text-primary/5" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
           <path fill="currentColor" d="M45.7,-78.2C58.9,-71.3,69.4,-59.1,77.2,-45.1C85,-31.1,90.1,-15.6,89.1,-0.8C88.1,14,81,28,73.1,41.1C65.2,54.2,56.5,66.4,44.8,74.5C33.1,82.6,18.6,86.6,3.3,82.3C-12,78,-24,65.4,-35.1,54.1C-46.2,42.8,-56.4,32.8,-64.1,20.8C-71.8,8.8,-77,-5.2,-74.8,-18.2C-72.6,-31.2,-63,-43.2,-51.2,-50.8C-39.4,-58.4,-25.4,-61.6,-11.8,-67.8C1.8,-74,15,-83.2,29.2,-85.1C43.4,-87,58.6,-81.6,45.7,-78.2Z" transform="translate(100 100)" />
         </svg>
@@ -116,7 +117,7 @@ const EmployeeLogin = () => {
         </svg>
       </div>
 
-      <div className="w-full max-w-[95%] sm:max-w-md bg-secondary rounded-neumorphic shadow-outerRaised p-3 sm:p-8 relative">
+      <div className="relative z-10 w-full max-w-[95%] sm:max-w-md bg-secondary rounded-neumorphic shadow-outerRaised p-3 sm:p-8">
         {/* Decorative Top Element */}
         <div className="absolute -top-10 sm:-top-12 left-1/2 transform -translate-x-1/2">
           <svg className="w-16 h-16 sm:w-24 sm:h-24 text-primary" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -211,7 +212,7 @@ const EmployeeLogin = () => {
           </svg>          
         </div>
       </div>
-    </div>
+    </CircleBackground>
   );
 };
 
