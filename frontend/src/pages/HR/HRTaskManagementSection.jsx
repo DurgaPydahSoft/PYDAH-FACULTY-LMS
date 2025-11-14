@@ -58,12 +58,15 @@ const emptyTaskForm = (branchDepartments = []) => ({
   priority: 'medium',
   status: 'active',
   requireAcknowledgement: false,
+  workType: '', // 'individual' or 'group'
+  assigneeType: '', // 'employee' or 'hod' (for individual work)
+  branchSelectionType: '', // 'single' or 'multiple' (for group work)
   assignedTo: {
-    includeAllEmployees: true,
+    includeAllEmployees: false,
     includeAllHods: false,
     employees: [],
     hods: [],
-    departments: branchDepartments,
+    departments: [],
     campuses: []
   },
   recurrence: {
@@ -187,6 +190,80 @@ const HRTaskManagementSection = () => {
     setEditingTaskId(null);
   };
 
+  const handleWorkTypeChange = (workType) => {
+    setTaskForm((prev) => ({
+      ...prev,
+      workType,
+      assigneeType: '', // Reset assignee type when work type changes
+      branchSelectionType: '', // Reset branch selection type
+      assignedTo: {
+        includeAllEmployees: false,
+        includeAllHods: false,
+        employees: [],
+        hods: [],
+        departments: [],
+        campuses: []
+      }
+    }));
+  };
+
+  const handleBranchSelectionTypeChange = (branchSelectionType) => {
+    setTaskForm((prev) => ({
+      ...prev,
+      branchSelectionType,
+      assignedTo: {
+        ...prev.assignedTo,
+        departments: [],
+        employees: [] // Clear employees when branch selection type changes
+      }
+    }));
+  };
+
+  const handleBranchSelection = (selectedDepartments) => {
+    setTaskForm((prev) => {
+      // Auto-select all employees from selected departments
+      // Check both department and branchCode fields, handle case sensitivity
+      const employeesFromDepartments = assignmentOptions.employees
+        .filter((employee) => {
+          const employeeDept = (employee.department || employee.branchCode || '').toString().toLowerCase();
+          if (!employeeDept) return false;
+          return selectedDepartments.some(dept => dept.toLowerCase() === employeeDept);
+        })
+        .map((employee) => employee._id);
+
+      // Auto-select HODs from selected departments (for single branch)
+      const hodsFromDepartments = assignmentOptions.hods
+        .filter((hod) => {
+          const hodDept = (hod.department?.code || hod.department || hod.branchCode || '').toString().toLowerCase();
+          if (!hodDept) return false;
+          return selectedDepartments.some(dept => dept.toLowerCase() === hodDept);
+        })
+        .map((hod) => hod._id);
+
+      return {
+        ...prev,
+        assignedTo: {
+          ...prev.assignedTo,
+          departments: selectedDepartments,
+          employees: employeesFromDepartments, // Auto-check employees from selected branches
+          hods: prev.branchSelectionType === 'single' ? hodsFromDepartments : prev.assignedTo.hods // Auto-select HODs for single branch
+        }
+      };
+    });
+  };
+
+  const handleAssigneeTypeChange = (assigneeType) => {
+    setTaskForm((prev) => ({
+      ...prev,
+      assigneeType,
+      assignedTo: {
+        ...prev.assignedTo,
+        employees: assigneeType === 'employee' ? prev.assignedTo.employees : [],
+        hods: assigneeType === 'hod' ? prev.assignedTo.hods : []
+      }
+    }));
+  };
+
   const openCreateModal = () => {
     resetForm();
     setShowCreateModal(true);
@@ -266,28 +343,62 @@ const HRTaskManagementSection = () => {
     });
   };
 
-  const preparePayloadFromForm = (form) => ({
-    title: form.title,
-    description: form.description,
-    dueDate: form.dueDate || null,
-    priority: form.priority,
-    status: form.status,
-    requireAcknowledgement: form.requireAcknowledgement,
-    assignedTo: {
-      includeAllEmployees: form.assignedTo.includeAllEmployees,
-      includeAllHods: form.assignedTo.includeAllHods,
-      employees: form.assignedTo.employees,
-      hods: form.assignedTo.hods,
-      departments: form.assignedTo.departments
-    },
-    recurrence: {
-      frequency: form.recurrence.frequency,
-      interval: Number(form.recurrence.interval) > 0 ? Number(form.recurrence.interval) : 1,
-      daysOfWeek: form.recurrence.daysOfWeek,
-      endDate: form.recurrence.endDate || null
-    },
-    attachments: (form.attachments || []).filter((item) => item && item.trim())
-  });
+  const preparePayloadFromForm = (form) => {
+    // Validate that work type and assignee type are selected
+    if (!form.workType) {
+      throw new Error('Please select a work type (Individual or Group)');
+    }
+    
+    if (form.workType === 'individual') {
+      if (!form.assigneeType) {
+        throw new Error('Please select assignee type (Employee or HOD)');
+      }
+      if (form.assigneeType === 'employee' && form.assignedTo.employees.length === 0) {
+        throw new Error('Please select at least one employee');
+      }
+      if (form.assigneeType === 'hod' && form.assignedTo.hods.length === 0) {
+        throw new Error('Please select at least one HOD');
+      }
+    } else if (form.workType === 'group') {
+      if (!form.branchSelectionType) {
+        throw new Error('Please select branch selection type (Single or Multiple)');
+      }
+      if (form.assignedTo.departments.length === 0) {
+        throw new Error('Please select at least one branch');
+      }
+      if (
+        !form.assignedTo.includeAllEmployees &&
+        !form.assignedTo.includeAllHods &&
+        form.assignedTo.employees.length === 0 &&
+        form.assignedTo.hods.length === 0
+      ) {
+        throw new Error('Please select at least one target option (employees or HODs)');
+      }
+    }
+
+    return {
+      title: form.title,
+      description: form.description,
+      dueDate: form.dueDate || null,
+      priority: form.priority,
+      status: form.status,
+      requireAcknowledgement: form.requireAcknowledgement,
+      assignedTo: {
+        includeAllEmployees: form.assignedTo.includeAllEmployees,
+        includeAllHods: form.assignedTo.includeAllHods,
+        employees: form.assignedTo.employees,
+        hods: form.assignedTo.hods,
+        departments: form.assignedTo.departments
+      },
+      recurrence: {
+        frequency: form.recurrence.frequency,
+        interval: Number(form.recurrence.interval) > 0 ? Number(form.recurrence.interval) : 1,
+        daysOfWeek: form.recurrence.daysOfWeek,
+        endDate: form.recurrence.endDate || null
+      },
+      attachments: (form.attachments || []).filter((item) => item && item.trim())
+    };
+  };
 
   const handleSubmitTask = async (event) => {
     event.preventDefault();
@@ -322,6 +433,35 @@ const HRTaskManagementSection = () => {
 
   const handleEditTask = (task) => {
     setEditingTaskId(task._id);
+    const assignedTo = task.assignedTo || {};
+    
+    // Determine work type and assignee type from existing assignment
+    let workType = '';
+    let assigneeType = '';
+    let branchSelectionType = '';
+    
+    if (assignedTo.includeAllEmployees || assignedTo.includeAllHods || (assignedTo.departments && assignedTo.departments.length > 0)) {
+      workType = 'group';
+      // Determine branch selection type
+      if (assignedTo.departments && assignedTo.departments.length === 1) {
+        branchSelectionType = 'single';
+      } else if (assignedTo.departments && assignedTo.departments.length > 1) {
+        branchSelectionType = 'multiple';
+      } else {
+        branchSelectionType = 'single'; // Default
+      }
+    } else if ((assignedTo.employees && assignedTo.employees.length > 0) || (assignedTo.hods && assignedTo.hods.length > 0)) {
+      workType = 'individual';
+      if (assignedTo.employees && assignedTo.employees.length > 0) {
+        assigneeType = 'employee';
+      } else if (assignedTo.hods && assignedTo.hods.length > 0) {
+        assigneeType = 'hod';
+      }
+    } else {
+      workType = 'group'; // Default to group if unclear
+      branchSelectionType = 'single';
+    }
+    
     setTaskForm({
       title: task.title || '',
       description: task.description || '',
@@ -329,16 +469,19 @@ const HRTaskManagementSection = () => {
       priority: task.priority || 'medium',
       status: task.status || 'active',
       requireAcknowledgement: task.requireAcknowledgement || false,
+      workType,
+      assigneeType,
+      branchSelectionType,
       assignedTo: {
-        includeAllEmployees: task.assignedTo?.includeAllEmployees || false,
-        includeAllHods: task.assignedTo?.includeAllHods || false,
-        employees: (task.assignedTo?.employees || []).map((employee) =>
+        includeAllEmployees: assignedTo.includeAllEmployees || false,
+        includeAllHods: assignedTo.includeAllHods || false,
+        employees: (assignedTo.employees || []).map((employee) =>
           typeof employee === 'string' ? employee : employee?._id
         ),
-        hods: (task.assignedTo?.hods || []).map((hod) =>
+        hods: (assignedTo.hods || []).map((hod) =>
           typeof hod === 'string' ? hod : hod?._id
         ),
-        departments: task.assignedTo?.departments || assignmentOptions.departments
+        departments: assignedTo.departments || []
       },
       recurrence: {
         frequency: task.recurrence?.frequency || 'none',
@@ -516,7 +659,7 @@ const HRTaskManagementSection = () => {
             <div>
               <p className="text-blue-100 text-sm font-medium mb-1">Total Tasks</p>
               <p className="text-3xl font-bold">{kpiMetrics.totalTasks}</p>
-            </div>
+          </div>
             <div className="bg-white/20 rounded-full p-3">
               <FaTasks className="text-2xl" />
             </div>
@@ -526,16 +669,16 @@ const HRTaskManagementSection = () => {
         {/* Active Tasks */}
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-5 text-white">
           <div className="flex items-center justify-between">
-            <div>
+          <div>
               <p className="text-green-100 text-sm font-medium mb-1">Active Tasks</p>
               <p className="text-3xl font-bold">{kpiMetrics.activeTasks}</p>
             </div>
             <div className="bg-white/20 rounded-full p-3">
               <FaRegCalendarCheck className="text-2xl" />
-            </div>
           </div>
         </div>
-
+      </div>
+      
         {/* Completed Tasks */}
         <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-lg p-5 text-white">
           <div className="flex items-center justify-between">
@@ -663,13 +806,13 @@ const HRTaskManagementSection = () => {
 
           {/* Reset Button */}
           <div className="flex items-end">
-            <button
+      <button
               type="button"
               onClick={resetFilters}
               className="w-full bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
-            >
+      >
               Reset Filters
-            </button>
+      </button>
           </div>
         </div>
 
@@ -697,7 +840,7 @@ const HRTaskManagementSection = () => {
       </div>
       
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-        <button
+              <button
           className="bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-primary-dark transition-colors w-full sm:w-auto justify-center"
           onClick={openCreateModal}
         >
@@ -708,7 +851,7 @@ const HRTaskManagementSection = () => {
         )}
         <div className="text-sm text-gray-600">
           Showing <span className="font-semibold">{filteredTasks.length}</span> of <span className="font-semibold">{tasks.length}</span> tasks
-        </div>
+            </div>
       </div>
       
       {loading && <div className="text-center py-6">Loading tasks...</div>}
@@ -726,7 +869,7 @@ const HRTaskManagementSection = () => {
           {filteredTasks.length === 0 ? (
             <div className="text-center text-gray-500 py-8">
               {tasks.length === 0 ? 'No tasks found.' : 'No tasks match the current filters.'}
-            </div>
+                </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
@@ -907,120 +1050,468 @@ const HRTaskManagementSection = () => {
 
               <div>
                 <h4 className="text-lg font-semibold text-primary mb-3">Audience</h4>
-                <div className="grid md:grid-cols-2 gap-4 bg-gray-50 border border-gray-200 rounded-xl p-4">
-                  <div className="space-y-3">
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={taskForm.assignedTo.includeAllEmployees}
-                        onChange={() => handleAssignmentToggle('includeAllEmployees')}
-                      />
-                      Target all employees
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-4">
+                  {/* Step 1: Work Type Selection */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Select Work Type <span className="text-red-500">*</span>
                     </label>
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={taskForm.assignedTo.includeAllHods}
-                        onChange={() => handleAssignmentToggle('includeAllHods')}
-                      />
-                      Target all HODs
-                    </label>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Departments</label>
-                      <select
-                        multiple
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 h-32 focus:outline-none focus:ring-2 focus:ring-primary/40"
-                        value={taskForm.assignedTo.departments}
-                        onChange={(event) => {
-                          const selected = Array.from(event.target.selectedOptions).map((option) => option.value);
-                          handleAssignedSelect('departments', selected);
-                        }}
+                    <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                        onClick={() => handleWorkTypeChange('individual')}
+                        className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                          taskForm.workType === 'individual'
+                            ? 'border-primary bg-primary/10 text-primary font-semibold'
+                            : 'border-gray-300 bg-white text-gray-700 hover:border-primary/50'
+                        }`}
                       >
-                        {assignmentOptions.departments.map((department) => (
-                          <option key={department} value={department}>
-                            {department.toUpperCase()}
-                          </option>
-                        ))}
-                      </select>
+                        <FaUserTie className="mx-auto mb-1 text-xl" />
+                        Individual Work
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleWorkTypeChange('group')}
+                        className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                          taskForm.workType === 'group'
+                            ? 'border-primary bg-primary/10 text-primary font-semibold'
+                            : 'border-gray-300 bg-white text-gray-700 hover:border-primary/50'
+                        }`}
+                      >
+                        
+                        <FaUsers className="mx-auto mb-1 text-xl" />
+                        Group Work
+                      </button>
                     </div>
                   </div>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Select Employees</label>
-                      <div className="border border-gray-300 rounded-lg h-40 overflow-y-auto">
-                        {assignmentOptions.employees.length === 0 ? (
-                          <p className="text-sm text-gray-500 p-3">No employees available.</p>
-                        ) : (
-                          assignmentOptions.employees
-                            .filter((employee) => {
-                              if (taskForm.assignedTo.departments.length === 0) return true;
-                              return employee.department && taskForm.assignedTo.departments.includes(employee.department);
-                            })
-                            .map((employee) => {
-                              const selected = taskForm.assignedTo.employees.includes(employee._id);
-                              return (
-                                <label
-                                  key={employee._id}
-                                  className={`flex items-center justify-between gap-2 px-3 py-2 text-sm border-b border-gray-100 last:border-0 cursor-pointer ${
-                                    selected ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'
-                                  }`}
-                                >
-                                  <span className="flex-1 truncate">
-                                    {employee.name} ({employee.employeeId})
-                                  </span>
-                                  <input
-                                    type="checkbox"
-                                    checked={selected}
-                                    onChange={(event) => {
-                                      event.stopPropagation();
-                                      const next = selected
-                                        ? taskForm.assignedTo.employees.filter((id) => id !== employee._id)
-                                        : [...taskForm.assignedTo.employees, employee._id];
-                                      handleAssignedSelect('employees', next);
-                                    }}
-                                  />
-                                </label>
-                              );
-                            })
-                        )}
+
+                  {/* Step 2: Individual Work - Assignee Type */}
+                  {taskForm.workType === 'individual' && (
+                    <div className="bg-white rounded-lg p-4 border border-gray-300">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Assign to <span className="text-red-500">*</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleAssigneeTypeChange('employee')}
+                          className={`px-4 py-2 rounded-lg border-2 transition-all ${
+                            taskForm.assigneeType === 'employee'
+                              ? 'border-primary bg-primary/10 text-primary font-semibold'
+                              : 'border-gray-300 bg-white text-gray-700 hover:border-primary/50'
+                          }`}
+                        >
+                          Employee
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAssigneeTypeChange('hod')}
+                          className={`px-4 py-2 rounded-lg border-2 transition-all ${
+                            taskForm.assigneeType === 'hod'
+                              ? 'border-primary bg-primary/10 text-primary font-semibold'
+                              : 'border-gray-300 bg-white text-gray-700 hover:border-primary/50'
+                          }`}
+                        >
+                          HOD
+                        </button>
                       </div>
+
+                      {/* Individual Employee Selection */}
+                      {taskForm.assigneeType === 'employee' && (
+                        <div className="mt-4">
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Select Employee <span className="text-red-500">*</span>
+                          </label>
+                          <div className="border border-gray-300 rounded-lg h-48 overflow-y-auto bg-white">
+                            {assignmentOptions.employees.length === 0 ? (
+                              <p className="text-sm text-gray-500 p-3">No employees available.</p>
+                            ) : (
+                              assignmentOptions.employees.map((employee) => {
+                                const selected = taskForm.assignedTo.employees.includes(employee._id);
+                                return (
+                                  <label
+                                    key={employee._id}
+                                    className={`flex items-center justify-between gap-2 px-3 py-2 text-sm border-b border-gray-100 last:border-0 cursor-pointer ${
+                                      selected ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    <span className="flex-1">
+                                      {employee.name} ({employee.employeeId})
+                                      {(employee.department || employee.branchCode) && (
+                                        <span className="text-xs text-gray-500 ml-2">
+                                          - {(employee.department || employee.branchCode || '').toString().toUpperCase()}
+                                        </span>
+                                      )}
+                                    </span>
+                                    <input
+                                      type="radio"
+                                      name="individualEmployee"
+                                      checked={selected}
+                                      onChange={() => {
+                                        handleAssignedSelect('employees', [employee._id]);
+                                      }}
+                                    />
+                                  </label>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Individual HOD Selection */}
+                      {taskForm.assigneeType === 'hod' && (
+                        <div className="mt-4">
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Select HOD <span className="text-red-500">*</span>
+                          </label>
+                          <div className="border border-gray-300 rounded-lg h-48 overflow-y-auto bg-white">
+                            {assignmentOptions.hods.length === 0 ? (
+                              <p className="text-sm text-gray-500 p-3">No HODs available.</p>
+                            ) : (
+                              assignmentOptions.hods.map((hod) => {
+                                const selected = taskForm.assignedTo.hods.includes(hod._id);
+                                return (
+                                  <label
+                                    key={hod._id}
+                                    className={`flex items-center justify-between gap-2 px-3 py-2 text-sm border-b border-gray-100 last:border-0 cursor-pointer ${
+                                      selected ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    <span className="flex-1">
+                                      {hod.name}
+                                      {hod.department?.code && (
+                                        <span className="text-xs text-gray-500 ml-2">
+                                          - {hod.department.code.toUpperCase()}
+                                        </span>
+                                      )}
+                                    </span>
+                                    <input
+                                      type="radio"
+                                      name="individualHod"
+                                      checked={selected}
+                                      onChange={() => {
+                                        handleAssignedSelect('hods', [hod._id]);
+                                      }}
+                                    />
+                                  </label>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Select HODs</label>
-                      <div className="border border-gray-300 rounded-lg h-32 overflow-y-auto">
-                        {assignmentOptions.hods.length === 0 ? (
-                          <p className="text-sm text-gray-500 p-3">No HODs available.</p>
-                        ) : (
-                          assignmentOptions.hods.map((hod) => {
-                            const selected = taskForm.assignedTo.hods.includes(hod._id);
-                            return (
-                              <label
-                                key={hod._id}
-                                className={`flex items-center justify-between gap-2 px-3 py-2 text-sm border-b border-gray-100 last:border-0 cursor-pointer ${
-                                  selected ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'
-                                }`}
+                  )}
+
+                  {/* Step 2: Group Work Options */}
+                  {taskForm.workType === 'group' && (
+                    <div className="bg-white rounded-lg p-4 border border-gray-300 space-y-4">
+                      {/* Branch Selection Type */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Branch Selection <span className="text-red-500">*</span>
+                        </label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleBranchSelectionTypeChange('single')}
+                            className={`px-4 py-2 rounded-lg border-2 transition-all ${
+                              taskForm.branchSelectionType === 'single'
+                                ? 'border-primary bg-primary/10 text-primary font-semibold'
+                                : 'border-gray-300 bg-white text-gray-700 hover:border-primary/50'
+                            }`}
+                          >
+                            Single Branch
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleBranchSelectionTypeChange('multiple')}
+                            className={`px-4 py-2 rounded-lg border-2 transition-all ${
+                              taskForm.branchSelectionType === 'multiple'
+                                ? 'border-primary bg-primary/10 text-primary font-semibold'
+                                : 'border-gray-300 bg-white text-gray-700 hover:border-primary/50'
+                            }`}
+                          >
+                            Multiple Branches
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Branch Selection */}
+                      {taskForm.branchSelectionType && (
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Select {taskForm.branchSelectionType === 'single' ? 'Branch' : 'Branches'} <span className="text-red-500">*</span>
+                          </label>
+                          {taskForm.branchSelectionType === 'single' ? (
+                            <select
+                              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40 bg-white"
+                              value={taskForm.assignedTo.departments[0] || ''}
+                              onChange={(e) => {
+                                const selected = e.target.value ? [e.target.value] : [];
+                                handleBranchSelection(selected);
+                              }}
+                            >
+                              <option value="">Select a branch</option>
+                              {assignmentOptions.departments.map((department) => (
+                                <option key={department} value={department}>
+                                  {department.toUpperCase()}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <div>
+                              <select
+                                multiple
+                                className="w-full border border-gray-300 rounded-lg px-3 py-2 h-32 focus:outline-none focus:ring-2 focus:ring-primary/40 bg-white"
+                                value={taskForm.assignedTo.departments}
+                                onChange={(event) => {
+                                  const selected = Array.from(event.target.selectedOptions).map((option) => option.value);
+                                  handleBranchSelection(selected);
+                                }}
                               >
-                                <span className="flex-1 truncate">
-                                  {hod.name} {hod.department?.code ? `(${hod.department.code})` : ''}
-                                </span>
+                                {assignmentOptions.departments.map((department) => (
+                                  <option key={department} value={department}>
+                                    {department.toUpperCase()}
+                                  </option>
+                                ))}
+                              </select>
+                              <p className="text-xs text-gray-500 mt-1">
+                                Hold Ctrl/Cmd to select multiple branches. Employees from selected branches will be auto-selected.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Target Options */}
+                      {taskForm.assignedTo.departments.length > 0 && (
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Additional Target Options
+                          </label>
+                          <div className="space-y-2">
+                            {/* Only show "Target all employees" for multiple branches */}
+                            {taskForm.branchSelectionType === 'multiple' && (
+                              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                                 <input
                                   type="checkbox"
-                                  checked={selected}
-                                  onChange={(event) => {
-                                    event.stopPropagation();
-                                    const next = selected
-                                      ? taskForm.assignedTo.hods.filter((id) => id !== hod._id)
-                                      : [...taskForm.assignedTo.hods, hod._id];
-                                    handleAssignedSelect('hods', next);
-                                  }}
+                                  checked={taskForm.assignedTo.includeAllEmployees}
+                                  onChange={() => handleAssignmentToggle('includeAllEmployees')}
                                 />
+                                <span>Target all employees (across all branches)</span>
                               </label>
-                            );
-                          })
-                        )}
-                      </div>
+                            )}
+                            {/* For single branch, show HOD name(s) directly */}
+                            {taskForm.branchSelectionType === 'single' && taskForm.assignedTo.departments.length > 0 && (
+                              <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                  HOD for Selected Branch
+                                </label>
+                                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                                  {assignmentOptions.hods
+                                    .filter((hod) => {
+                                      const hodDept = (hod.department?.code || hod.department || hod.branchCode || '').toString().toLowerCase();
+                                      if (!hodDept) return false;
+                                      return taskForm.assignedTo.departments.some(dept => dept.toLowerCase() === hodDept);
+                                    })
+                                    .length === 0 ? (
+                                    <p className="text-sm text-gray-500">No HOD found for this branch.</p>
+                                  ) : (
+                                    assignmentOptions.hods
+                                      .filter((hod) => {
+                                        const hodDept = (hod.department?.code || hod.department || hod.branchCode || '').toString().toLowerCase();
+                                        if (!hodDept) return false;
+                                        return taskForm.assignedTo.departments.some(dept => dept.toLowerCase() === hodDept);
+                                      })
+                                      .map((hod) => (
+                                        <div key={hod._id} className="flex items-center gap-2 text-sm text-gray-700">
+                                          <FaUserTie className="text-primary" />
+                                          <span className="font-medium">{hod.name}</span>
+                                          {hod.department?.code && (
+                                            <span className="text-xs text-gray-500">
+                                              ({hod.department.code.toUpperCase()})
+                                            </span>
+                                          )}
+                                        </div>
+                                      ))
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            {/* Show "Target all HODs" checkbox only for multiple branches */}
+                            {taskForm.branchSelectionType === 'multiple' && (
+                              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={taskForm.assignedTo.includeAllHods}
+                                  onChange={() => handleAssignmentToggle('includeAllHods')}
+                                />
+                                <span>Target all HODs</span>
+                              </label>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Employee Selection - Auto-checked from selected branches */}
+                      {taskForm.assignedTo.departments.length > 0 && !taskForm.assignedTo.includeAllEmployees && (
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Employees from Selected Branches
+                            <span className="text-xs text-gray-500 font-normal ml-2">
+                              (Auto-selected, you can uncheck if needed)
+                            </span>
+                          </label>
+                          <div className="border border-gray-300 rounded-lg h-48 overflow-y-auto bg-white">
+                            {assignmentOptions.employees.length === 0 ? (
+                              <p className="text-sm text-gray-500 p-3">No employees available.</p>
+                            ) : (
+                              assignmentOptions.employees
+                                .filter((employee) => {
+                                  const employeeDept = (employee.department || employee.branchCode || '').toString().toLowerCase();
+                                  if (!employeeDept) return false;
+                                  return taskForm.assignedTo.departments.some(dept => dept.toLowerCase() === employeeDept);
+                                })
+                                .map((employee) => {
+                                  const selected = taskForm.assignedTo.employees.includes(employee._id);
+                                  const employeeDept = (employee.department || employee.branchCode || '');
+                                  return (
+                                    <label
+                                      key={employee._id}
+                                      className={`flex items-center justify-between gap-2 px-3 py-2 text-sm border-b border-gray-100 last:border-0 cursor-pointer ${
+                                        selected ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      <span className="flex-1">
+                                        {employee.name} ({employee.employeeId})
+                                        {employeeDept && (
+                                          <span className="text-xs text-gray-500 ml-2">
+                                            - {employeeDept.toString().toUpperCase()}
+                                          </span>
+                                        )}
+                                      </span>
+                                      <input
+                                        type="checkbox"
+                                        checked={selected}
+                                        onChange={(event) => {
+                                          event.stopPropagation();
+                                          const next = selected
+                                            ? taskForm.assignedTo.employees.filter((id) => id !== employee._id)
+                                            : [...taskForm.assignedTo.employees, employee._id];
+                                          handleAssignedSelect('employees', next);
+                                        }}
+                                      />
+                                    </label>
+                                  );
+                                })
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Additional Employee Selection (from other branches) */}
+                      {taskForm.assignedTo.departments.length > 0 && !taskForm.assignedTo.includeAllEmployees && (
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Add Employees from Other Branches (Optional)
+                          </label>
+                          <div className="border border-gray-300 rounded-lg h-40 overflow-y-auto bg-white">
+                            {assignmentOptions.employees
+                              .filter((employee) => {
+                                const employeeDept = (employee.department || employee.branchCode || '').toString().toLowerCase();
+                                if (!employeeDept) return false;
+                                return !taskForm.assignedTo.departments.some(dept => dept.toLowerCase() === employeeDept);
+                              })
+                              .length === 0 ? (
+                              <p className="text-sm text-gray-500 p-3">No employees from other branches.</p>
+                            ) : (
+                              assignmentOptions.employees
+                                .filter((employee) => {
+                                  const employeeDept = (employee.department || employee.branchCode || '').toString().toLowerCase();
+                                  if (!employeeDept) return false;
+                                  return !taskForm.assignedTo.departments.some(dept => dept.toLowerCase() === employeeDept);
+                                })
+                                .map((employee) => {
+                                  const selected = taskForm.assignedTo.employees.includes(employee._id);
+                                  const employeeDept = (employee.department || employee.branchCode || '');
+                                  return (
+                                    <label
+                                      key={employee._id}
+                                      className={`flex items-center justify-between gap-2 px-3 py-2 text-sm border-b border-gray-100 last:border-0 cursor-pointer ${
+                                        selected ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      <span className="flex-1 truncate">
+                                        {employee.name} ({employee.employeeId})
+                                        {employeeDept && (
+                                          <span className="text-xs text-gray-500 ml-2">
+                                            - {employeeDept.toString().toUpperCase()}
+                                          </span>
+                                        )}
+                                      </span>
+                                      <input
+                                        type="checkbox"
+                                        checked={selected}
+                                        onChange={(event) => {
+                                          event.stopPropagation();
+                                          const next = selected
+                                            ? taskForm.assignedTo.employees.filter((id) => id !== employee._id)
+                                            : [...taskForm.assignedTo.employees, employee._id];
+                                          handleAssignedSelect('employees', next);
+                                        }}
+                                      />
+                                    </label>
+                                  );
+                                })
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Group HOD Selection - Only show for multiple branches */}
+                      {taskForm.branchSelectionType === 'multiple' && !taskForm.assignedTo.includeAllHods && (
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Select Specific HODs (Optional)
+                          </label>
+                          <div className="border border-gray-300 rounded-lg h-32 overflow-y-auto bg-white">
+                            {assignmentOptions.hods.length === 0 ? (
+                              <p className="text-sm text-gray-500 p-3">No HODs available.</p>
+                            ) : (
+                              assignmentOptions.hods.map((hod) => {
+                                const selected = taskForm.assignedTo.hods.includes(hod._id);
+                                return (
+                                  <label
+                                    key={hod._id}
+                                    className={`flex items-center justify-between gap-2 px-3 py-2 text-sm border-b border-gray-100 last:border-0 cursor-pointer ${
+                                      selected ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    <span className="flex-1 truncate">
+                                      {hod.name} {hod.department?.code ? `(${hod.department.code})` : ''}
+                                    </span>
+                                    <input
+                                      type="checkbox"
+                                      checked={selected}
+                                      onChange={(event) => {
+                                        event.stopPropagation();
+                                        const next = selected
+                                          ? taskForm.assignedTo.hods.filter((id) => id !== hod._id)
+                                          : [...taskForm.assignedTo.hods, hod._id];
+                                        handleAssignedSelect('hods', next);
+                                      }}
+                                    />
+                                  </label>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
@@ -1092,7 +1583,7 @@ const HRTaskManagementSection = () => {
               <div>
                 <h3 className="text-xl font-bold text-primary">{viewTask.title}</h3>
                 <p className="text-sm text-gray-600">Detailed information</p>
-              </div>
+      </div>
               <button
                 onClick={closeViewTask}
                 className="text-gray-500 hover:text-gray-700 font-semibold text-lg"
