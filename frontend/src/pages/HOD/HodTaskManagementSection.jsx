@@ -522,47 +522,6 @@ const HodTaskManagementSection = () => {
         </div>
       </div>
 
-      {/* Secondary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        {/* Pending Acknowledgements */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm font-medium mb-1">Pending Acknowledgements</p>
-              <p className="text-2xl font-bold text-primary">{kpiMetrics.pendingAcknowledgements}</p>
-            </div>
-            <div className="bg-primary/10 rounded-full p-3">
-              <FaClock className="text-primary text-xl" />
-            </div>
-          </div>
-        </div>
-
-        {/* Critical Tasks */}
-        <div className="bg-white rounded-xl shadow-sm border border-red-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm font-medium mb-1">Critical Priority</p>
-              <p className="text-2xl font-bold text-red-600">{kpiMetrics.criticalTasks}</p>
-            </div>
-            <div className="bg-red-100 rounded-full p-3">
-              <FaFlag className="text-red-600 text-xl" />
-            </div>
-          </div>
-        </div>
-
-        {/* High Priority Tasks */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm font-medium mb-1">High Priority</p>
-              <p className="text-2xl font-bold text-orange-600">{kpiMetrics.highPriorityTasks}</p>
-            </div>
-            <div className="bg-orange-100 rounded-full p-3">
-              <FaFlag className="text-orange-600 text-xl" />
-            </div>
-          </div>
-        </div>
-      </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
         <button

@@ -706,48 +706,6 @@ const HRTaskManagementSection = () => {
         </div>
       </div>
 
-      {/* Secondary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        {/* Pending Acknowledgements */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm font-medium mb-1">Pending Acknowledgements</p>
-              <p className="text-2xl font-bold text-primary">{kpiMetrics.pendingAcknowledgements}</p>
-            </div>
-            <div className="bg-primary/10 rounded-full p-3">
-              <FaClock className="text-primary text-xl" />
-            </div>
-          </div>
-        </div>
-
-        {/* Critical Tasks */}
-        <div className="bg-white rounded-xl shadow-sm border border-red-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm font-medium mb-1">Critical Priority</p>
-              <p className="text-2xl font-bold text-red-600">{kpiMetrics.criticalTasks}</p>
-            </div>
-            <div className="bg-red-100 rounded-full p-3">
-              <FaFlag className="text-red-600 text-xl" />
-            </div>
-          </div>
-        </div>
-
-        {/* High Priority Tasks */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm font-medium mb-1">High Priority</p>
-              <p className="text-2xl font-bold text-orange-600">{kpiMetrics.highPriorityTasks}</p>
-            </div>
-            <div className="bg-orange-100 rounded-full p-3">
-              <FaFlag className="text-orange-600 text-xl" />
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Filters Section */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
         <div className="flex items-center gap-2 mb-4">
@@ -1615,16 +1573,174 @@ const HRTaskManagementSection = () => {
               </section>
 
               <section>
-                <h4 className="text-sm font-semibold text-gray-700 mb-1">Audience</h4>
-                <p className="text-sm text-gray-600">{renderAudienceSummary(viewTask.assignedTo)}</p>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-gray-700">Audience</h4>
+                  {viewTask.requireAcknowledgement && viewTask.acknowledgementSummary && (
+                    <p className="text-xs text-gray-500">
+                      {renderAcknowledgementSummary(viewTask.acknowledgementSummary)}
+                    </p>
+                  )}
+                </div>
+                <div className="text-sm text-gray-600 space-y-2">
+                  {viewTask.assignedTo?.includeAllEmployees && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <span className="font-semibold text-blue-700">All employees</span>
+                      {viewTask.assignedTo.departments?.length > 0 && (
+                        <span className="text-blue-600"> in {viewTask.assignedTo.departments.map((dep) => dep.toUpperCase()).join(', ')}</span>
+                      )}
+                    </div>
+                  )}
+                  {viewTask.assignedTo?.includeAllHods && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <span className="font-semibold text-blue-700">All HODs</span>
+                      {viewTask.assignedTo.departments?.length > 0 && (
+                        <span className="text-blue-600"> in {viewTask.assignedTo.departments.map((dep) => dep.toUpperCase()).join(', ')}</span>
+                      )}
+                    </div>
+                  )}
+                  {viewTask.assignedTo?.employees && viewTask.assignedTo.employees.length > 0 && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                      <div className="font-semibold text-gray-700 mb-2">
+                        {viewTask.assignedTo.employees.length} {viewTask.assignedTo.employees.length === 1 ? 'Employee' : 'Employees'}:
+                      </div>
+                      <div className="space-y-1">
+                        {viewTask.assignedTo.employees.map((emp, idx) => {
+                          const employeeName = typeof emp === 'object' && emp !== null 
+                            ? (emp.name || emp.employeeId || 'Unknown')
+                            : 'Unknown';
+                          const employeeId = typeof emp === 'object' && emp !== null 
+                            ? (emp.employeeId || '')
+                            : '';
+                          
+                          // Find acknowledgement status for this employee
+                          let acknowledgementStatus = null;
+                          if (viewTask.acknowledgements && viewTask.acknowledgements.length > 0) {
+                            const empId = typeof emp === 'object' && emp !== null ? emp._id : emp;
+                            const ack = viewTask.acknowledgements.find(a => {
+                              const assignee = a.assignee || a.assigneeDetails;
+                              const assigneeId = assignee?._id || assignee;
+                              return assigneeId && assigneeId.toString() === empId.toString() && a.assigneeModel === 'Employee';
+                            });
+                            if (ack) {
+                              acknowledgementStatus = ack.status;
+                            }
+                          }
+                          
+                          return (
+                            <div key={idx} className="flex items-center justify-between text-gray-700">
+                              <div className="flex items-center gap-2">
+                                <span className="w-2 h-2 bg-primary rounded-full"></span>
+                                <span>{employeeName}</span>
+                                {employeeId && employeeId !== employeeName && (
+                                  <span className="text-gray-500 text-xs">({employeeId})</span>
+                                )}
+                              </div>
+                              {viewTask.requireAcknowledgement && (
+                                <div className="flex items-center gap-2">
+                                  {acknowledgementStatus === 'completed' ? (
+                                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 flex items-center gap-1">
+                                      <FaCheckCircle className="text-xs" />
+                                      Completed
+                                    </span>
+                                  ) : acknowledgementStatus === 'acknowledged' ? (
+                                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 flex items-center gap-1">
+                                      <FaRegCalendarCheck className="text-xs" />
+                                      Acknowledged
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
+                                      Pending
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {viewTask.assignedTo?.hods && viewTask.assignedTo.hods.length > 0 && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                      <div className="font-semibold text-gray-700 mb-2">
+                        {viewTask.assignedTo.hods.length} {viewTask.assignedTo.hods.length === 1 ? 'HOD' : 'HODs'}:
+                      </div>
+                      <div className="space-y-1">
+                        {viewTask.assignedTo.hods.map((hod, idx) => {
+                          const hodName = typeof hod === 'object' && hod !== null 
+                            ? (hod.name || 'Unknown')
+                            : 'Unknown';
+                          const hodEmail = typeof hod === 'object' && hod !== null 
+                            ? (hod.email || '')
+                            : '';
+                          
+                          // Find acknowledgement status for this HOD
+                          let acknowledgementStatus = null;
+                          if (viewTask.acknowledgements && viewTask.acknowledgements.length > 0) {
+                            const hodId = typeof hod === 'object' && hod !== null ? hod._id : hod;
+                            const ack = viewTask.acknowledgements.find(a => {
+                              const assignee = a.assignee || a.assigneeDetails;
+                              const assigneeId = assignee?._id || assignee;
+                              return assigneeId && assigneeId.toString() === hodId.toString() && a.assigneeModel === 'HOD';
+                            });
+                            if (ack) {
+                              acknowledgementStatus = ack.status;
+                            }
+                          }
+                          
+                          return (
+                            <div key={idx} className="flex items-center justify-between text-gray-700">
+                              <div className="flex items-center gap-2">
+                                <span className="w-2 h-2 bg-primary rounded-full"></span>
+                                <span>{hodName}</span>
+                                {hodEmail && (
+                                  <span className="text-gray-500 text-xs">({hodEmail})</span>
+                                )}
+                              </div>
+                              {viewTask.requireAcknowledgement && (
+                                <div className="flex items-center gap-2">
+                                  {acknowledgementStatus === 'completed' ? (
+                                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 flex items-center gap-1">
+                                      <FaCheckCircle className="text-xs" />
+                                      Completed
+                                    </span>
+                                  ) : acknowledgementStatus === 'acknowledged' ? (
+                                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 flex items-center gap-1">
+                                      <FaRegCalendarCheck className="text-xs" />
+                                      Acknowledged
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
+                                      Pending
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {!viewTask.assignedTo?.includeAllEmployees && 
+                   !viewTask.assignedTo?.includeAllHods &&
+                   (!viewTask.assignedTo?.employees || viewTask.assignedTo.employees.length === 0) && 
+                   (!viewTask.assignedTo?.hods || viewTask.assignedTo.hods.length === 0) &&
+                   viewTask.assignedTo?.departments?.length > 0 && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                      <span className="font-semibold text-gray-700">Departments: </span>
+                      <span className="text-gray-600">{viewTask.assignedTo.departments.map((dep) => dep.toUpperCase()).join(', ')}</span>
+                    </div>
+                  )}
+                  {!viewTask.assignedTo?.includeAllEmployees && 
+                   !viewTask.assignedTo?.includeAllHods &&
+                   (!viewTask.assignedTo?.employees || viewTask.assignedTo.employees.length === 0) && 
+                   (!viewTask.assignedTo?.hods || viewTask.assignedTo.hods.length === 0) && 
+                   (!viewTask.assignedTo?.departments || viewTask.assignedTo.departments.length === 0) && (
+                    <div className="text-gray-500 italic">No audience specified</div>
+                  )}
+                </div>
               </section>
-
-              {viewTask.requireAcknowledgement && (
-                <section>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-1">Acknowledgements</h4>
-                  <p className="text-sm text-gray-600">{renderAcknowledgementSummary(viewTask.acknowledgementSummary)}</p>
-                </section>
-              )}
 
               {viewTask.attachments?.length > 0 && (
                 <section>
