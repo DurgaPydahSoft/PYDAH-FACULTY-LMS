@@ -57,7 +57,7 @@ const emptyTaskForm = (branchDepartments = []) => ({
   dueDate: '',
   priority: 'medium',
   status: 'active',
-  requireAcknowledgement: false,
+  requireAcknowledgement: true, // Default to checked
   workType: '', // 'individual' or 'group'
   assigneeType: '', // 'employee' or 'hod' (for individual work)
   branchSelectionType: '', // 'single' or 'multiple' (for group work)
@@ -246,7 +246,7 @@ const HRTaskManagementSection = () => {
           ...prev.assignedTo,
           departments: selectedDepartments,
           employees: employeesFromDepartments, // Auto-check employees from selected branches
-          hods: prev.branchSelectionType === 'single' ? hodsFromDepartments : prev.assignedTo.hods // Auto-select HODs for single branch
+          hods: hodsFromDepartments // Auto-select HODs from selected branches
         }
       };
     });
@@ -1262,101 +1262,84 @@ const HRTaskManagementSection = () => {
                             </select>
                           ) : (
                             <div>
-                              <select
-                                multiple
-                                className="w-full border border-gray-300 rounded-lg px-3 py-2 h-32 focus:outline-none focus:ring-2 focus:ring-primary/40 bg-white"
-                                value={taskForm.assignedTo.departments}
-                                onChange={(event) => {
-                                  const selected = Array.from(event.target.selectedOptions).map((option) => option.value);
-                                  handleBranchSelection(selected);
-                                }}
-                              >
-                                {assignmentOptions.departments.map((department) => (
-                                  <option key={department} value={department}>
-                                    {department.toUpperCase()}
-                                  </option>
-                                ))}
-                              </select>
-                              <p className="text-xs text-gray-500 mt-1">
-                                Hold Ctrl/Cmd to select multiple branches. Employees from selected branches will be auto-selected.
+                              <div className="border border-gray-300 rounded-lg p-3 max-h-64 overflow-y-auto bg-white">
+                                {assignmentOptions.departments.length === 0 ? (
+                                  <p className="text-sm text-gray-500">No branches available.</p>
+                                ) : (
+                                  assignmentOptions.departments.map((department) => {
+                                    const isSelected = taskForm.assignedTo.departments.includes(department);
+                                    return (
+                                      <label
+                                        key={department}
+                                        className={`flex items-center gap-2 px-3 py-2 text-sm border-b border-gray-100 last:border-0 cursor-pointer ${
+                                          isSelected ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'
+                                        }`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={isSelected}
+                                          onChange={() => {
+                                            const currentDepts = taskForm.assignedTo.departments;
+                                            const updatedDepts = isSelected
+                                              ? currentDepts.filter((d) => d !== department)
+                                              : [...currentDepts, department];
+                                            handleBranchSelection(updatedDepts);
+                                          }}
+                                        />
+                                        <span className="font-medium">{department.toUpperCase()}</span>
+                                      </label>
+                                    );
+                                  })
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-500 mt-2">
+                                Select branches. Employees from selected branches will be auto-selected.
                               </p>
                             </div>
                           )}
                         </div>
                       )}
 
-                      {/* Target Options */}
-                      {taskForm.assignedTo.departments.length > 0 && (
+                      {/* HOD Display for Single Branch */}
+                      {taskForm.branchSelectionType === 'single' && taskForm.assignedTo.departments.length > 0 && (
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Additional Target Options
+                            HOD for Selected Branch
                           </label>
-                          <div className="space-y-2">
-                            {/* Only show "Target all employees" for multiple branches */}
-                            {taskForm.branchSelectionType === 'multiple' && (
-                              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={taskForm.assignedTo.includeAllEmployees}
-                                  onChange={() => handleAssignmentToggle('includeAllEmployees')}
-                                />
-                                <span>Target all employees (across all branches)</span>
-                              </label>
-                            )}
-                            {/* For single branch, show HOD name(s) directly */}
-                            {taskForm.branchSelectionType === 'single' && taskForm.assignedTo.departments.length > 0 && (
-                              <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                  HOD for Selected Branch
-                                </label>
-                                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                                  {assignmentOptions.hods
-                                    .filter((hod) => {
-                                      const hodDept = (hod.department?.code || hod.department || hod.branchCode || '').toString().toLowerCase();
-                                      if (!hodDept) return false;
-                                      return taskForm.assignedTo.departments.some(dept => dept.toLowerCase() === hodDept);
-                                    })
-                                    .length === 0 ? (
-                                    <p className="text-sm text-gray-500">No HOD found for this branch.</p>
-                                  ) : (
-                                    assignmentOptions.hods
-                                      .filter((hod) => {
-                                        const hodDept = (hod.department?.code || hod.department || hod.branchCode || '').toString().toLowerCase();
-                                        if (!hodDept) return false;
-                                        return taskForm.assignedTo.departments.some(dept => dept.toLowerCase() === hodDept);
-                                      })
-                                      .map((hod) => (
-                                        <div key={hod._id} className="flex items-center gap-2 text-sm text-gray-700">
-                                          <FaUserTie className="text-primary" />
-                                          <span className="font-medium">{hod.name}</span>
-                                          {hod.department?.code && (
-                                            <span className="text-xs text-gray-500">
-                                              ({hod.department.code.toUpperCase()})
-                                            </span>
-                                          )}
-                                        </div>
-                                      ))
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                            {/* Show "Target all HODs" checkbox only for multiple branches */}
-                            {taskForm.branchSelectionType === 'multiple' && (
-                              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={taskForm.assignedTo.includeAllHods}
-                                  onChange={() => handleAssignmentToggle('includeAllHods')}
-                                />
-                                <span>Target all HODs</span>
-                              </label>
+                          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                            {assignmentOptions.hods
+                              .filter((hod) => {
+                                const hodDept = (hod.department?.code || hod.department || hod.branchCode || '').toString().toLowerCase();
+                                if (!hodDept) return false;
+                                return taskForm.assignedTo.departments.some(dept => dept.toLowerCase() === hodDept);
+                              })
+                              .length === 0 ? (
+                              <p className="text-sm text-gray-500">No HOD found for this branch.</p>
+                            ) : (
+                              assignmentOptions.hods
+                                .filter((hod) => {
+                                  const hodDept = (hod.department?.code || hod.department || hod.branchCode || '').toString().toLowerCase();
+                                  if (!hodDept) return false;
+                                  return taskForm.assignedTo.departments.some(dept => dept.toLowerCase() === hodDept);
+                                })
+                                .map((hod) => (
+                                  <div key={hod._id} className="flex items-center gap-2 text-sm text-gray-700">
+                                    <FaUserTie className="text-primary" />
+                                    <span className="font-medium">{hod.name}</span>
+                                    {hod.department?.code && (
+                                      <span className="text-xs text-gray-500">
+                                        ({hod.department.code.toUpperCase()})
+                                      </span>
+                                    )}
+                                  </div>
+                                ))
                             )}
                           </div>
                         </div>
                       )}
 
                       {/* Employee Selection - Auto-checked from selected branches */}
-                      {taskForm.assignedTo.departments.length > 0 && !taskForm.assignedTo.includeAllEmployees && (
+                      {taskForm.assignedTo.departments.length > 0 && (
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
                             Employees from Selected Branches
@@ -1470,42 +1453,56 @@ const HRTaskManagementSection = () => {
                         </div>
                       )}
 
-                      {/* Group HOD Selection - Only show for multiple branches */}
-                      {taskForm.branchSelectionType === 'multiple' && !taskForm.assignedTo.includeAllHods && (
+                      {/* Group HOD Selection - Show for multiple branches */}
+                      {taskForm.branchSelectionType === 'multiple' && taskForm.assignedTo.departments.length > 0 && (
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Select Specific HODs (Optional)
+                            HODs from Selected Branches
+                            <span className="text-xs text-gray-500 font-normal ml-2">
+                              (Auto-selected, you can uncheck if needed)
+                            </span>
                           </label>
-                          <div className="border border-gray-300 rounded-lg h-32 overflow-y-auto bg-white">
+                          <div className="border border-gray-300 rounded-lg h-48 overflow-y-auto bg-white">
                             {assignmentOptions.hods.length === 0 ? (
                               <p className="text-sm text-gray-500 p-3">No HODs available.</p>
                             ) : (
-                              assignmentOptions.hods.map((hod) => {
-                                const selected = taskForm.assignedTo.hods.includes(hod._id);
-                                return (
-                                  <label
-                                    key={hod._id}
-                                    className={`flex items-center justify-between gap-2 px-3 py-2 text-sm border-b border-gray-100 last:border-0 cursor-pointer ${
-                                      selected ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'
-                                    }`}
-                                  >
-                                    <span className="flex-1 truncate">
-                                      {hod.name} {hod.department?.code ? `(${hod.department.code})` : ''}
-                                    </span>
-                                    <input
-                                      type="checkbox"
-                                      checked={selected}
-                                      onChange={(event) => {
-                                        event.stopPropagation();
-                                        const next = selected
-                                          ? taskForm.assignedTo.hods.filter((id) => id !== hod._id)
-                                          : [...taskForm.assignedTo.hods, hod._id];
-                                        handleAssignedSelect('hods', next);
-                                      }}
-                                    />
-                                  </label>
-                                );
-                              })
+                              assignmentOptions.hods
+                                .filter((hod) => {
+                                  const hodDept = (hod.department?.code || hod.department || hod.branchCode || '').toString().toLowerCase();
+                                  if (!hodDept) return false;
+                                  return taskForm.assignedTo.departments.some(dept => dept.toLowerCase() === hodDept);
+                                })
+                                .map((hod) => {
+                                  const selected = taskForm.assignedTo.hods.includes(hod._id);
+                                  return (
+                                    <label
+                                      key={hod._id}
+                                      className={`flex items-center justify-between gap-2 px-3 py-2 text-sm border-b border-gray-100 last:border-0 cursor-pointer ${
+                                        selected ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      <span className="flex-1">
+                                        {hod.name}
+                                        {hod.department?.code && (
+                                          <span className="text-xs text-gray-500 ml-2">
+                                            - {hod.department.code.toUpperCase()}
+                                          </span>
+                                        )}
+                                      </span>
+                                      <input
+                                        type="checkbox"
+                                        checked={selected}
+                                        onChange={(event) => {
+                                          event.stopPropagation();
+                                          const next = selected
+                                            ? taskForm.assignedTo.hods.filter((id) => id !== hod._id)
+                                            : [...taskForm.assignedTo.hods, hod._id];
+                                          handleAssignedSelect('hods', next);
+                                        }}
+                                      />
+                                    </label>
+                                  );
+                                })
                             )}
                           </div>
                         </div>
