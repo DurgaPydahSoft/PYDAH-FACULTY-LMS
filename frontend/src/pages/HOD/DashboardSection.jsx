@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaUsers, FaClipboardList, FaTasks, FaArrowRight } from 'react-icons/fa';
+import { FaUsers, FaClipboardList, FaTasks, FaArrowRight, FaClipboardCheck } from 'react-icons/fa';
 
 const DashboardSection = ({ hod, employees, leaveRequests, cclWorkRequests, onSectionChange }) => {
   // Ensure arrays are properly initialized
@@ -15,16 +15,15 @@ const DashboardSection = ({ hod, employees, leaveRequests, cclWorkRequests, onSe
       <h2 className="text-2xl font-bold text-primary mb-6">Dashboard Overview</h2>
       
       {/* Quick Action Buttons */}
-      <div className="grid grid-cols-2 gap-2 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-8">
         <button
           onClick={() => onSectionChange('employees')}
           className="bg-blue-500 text-white rounded-xl p-4 flex items-center justify-between hover:bg-blue-600 active:scale-[0.98] transition-all duration-200 shadow-md"
         >
           <div className="flex items-center flex-col gap-1">
             <FaUsers className="text-xl" />
-            <span className="font-semibold">Employees</span>
+            <span className="font-semibold text-xs sm:text-sm">Employees</span>
           </div>
-          
         </button>
 
         <button
@@ -33,7 +32,27 @@ const DashboardSection = ({ hod, employees, leaveRequests, cclWorkRequests, onSe
         >
           <div className="flex items-center flex-col gap-1">
             <FaClipboardList className="text-xl" />
-            <span className="font-semibold">Leave Req's</span>
+            <span className="font-semibold text-xs sm:text-sm">Leave Req's</span>
+          </div>
+        </button>
+
+        <button
+          onClick={() => onSectionChange('tasks')}
+          className="bg-purple-500 text-white rounded-xl p-4 flex items-center justify-between hover:bg-purple-600 active:scale-[0.98] transition-all duration-200 shadow-md"
+        >
+          <div className="flex items-center flex-col gap-1">
+            <FaClipboardCheck className="text-xl" />
+            <span className="font-semibold text-xs sm:text-sm">My Tasks</span>
+          </div>
+        </button>
+
+        <button
+          onClick={() => onSectionChange('task-management')}
+          className="bg-orange-500 text-white rounded-xl p-4 flex items-center justify-between hover:bg-orange-600 active:scale-[0.98] transition-all duration-200 shadow-md"
+        >
+          <div className="flex items-center flex-col gap-1">
+            <FaTasks className="text-xl" />
+            <span className="font-semibold text-xs sm:text-sm">Manage Tasks</span>
           </div>
         </button>
       </div>
@@ -79,7 +98,7 @@ const DashboardSection = ({ hod, employees, leaveRequests, cclWorkRequests, onSe
       </div>
 
       {/* Welcome Section */}
-      <div className="bg-white rounded-xl shadow p-4 sm:p-6">
+      <div className="bg-white rounded-xl shadow p-4 sm:p-6 mb-6">
         <div className="flex flex-col md:flex-row items-center gap-4">
           <div className="flex-1">
             <h3 className="text-xl font-semibold text-primary mb-3">Welcome, {hod?.name || 'HOD'}!</h3>
@@ -101,6 +120,64 @@ const DashboardSection = ({ hod, employees, leaveRequests, cclWorkRequests, onSe
               <circle cx="40" cy="40" r="38" stroke="#3B82F6" strokeWidth="4" fill="#E0E7FF" />
               <path d="M40 20V40L55 47" stroke="#6366F1" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Tasks Preview Section */}
+      <div className="bg-white rounded-xl shadow p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-primary flex items-center gap-2">
+            <FaTasks /> Tasks Overview
+          </h3>
+          <button
+            onClick={() => onSectionChange('tasks')}
+            className="text-primary hover:text-primary-dark text-sm font-medium flex items-center gap-1"
+          >
+            View All <FaArrowRight className="text-xs" />
+          </button>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div
+            onClick={() => onSectionChange('tasks')}
+            className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200 cursor-pointer hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-semibold text-purple-700 flex items-center gap-2">
+                <FaClipboardCheck /> Tasks from HR
+              </h4>
+            </div>
+            <p className="text-sm text-gray-600 mb-2">View and acknowledge tasks assigned to you by HR</p>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSectionChange('tasks');
+              }}
+              className="text-purple-600 hover:text-purple-700 text-sm font-medium flex items-center gap-1"
+            >
+              View Tasks <FaArrowRight className="text-xs" />
+            </button>
+          </div>
+
+          <div
+            onClick={() => onSectionChange('task-management')}
+            className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 border border-orange-200 cursor-pointer hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-semibold text-orange-700 flex items-center gap-2">
+                <FaTasks /> Manage Branch Tasks
+              </h4>
+            </div>
+            <p className="text-sm text-gray-600 mb-2">Create and manage tasks for your department employees</p>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSectionChange('task-management');
+              }}
+              className="text-orange-600 hover:text-orange-700 text-sm font-medium flex items-center gap-1"
+            >
+              Manage Tasks <FaArrowRight className="text-xs" />
+            </button>
           </div>
         </div>
       </div>

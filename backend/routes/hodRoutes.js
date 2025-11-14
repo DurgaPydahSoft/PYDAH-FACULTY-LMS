@@ -54,11 +54,11 @@ router.get('/ccl-work-requests', getCCLWorkRequests);
 router.put('/ccl-work-requests/:workId', updateCCLWorkRequestStatus);
 
 // Task routes
-router.get('/tasks', taskController.listTasksForHod);
-router.get('/tasks/manage', taskController.listTasksByCreator);
-router.post('/tasks', taskController.createTask);
-router.put('/tasks/:taskId', taskController.updateTask);
-router.delete('/tasks/:taskId', taskController.deleteTask);
+router.get('/tasks', taskController.listTasksForHod); // Tasks assigned to HOD
+router.get('/tasks/manage', taskController.listTasksByCreator); // Tasks created by HOD
+router.post('/tasks/manage', taskController.createTask); // HOD can create tasks
+router.put('/tasks/manage/:id', taskController.updateTask); // HOD can update tasks they created
+router.delete('/tasks/manage/:id', taskController.deleteTask); // HOD can delete tasks they created
 router.put('/tasks/:taskId/acknowledgements', taskController.updateTaskAcknowledgement);
 
 module.exports = router;

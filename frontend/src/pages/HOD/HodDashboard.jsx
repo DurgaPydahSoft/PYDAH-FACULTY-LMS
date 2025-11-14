@@ -11,6 +11,7 @@ import LeaveRequestsSection from './LeaveRequestsSection';
 import CCLWorkSection from './CCLWorkSection';
 import ProfileSection from './ProfileSection';
 import HodTaskManagementSection from './HodTaskManagementSection';
+import HodTasksSection from './HodTasksSection';
 
 const API_BASE_URL = config.API_BASE_URL;
 
@@ -389,7 +390,7 @@ const HodDashboard = () => {
         );
 
       case 'tasks':
-        return <HodTaskManagementSection />;
+        return <HodTasksSection />;
 
       case 'task-management':
         return <HodTaskManagementSection />;
