@@ -150,7 +150,10 @@ const buildAssignmentsFromPayload = async (payload = {}, options = {}) => {
 
 const enforceAssignmentsForRole = (assignments, role, req, employeeDocs = [], hodDocs = []) => {
   const normalizedRole = (role || '').toLowerCase();
-  const campus = (req.user.campus || '').toLowerCase();
+  // Handle campus as string or object with name property
+  const campus = typeof req.user.campus === 'string'
+    ? req.user.campus.toLowerCase()
+    : (req.user.campus?.name ? req.user.campus.name.toLowerCase() : '');
   const branchCode = (req.user.branchCode || req.user.department || '').toLowerCase();
 
   switch (normalizedRole) {
@@ -517,9 +520,14 @@ exports.listTasksByCreator = asyncHandler(async (req, res) => {
 
 // Employee: List targeted tasks
 exports.listTasksForEmployee = asyncHandler(async (req, res) => {
+  // Normalize campus (handle string or object)
+  const normalizedCampus = typeof req.user.campus === 'string'
+    ? req.user.campus
+    : (req.user.campus?.name || req.user.campus || '');
+  
   const userContext = {
     id: req.user.id,
-    campus: req.user.campus,
+    campus: normalizedCampus,
     department: req.user.department
   };
 
@@ -532,8 +540,8 @@ exports.listTasksForEmployee = asyncHandler(async (req, res) => {
     orFilters.push({ 'assignedTo.departments': req.user.department.toLowerCase() });
   }
 
-  if (req.user.campus) {
-    orFilters.push({ 'assignedTo.campuses': req.user.campus.toLowerCase() });
+  if (normalizedCampus) {
+    orFilters.push({ 'assignedTo.campuses': normalizedCampus.toLowerCase() });
   }
 
   const tasks = await Task.find({
@@ -553,9 +561,14 @@ exports.listTasksForEmployee = asyncHandler(async (req, res) => {
 
 // HOD: List targeted tasks
 exports.listTasksForHod = asyncHandler(async (req, res) => {
+  // Normalize campus (handle string or object)
+  const normalizedCampus = typeof req.user.campus === 'string'
+    ? req.user.campus
+    : (req.user.campus?.name || req.user.campus || '');
+  
   const userContext = {
     id: req.user.id,
-    campus: req.user.campus,
+    campus: normalizedCampus,
     branchCode: req.user.branchCode
   };
 
@@ -568,8 +581,8 @@ exports.listTasksForHod = asyncHandler(async (req, res) => {
     orFilters.push({ 'assignedTo.departments': req.user.branchCode.toLowerCase() });
   }
 
-  if (req.user.campus) {
-    orFilters.push({ 'assignedTo.campuses': req.user.campus.toLowerCase() });
+  if (normalizedCampus) {
+    orFilters.push({ 'assignedTo.campuses': normalizedCampus.toLowerCase() });
   }
 
   const tasks = await Task.find({
@@ -746,7 +759,10 @@ exports.updateTaskAcknowledgement = asyncHandler(async (req, res) => {
       ];
 
   const normalizedDepartment = (req.user.department || req.user.branchCode || '').toString().toLowerCase();
-  const normalizedCampus = (req.user.campus || '').toString().toLowerCase();
+  // Normalize campus (handle string or object)
+  const normalizedCampus = typeof req.user.campus === 'string'
+    ? req.user.campus.toLowerCase()
+    : (req.user.campus?.name ? req.user.campus.name.toLowerCase() : '');
 
   if (normalizedDepartment) {
     visibilityFilters.push({ 'assignedTo.departments': normalizedDepartment });

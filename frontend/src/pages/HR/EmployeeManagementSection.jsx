@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FaUserTie, FaUsers, FaRegCalendarCheck, FaCamera, FaTrash, FaUserCircle, FaEdit, FaKey } from 'react-icons/fa';
 import PasswordResetModal from '../../components/PasswordResetModal';
 
@@ -28,6 +28,30 @@ const EmployeeManagementSection = ({
   setShowDeleteModal,
   fileInputRef
 }) => {
+  const [localSearch, setLocalSearch] = useState(search || '');
+
+  useEffect(() => {
+    setLocalSearch(search || '');
+  }, [search]);
+
+  useEffect(() => {
+    if (typeof setSearch !== 'function') {
+      return undefined;
+    }
+
+    const handler = setTimeout(() => {
+      if (localSearch !== search) {
+        setSearch(localSearch);
+      }
+    }, 400);
+
+    return () => clearTimeout(handler);
+  }, [localSearch, search, setSearch]);
+
+  const handleSearchChange = (event) => {
+    setLocalSearch(event.target.value);
+  };
+
   return (
     <div className="p-6 mt-4">
       <h2 className="text-2xl font-bold text-primary mb-6 flex items-center gap-3">
@@ -41,8 +65,8 @@ const EmployeeManagementSection = ({
             type="text"
             className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"
             placeholder="Search by name, email, or ID"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            value={localSearch}
+            onChange={handleSearchChange}
           />
           <select
             className="w-full p-2.5 rounded-lg bg-gray-50 border border-gray-200 focus:ring-2 focus:ring-primary/50"

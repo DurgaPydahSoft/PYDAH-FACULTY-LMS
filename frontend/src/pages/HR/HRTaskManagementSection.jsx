@@ -6,7 +6,12 @@ import {
   FaCalendarAlt,
   FaFlag,
   FaUsers,
-  FaUserTie
+  FaUserTie,
+  FaCheckCircle,
+  FaExclamationTriangle,
+  FaClock,
+  FaFilter,
+  FaSearch
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import config from '../../config';
@@ -87,6 +92,13 @@ const HRTaskManagementSection = () => {
     campuses: []
   });
   const [viewTask, setViewTask] = useState(null);
+  const [filters, setFilters] = useState({
+    status: 'all',
+    priority: 'all',
+    search: '',
+    dateFrom: '',
+    dateTo: ''
+  });
 
   const token = useMemo(() => localStorage.getItem('token'), []);
 
@@ -401,11 +413,288 @@ const HRTaskManagementSection = () => {
     setViewTask(null);
   };
 
+  // Calculate KPI metrics
+  const kpiMetrics = useMemo(() => {
+    const totalTasks = tasks.length;
+    const activeTasks = tasks.filter(t => t.status === 'active').length;
+    const completedTasks = tasks.filter(t => t.status === 'completed').length;
+    const overdueTasks = tasks.filter(t => {
+      if (!t.dueDate || t.status === 'completed' || t.status === 'archived') return false;
+      return new Date(t.dueDate) < new Date();
+    }).length;
+    
+    const pendingAcknowledgements = tasks.reduce((sum, task) => {
+      if (task.requireAcknowledgement && task.acknowledgementSummary) {
+        return sum + (task.acknowledgementSummary.pending || 0);
+      }
+      return sum;
+    }, 0);
+
+    const criticalTasks = tasks.filter(t => t.priority === 'critical' && t.status !== 'completed').length;
+    const highPriorityTasks = tasks.filter(t => t.priority === 'high' && t.status !== 'completed').length;
+
+    return {
+      totalTasks,
+      activeTasks,
+      completedTasks,
+      overdueTasks,
+      pendingAcknowledgements,
+      criticalTasks,
+      highPriorityTasks
+    };
+  }, [tasks]);
+
+  // Filter tasks based on filter criteria
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(task => {
+      // Status filter
+      if (filters.status !== 'all' && task.status !== filters.status) {
+        return false;
+      }
+
+      // Priority filter
+      if (filters.priority !== 'all' && task.priority !== filters.priority) {
+        return false;
+      }
+
+      // Search filter (title and description)
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        const titleMatch = task.title?.toLowerCase().includes(searchLower);
+        const descMatch = task.description?.toLowerCase().includes(searchLower);
+        if (!titleMatch && !descMatch) {
+          return false;
+        }
+      }
+
+      // Date range filter (due date)
+      if (filters.dateFrom && task.dueDate) {
+        if (new Date(task.dueDate) < new Date(filters.dateFrom)) {
+          return false;
+        }
+      }
+      if (filters.dateTo && task.dueDate) {
+        const toDate = new Date(filters.dateTo);
+        toDate.setHours(23, 59, 59, 999); // Include the entire end date
+        if (new Date(task.dueDate) > toDate) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [tasks, filters]);
+
+  const handleFilterChange = (field, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      status: 'all',
+      priority: 'all',
+      search: '',
+      dateFrom: '',
+      dateTo: ''
+    });
+  };
+
   return (
     <div className="p-6 mt-4">
       <h2 className="text-2xl font-bold text-primary mb-6 flex items-center gap-3">
         <FaTasks /> Task Management
       </h2>
+      
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {/* Total Tasks */}
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-5 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm font-medium mb-1">Total Tasks</p>
+              <p className="text-3xl font-bold">{kpiMetrics.totalTasks}</p>
+            </div>
+            <div className="bg-white/20 rounded-full p-3">
+              <FaTasks className="text-2xl" />
+            </div>
+          </div>
+        </div>
+
+        {/* Active Tasks */}
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-5 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-green-100 text-sm font-medium mb-1">Active Tasks</p>
+              <p className="text-3xl font-bold">{kpiMetrics.activeTasks}</p>
+            </div>
+            <div className="bg-white/20 rounded-full p-3">
+              <FaRegCalendarCheck className="text-2xl" />
+            </div>
+          </div>
+        </div>
+
+        {/* Completed Tasks */}
+        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-lg p-5 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-emerald-100 text-sm font-medium mb-1">Completed</p>
+              <p className="text-3xl font-bold">{kpiMetrics.completedTasks}</p>
+            </div>
+            <div className="bg-white/20 rounded-full p-3">
+              <FaCheckCircle className="text-2xl" />
+            </div>
+          </div>
+        </div>
+
+        {/* Overdue Tasks */}
+        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-5 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-red-100 text-sm font-medium mb-1">Overdue</p>
+              <p className="text-3xl font-bold">{kpiMetrics.overdueTasks}</p>
+            </div>
+            <div className="bg-white/20 rounded-full p-3">
+              <FaExclamationTriangle className="text-2xl" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Secondary KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {/* Pending Acknowledgements */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-600 text-sm font-medium mb-1">Pending Acknowledgements</p>
+              <p className="text-2xl font-bold text-primary">{kpiMetrics.pendingAcknowledgements}</p>
+            </div>
+            <div className="bg-primary/10 rounded-full p-3">
+              <FaClock className="text-primary text-xl" />
+            </div>
+          </div>
+        </div>
+
+        {/* Critical Tasks */}
+        <div className="bg-white rounded-xl shadow-sm border border-red-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-600 text-sm font-medium mb-1">Critical Priority</p>
+              <p className="text-2xl font-bold text-red-600">{kpiMetrics.criticalTasks}</p>
+            </div>
+            <div className="bg-red-100 rounded-full p-3">
+              <FaFlag className="text-red-600 text-xl" />
+            </div>
+          </div>
+        </div>
+
+        {/* High Priority Tasks */}
+        <div className="bg-white rounded-xl shadow-sm border border-orange-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-600 text-sm font-medium mb-1">High Priority</p>
+              <p className="text-2xl font-bold text-orange-600">{kpiMetrics.highPriorityTasks}</p>
+            </div>
+            <div className="bg-orange-100 rounded-full p-3">
+              <FaFlag className="text-orange-600 text-xl" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <FaFilter className="text-primary" />
+          <h3 className="text-lg font-semibold text-primary">Filters</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Search */}
+          <div className="lg:col-span-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Search</label>
+            <div className="relative">
+              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by title or description..."
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40"
+                value={filters.search}
+                onChange={(e) => handleFilterChange('search', e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Status Filter */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Status</label>
+            <select
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
+              value={filters.status}
+              onChange={(e) => handleFilterChange('status', e.target.value)}
+            >
+              <option value="all">All Status</option>
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Priority Filter */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Priority</label>
+            <select
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
+              value={filters.priority}
+              onChange={(e) => handleFilterChange('priority', e.target.value)}
+            >
+              <option value="all">All Priorities</option>
+              {PRIORITY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Reset Button */}
+          <div className="flex items-end">
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="w-full bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
+            >
+              Reset Filters
+            </button>
+          </div>
+        </div>
+
+        {/* Date Range Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">From Date</label>
+            <input
+              type="date"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
+              value={filters.dateFrom}
+              onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">To Date</label>
+            <input
+              type="date"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
+              value={filters.dateTo}
+              onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+            />
+          </div>
+        </div>
+      </div>
       
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
         <button
@@ -417,6 +706,9 @@ const HRTaskManagementSection = () => {
         {metadataLoading && (
           <div className="text-sm text-gray-500">Loading assignment metadata...</div>
         )}
+        <div className="text-sm text-gray-600">
+          Showing <span className="font-semibold">{filteredTasks.length}</span> of <span className="font-semibold">{tasks.length}</span> tasks
+        </div>
       </div>
       
       {loading && <div className="text-center py-6">Loading tasks...</div>}
@@ -431,8 +723,10 @@ const HRTaskManagementSection = () => {
           <FaRegCalendarCheck /> All Tasks
         </h3>
         <div className="space-y-4">
-          {tasks.length === 0 ? (
-            <div className="text-center text-gray-500">No tasks found.</div>
+          {filteredTasks.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">
+              {tasks.length === 0 ? 'No tasks found.' : 'No tasks match the current filters.'}
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
@@ -448,7 +742,7 @@ const HRTaskManagementSection = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {tasks.map((task) => (
+                  {filteredTasks.map((task) => (
                     <tr
                       key={task._id}
                       className="hover:bg-primary/5 cursor-pointer"
@@ -770,13 +1064,13 @@ const HRTaskManagementSection = () => {
               </div>
 
               <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
+                  <button
+                    type="button"
                   onClick={closeModal}
                   className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
                   disabled={saving}
-                >
-                  Cancel
+                  >
+                    Cancel
                   </button>
                   <button
                     type="submit"
@@ -891,7 +1185,7 @@ const HRTaskManagementSection = () => {
                 Edit Task
               </button>
             </div>
-          </div>
+      </div>
       </div>
       )}
     </div>
