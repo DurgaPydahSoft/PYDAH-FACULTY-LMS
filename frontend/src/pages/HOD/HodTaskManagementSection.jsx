@@ -1024,7 +1024,14 @@ const HodTaskManagementSection = () => {
               </section>
 
               <section>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">Audience</h4>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-gray-700">Audience</h4>
+                  {viewTask.requireAcknowledgement && viewTask.acknowledgementSummary && (
+                    <p className="text-xs text-gray-500">
+                      {renderAcknowledgementSummary(viewTask.acknowledgementSummary)}
+                    </p>
+                  )}
+                </div>
                 <div className="text-sm text-gray-600 space-y-2">
                   {viewTask.assignedTo?.includeAllEmployees && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -1047,12 +1054,48 @@ const HodTaskManagementSection = () => {
                           const employeeId = typeof emp === 'object' && emp !== null 
                             ? (emp.employeeId || '')
                             : '';
+                          
+                          // Find acknowledgement status for this employee
+                          let acknowledgementStatus = null;
+                          if (viewTask.acknowledgements && viewTask.acknowledgements.length > 0) {
+                            const empId = typeof emp === 'object' && emp !== null ? emp._id : emp;
+                            const ack = viewTask.acknowledgements.find(a => {
+                              const assignee = a.assignee || a.assigneeDetails;
+                              const assigneeId = assignee?._id || assignee;
+                              return assigneeId && assigneeId.toString() === empId.toString();
+                            });
+                            if (ack) {
+                              acknowledgementStatus = ack.status;
+                            }
+                          }
+                          
                           return (
-                            <div key={idx} className="flex items-center gap-2 text-gray-700">
-                              <span className="w-2 h-2 bg-primary rounded-full"></span>
-                              <span>{employeeName}</span>
-                              {employeeId && employeeId !== employeeName && (
-                                <span className="text-gray-500 text-xs">({employeeId})</span>
+                            <div key={idx} className="flex items-center justify-between text-gray-700">
+                              <div className="flex items-center gap-2">
+                                <span className="w-2 h-2 bg-primary rounded-full"></span>
+                                <span>{employeeName}</span>
+                                {employeeId && employeeId !== employeeName && (
+                                  <span className="text-gray-500 text-xs">({employeeId})</span>
+                                )}
+                              </div>
+                              {viewTask.requireAcknowledgement && (
+                                <div className="flex items-center gap-2">
+                                  {acknowledgementStatus === 'completed' ? (
+                                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 flex items-center gap-1">
+                                      <FaCheckCircle className="text-xs" />
+                                      Completed
+                                    </span>
+                                  ) : acknowledgementStatus === 'acknowledged' ? (
+                                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 flex items-center gap-1">
+                                      <FaRegCalendarCheck className="text-xs" />
+                                      Acknowledged
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
+                                      Pending
+                                    </span>
+                                  )}
+                                </div>
                               )}
                             </div>
                           );
@@ -1075,13 +1118,6 @@ const HodTaskManagementSection = () => {
                   )}
                 </div>
               </section>
-
-              {viewTask.requireAcknowledgement && (
-                <section>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-1">Acknowledgements</h4>
-                  <p className="text-sm text-gray-600">{renderAcknowledgementSummary(viewTask.acknowledgementSummary)}</p>
-                </section>
-              )}
 
               {viewTask.attachments?.length > 0 && (
                 <section>

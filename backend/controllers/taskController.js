@@ -362,9 +362,23 @@ const buildAcknowledgementSummary = (task) => {
 
 const formatTaskForManagement = (task) => {
   const plainTask = task.toObject ? task.toObject() : task;
+  // Format acknowledgements with assignee details
+  const formattedAcknowledgements = (plainTask.acknowledgements || []).map(ack => {
+    const ackObj = ack.toObject ? ack.toObject() : ack;
+    return {
+      ...ackObj,
+      assigneeDetails: ackObj.assignee ? {
+        _id: ackObj.assignee._id || ackObj.assignee,
+        name: ackObj.assignee.name || 'Unknown',
+        employeeId: ackObj.assignee.employeeId || '',
+        email: ackObj.assignee.email || ''
+      } : null
+    };
+  });
   return {
     ...plainTask,
-    acknowledgementSummary: buildAcknowledgementSummary(plainTask)
+    acknowledgementSummary: buildAcknowledgementSummary(plainTask),
+    acknowledgements: formattedAcknowledgements
   };
 };
 
@@ -521,6 +535,28 @@ exports.listTasks = asyncHandler(async (req, res) => {
   const tasks = await populateTaskAudience(
     Task.find(filter).sort({ createdAt: -1 })
   ).lean();
+  
+  // Manually populate acknowledgements with assignee details
+  for (const task of tasks) {
+    if (task.acknowledgements && task.acknowledgements.length > 0) {
+      const populatedAcknowledgements = await Promise.all(
+        task.acknowledgements.map(async (ack) => {
+          if (!ack.assignee || !ack.assigneeModel) return ack;
+          let assigneeDoc = null;
+          if (ack.assigneeModel === 'Employee') {
+            assigneeDoc = await Employee.findById(ack.assignee).select('name employeeId email').lean();
+          } else if (ack.assigneeModel === 'HOD') {
+            assigneeDoc = await HOD.findById(ack.assignee).select('name email').lean();
+          }
+          return {
+            ...ack,
+            assignee: assigneeDoc || ack.assignee
+          };
+        })
+      );
+      task.acknowledgements = populatedAcknowledgements;
+    }
+  }
 
   res.json(tasks.map(formatTaskForManagement));
 });
@@ -542,6 +578,28 @@ exports.listTasksByCreator = asyncHandler(async (req, res) => {
   const tasks = await populateTaskAudience(
     Task.find(filter).sort({ createdAt: -1 })
   ).lean();
+  
+  // Manually populate acknowledgements with assignee details
+  for (const task of tasks) {
+    if (task.acknowledgements && task.acknowledgements.length > 0) {
+      const populatedAcknowledgements = await Promise.all(
+        task.acknowledgements.map(async (ack) => {
+          if (!ack.assignee || !ack.assigneeModel) return ack;
+          let assigneeDoc = null;
+          if (ack.assigneeModel === 'Employee') {
+            assigneeDoc = await Employee.findById(ack.assignee).select('name employeeId email').lean();
+          } else if (ack.assigneeModel === 'HOD') {
+            assigneeDoc = await HOD.findById(ack.assignee).select('name email').lean();
+          }
+          return {
+            ...ack,
+            assignee: assigneeDoc || ack.assignee
+          };
+        })
+      );
+      task.acknowledgements = populatedAcknowledgements;
+    }
+  }
 
   res.json(tasks.map(formatTaskForManagement));
 });
