@@ -394,9 +394,31 @@ const HodTaskManagementSection = () => {
   const kpiMetrics = useMemo(() => {
     const totalTasks = tasks.length;
     const activeTasks = tasks.filter(t => t.status === 'active').length;
-    const completedTasks = tasks.filter(t => t.status === 'completed').length;
+    
+    // Completed tasks: status is 'completed' OR all acknowledgements are completed
+    const completedTasks = tasks.filter(t => {
+      if (t.status === 'completed' || t.status === 'archived') return true;
+      // If task requires acknowledgement and all are completed (no pending)
+      if (t.requireAcknowledgement && t.acknowledgementSummary) {
+        const pendingResponses = t.acknowledgementSummary.pending || 0;
+        const completedResponses = t.acknowledgementSummary.completed || 0;
+        const totalResponses = t.acknowledgementSummary.responses || 0;
+        // Consider completed if there are responses and no pending (all completed)
+        if (totalResponses > 0 && pendingResponses === 0 && completedResponses > 0) {
+          return true;
+        }
+      }
+      return false;
+    }).length;
+    
     const overdueTasks = tasks.filter(t => {
-      if (!t.dueDate || t.status === 'completed' || t.status === 'archived') return false;
+      // Don't count as overdue if task is completed or all acknowledgements are completed
+      const isCompleted = t.status === 'completed' || t.status === 'archived' || 
+        (t.requireAcknowledgement && t.acknowledgementSummary && 
+         (t.acknowledgementSummary.pending || 0) === 0 && 
+         (t.acknowledgementSummary.completed || 0) > 0 &&
+         (t.acknowledgementSummary.responses || 0) > 0);
+      if (!t.dueDate || isCompleted) return false;
       return new Date(t.dueDate) < new Date();
     }).length;
     
@@ -407,8 +429,26 @@ const HodTaskManagementSection = () => {
       return sum;
     }, 0);
 
-    const criticalTasks = tasks.filter(t => t.priority === 'critical' && t.status !== 'completed').length;
-    const highPriorityTasks = tasks.filter(t => t.priority === 'high' && t.status !== 'completed').length;
+    // Critical/High priority tasks: exclude completed tasks (by status or acknowledgements)
+    const criticalTasks = tasks.filter(t => {
+      if (t.priority !== 'critical') return false;
+      const isCompleted = t.status === 'completed' || t.status === 'archived' ||
+        (t.requireAcknowledgement && t.acknowledgementSummary && 
+         (t.acknowledgementSummary.pending || 0) === 0 && 
+         (t.acknowledgementSummary.completed || 0) > 0 &&
+         (t.acknowledgementSummary.responses || 0) > 0);
+      return !isCompleted;
+    }).length;
+    
+    const highPriorityTasks = tasks.filter(t => {
+      if (t.priority !== 'high') return false;
+      const isCompleted = t.status === 'completed' || t.status === 'archived' ||
+        (t.requireAcknowledgement && t.acknowledgementSummary && 
+         (t.acknowledgementSummary.pending || 0) === 0 && 
+         (t.acknowledgementSummary.completed || 0) > 0 &&
+         (t.acknowledgementSummary.responses || 0) > 0);
+      return !isCompleted;
+    }).length;
 
     return {
       totalTasks,
