@@ -2,12 +2,18 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FaTasks,
   FaPlus,
+  FaRegCalendarCheck,
   FaCalendarAlt,
   FaFlag,
   FaUsers,
   FaUserTie,
   FaTrash,
-  FaEdit
+  FaEdit,
+  FaCheckCircle,
+  FaExclamationTriangle,
+  FaClock,
+  FaFilter,
+  FaSearch
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import config from '../../config';
@@ -34,9 +40,12 @@ const emptyTaskForm = () => ({
   dueDate: '',
   priority: 'medium',
   status: 'active',
-  requireAcknowledgement: false,
+  requireAcknowledgement: true, // Default to checked
+  workType: '', // 'individual' or 'group'
+  assigneeType: '', // 'employee' or 'hod' (for individual work)
+  branchSelectionType: '', // 'single' or 'multiple' (for group work)
   assignedTo: {
-    includeAllEmployees: true,
+    includeAllEmployees: false,
     includeAllHods: false,
     employees: [],
     hods: [],
@@ -64,6 +73,13 @@ const PrincipalTaskManagementSection = () => {
   const [hods, setHods] = useState([]);
   const [branches, setBranches] = useState([]);
   const [viewTask, setViewTask] = useState(null);
+  const [filters, setFilters] = useState({
+    status: 'all',
+    priority: 'all',
+    search: '',
+    dateFrom: '',
+    dateTo: ''
+  });
 
   const token = useMemo(() => localStorage.getItem('token'), []);
 
@@ -110,11 +126,13 @@ const PrincipalTaskManagementSection = () => {
 
       const employeesData = await employeesRes.json();
       const hodsData = await hodsRes.json();
-      const branchesData = await branchesRes.json();
+      const branchesPayload = await branchesRes.json();
 
       setEmployees(Array.isArray(employeesData) ? employeesData : []);
       setHods(Array.isArray(hodsData) ? hodsData : []);
-      setBranches(Array.isArray(branchesData) ? branchesData : []);
+      // Principal branches endpoint returns { branches: [...] }
+      const branchesArray = branchesPayload.branches || (Array.isArray(branchesPayload) ? branchesPayload : []);
+      setBranches(Array.isArray(branchesArray) ? branchesArray : []);
     } catch (err) {
       toast.error(err.message || 'Failed to load metadata');
     } finally {
@@ -132,6 +150,78 @@ const PrincipalTaskManagementSection = () => {
     setEditingTaskId(null);
   };
 
+  const handleWorkTypeChange = (workType) => {
+    setTaskForm((prev) => ({
+      ...prev,
+      workType,
+      assigneeType: '', // Reset assignee type when work type changes
+      branchSelectionType: '', // Reset branch selection type
+      assignedTo: {
+        includeAllEmployees: false,
+        includeAllHods: false,
+        employees: [],
+        hods: [],
+        departments: []
+      }
+    }));
+  };
+
+  const handleBranchSelectionTypeChange = (branchSelectionType) => {
+    setTaskForm((prev) => ({
+      ...prev,
+      branchSelectionType,
+      assignedTo: {
+        ...prev.assignedTo,
+        departments: [],
+        employees: [] // Clear employees when branch selection type changes
+      }
+    }));
+  };
+
+  const handleBranchSelection = (selectedDepartments) => {
+    setTaskForm((prev) => {
+      // Auto-select all employees from selected departments
+      const employeesFromDepartments = employees
+        .filter((employee) => {
+          const employeeDept = (employee.department || employee.branchCode || '').toString().toLowerCase();
+          if (!employeeDept) return false;
+          return selectedDepartments.some(dept => dept.toLowerCase() === employeeDept);
+        })
+        .map((employee) => employee._id);
+
+      // Auto-select HODs from selected departments
+      const hodsFromDepartments = hods
+        .filter((hod) => {
+          const hodDept = (hod.department?.code || hod.department || hod.branchCode || '').toString().toLowerCase();
+          if (!hodDept) return false;
+          return selectedDepartments.some(dept => dept.toLowerCase() === hodDept);
+        })
+        .map((hod) => hod._id || hod.id);
+
+      return {
+        ...prev,
+        assignedTo: {
+          ...prev.assignedTo,
+          departments: selectedDepartments,
+          employees: employeesFromDepartments, // Auto-check employees from selected branches
+          hods: hodsFromDepartments // Auto-select HODs from selected branches
+        }
+      };
+    });
+  };
+
+  const handleAssigneeTypeChange = (assigneeType) => {
+    setTaskForm((prev) => ({
+      ...prev,
+      assigneeType,
+      assignedTo: {
+        ...prev.assignedTo,
+        employees: assigneeType === 'employee' ? prev.assignedTo.employees : [],
+        hods: assigneeType === 'hod' ? prev.assignedTo.hods : []
+      }
+    }));
+  };
+
   const openCreateModal = () => {
     resetForm();
     setShowModal(true);
@@ -140,6 +230,16 @@ const PrincipalTaskManagementSection = () => {
   const closeModal = () => {
     setShowModal(false);
     resetForm();
+  };
+
+  const handleAssignedSelect = (field, values) => {
+    setTaskForm((prev) => ({
+      ...prev,
+      assignedTo: {
+        ...prev.assignedTo,
+        [field]: values
+      }
+    }));
   };
 
   const filteredEmployees = useMemo(() => {
@@ -164,7 +264,40 @@ const PrincipalTaskManagementSection = () => {
     });
   }, [hods, taskForm.assignedTo.departments]);
 
-  const preparePayload = (form) => ({
+  const preparePayload = (form) => {
+    // Validate that work type and assignee type are selected
+    if (!form.workType) {
+      throw new Error('Please select a work type (Individual or Group)');
+    }
+    
+    if (form.workType === 'individual') {
+      if (!form.assigneeType) {
+        throw new Error('Please select assignee type (Employee or HOD)');
+      }
+      if (form.assigneeType === 'employee' && form.assignedTo.employees.length === 0) {
+        throw new Error('Please select at least one employee');
+      }
+      if (form.assigneeType === 'hod' && form.assignedTo.hods.length === 0) {
+        throw new Error('Please select at least one HOD');
+      }
+    } else if (form.workType === 'group') {
+      if (!form.branchSelectionType) {
+        throw new Error('Please select branch selection type (Single or Multiple)');
+      }
+      if (form.assignedTo.departments.length === 0) {
+        throw new Error('Please select at least one branch');
+      }
+      if (
+        !form.assignedTo.includeAllEmployees &&
+        !form.assignedTo.includeAllHods &&
+        form.assignedTo.employees.length === 0 &&
+        form.assignedTo.hods.length === 0
+      ) {
+        throw new Error('Please select at least one target option (employees or HODs)');
+      }
+    }
+
+    return {
     title: form.title,
     description: form.description,
     dueDate: form.dueDate || null,
@@ -185,7 +318,8 @@ const PrincipalTaskManagementSection = () => {
       endDate: form.recurrence.endDate || null
     },
     attachments: (form.attachments || []).filter((item) => item && item.trim())
-  });
+    };
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -220,6 +354,35 @@ const PrincipalTaskManagementSection = () => {
 
   const handleEdit = (task) => {
     setEditingTaskId(task._id);
+    const assignedTo = task.assignedTo || {};
+    
+    // Determine work type and assignee type from existing assignment
+    let workType = '';
+    let assigneeType = '';
+    let branchSelectionType = '';
+    
+    if (assignedTo.includeAllEmployees || assignedTo.includeAllHods || (assignedTo.departments && assignedTo.departments.length > 0)) {
+      workType = 'group';
+      // Determine branch selection type
+      if (assignedTo.departments && assignedTo.departments.length === 1) {
+        branchSelectionType = 'single';
+      } else if (assignedTo.departments && assignedTo.departments.length > 1) {
+        branchSelectionType = 'multiple';
+      } else {
+        branchSelectionType = 'single'; // Default
+      }
+    } else if ((assignedTo.employees && assignedTo.employees.length > 0) || (assignedTo.hods && assignedTo.hods.length > 0)) {
+      workType = 'individual';
+      if (assignedTo.employees && assignedTo.employees.length > 0) {
+        assigneeType = 'employee';
+      } else if (assignedTo.hods && assignedTo.hods.length > 0) {
+        assigneeType = 'hod';
+      }
+    } else {
+      workType = 'group'; // Default to group if unclear
+      branchSelectionType = 'single';
+    }
+    
     setTaskForm({
       title: task.title || '',
       description: task.description || '',
@@ -227,16 +390,19 @@ const PrincipalTaskManagementSection = () => {
       priority: task.priority || 'medium',
       status: task.status || 'active',
       requireAcknowledgement: task.requireAcknowledgement || false,
+      workType,
+      assigneeType,
+      branchSelectionType,
       assignedTo: {
-        includeAllEmployees: task.assignedTo?.includeAllEmployees || false,
-        includeAllHods: task.assignedTo?.includeAllHods || false,
-        employees: (task.assignedTo?.employees || []).map((employee) =>
+        includeAllEmployees: assignedTo.includeAllEmployees || false,
+        includeAllHods: assignedTo.includeAllHods || false,
+        employees: (assignedTo.employees || []).map((employee) =>
           typeof employee === 'string' ? employee : employee?._id
         ),
-        hods: (task.assignedTo?.hods || []).map((hod) =>
+        hods: (assignedTo.hods || []).map((hod) =>
           typeof hod === 'string' ? hod : hod?._id
         ),
-        departments: task.assignedTo?.departments || []
+        departments: assignedTo.departments || []
       },
       recurrence: {
         frequency: task.recurrence?.frequency || 'none',
@@ -297,9 +463,116 @@ const PrincipalTaskManagementSection = () => {
   const openViewTask = (task) => setViewTask(task);
   const closeViewTask = () => setViewTask(null);
 
+  const renderAudienceSummary = (assignedTo = {}) => {
+    const segments = [];
+    if (assignedTo.includeAllEmployees) segments.push('All employees');
+    if (assignedTo.includeAllHods) segments.push('All HODs');
+
+    if (assignedTo.departments?.length) {
+      segments.push(`Departments: ${assignedTo.departments.map((dep) => dep.toUpperCase()).join(', ')}`);
+    }
+    if (assignedTo.employees?.length) {
+      segments.push(`Individuals: ${assignedTo.employees.length}`);
+    }
+    if (assignedTo.hods?.length) {
+      segments.push(`HODs: ${assignedTo.hods.length}`);
+    }
+
+    return segments.length ? segments.join(' • ') : 'No audience specified';
+  };
+
   const renderAcknowledgementSummary = (summary) => {
     if (!summary) return 'Acknowledgement optional';
     return `Responses: ${summary.responses} • Completed: ${summary.completed} • Pending: ${summary.pending}`;
+  };
+
+  // Calculate KPI metrics
+  const kpiMetrics = useMemo(() => {
+    const totalTasks = tasks.length;
+    const activeTasks = tasks.filter(t => t.status === 'active').length;
+    const completedTasks = tasks.filter(t => t.status === 'completed').length;
+    const overdueTasks = tasks.filter(t => {
+      if (!t.dueDate || t.status === 'completed' || t.status === 'archived') return false;
+      return new Date(t.dueDate) < new Date();
+    }).length;
+    
+    const pendingAcknowledgements = tasks.reduce((sum, task) => {
+      if (task.requireAcknowledgement && task.acknowledgementSummary) {
+        return sum + (task.acknowledgementSummary.pending || 0);
+      }
+      return sum;
+    }, 0);
+
+    const criticalTasks = tasks.filter(t => t.priority === 'critical' && t.status !== 'completed').length;
+    const highPriorityTasks = tasks.filter(t => t.priority === 'high' && t.status !== 'completed').length;
+
+    return {
+      totalTasks,
+      activeTasks,
+      completedTasks,
+      overdueTasks,
+      pendingAcknowledgements,
+      criticalTasks,
+      highPriorityTasks
+    };
+  }, [tasks]);
+
+  // Filter tasks based on filter criteria
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(task => {
+      // Status filter
+      if (filters.status !== 'all' && task.status !== filters.status) {
+        return false;
+      }
+
+      // Priority filter
+      if (filters.priority !== 'all' && task.priority !== filters.priority) {
+        return false;
+      }
+
+      // Search filter (title and description)
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        const titleMatch = task.title?.toLowerCase().includes(searchLower);
+        const descMatch = task.description?.toLowerCase().includes(searchLower);
+        if (!titleMatch && !descMatch) {
+          return false;
+        }
+      }
+
+      // Date range filter (due date)
+      if (filters.dateFrom && task.dueDate) {
+        if (new Date(task.dueDate) < new Date(filters.dateFrom)) {
+          return false;
+        }
+      }
+      if (filters.dateTo && task.dueDate) {
+        const toDate = new Date(filters.dateTo);
+        toDate.setHours(23, 59, 59, 999); // Include the entire end date
+        if (new Date(task.dueDate) > toDate) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [tasks, filters]);
+
+  const handleFilterChange = (field, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      status: 'all',
+      priority: 'all',
+      search: '',
+      dateFrom: '',
+      dateTo: ''
+    });
   };
 
   return (
@@ -307,6 +580,194 @@ const PrincipalTaskManagementSection = () => {
       <h2 className="text-2xl font-bold text-primary mb-6 flex items-center gap-3">
         <FaTasks /> Campus Task Management
       </h2>
+      
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {/* Total Tasks */}
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-5 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm font-medium mb-1">Total Tasks</p>
+              <p className="text-3xl font-bold">{kpiMetrics.totalTasks}</p>
+          </div>
+            <div className="bg-white/20 rounded-full p-3">
+              <FaTasks className="text-2xl" />
+            </div>
+          </div>
+        </div>
+
+        {/* Active Tasks */}
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-5 text-white">
+          <div className="flex items-center justify-between">
+          <div>
+              <p className="text-green-100 text-sm font-medium mb-1">Active Tasks</p>
+              <p className="text-3xl font-bold">{kpiMetrics.activeTasks}</p>
+            </div>
+            <div className="bg-white/20 rounded-full p-3">
+              <FaRegCalendarCheck className="text-2xl" />
+          </div>
+        </div>
+      </div>
+      
+        {/* Completed Tasks */}
+        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-lg p-5 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-emerald-100 text-sm font-medium mb-1">Completed</p>
+              <p className="text-3xl font-bold">{kpiMetrics.completedTasks}</p>
+            </div>
+            <div className="bg-white/20 rounded-full p-3">
+              <FaCheckCircle className="text-2xl" />
+            </div>
+          </div>
+        </div>
+
+        {/* Overdue Tasks */}
+        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-5 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-red-100 text-sm font-medium mb-1">Overdue</p>
+              <p className="text-3xl font-bold">{kpiMetrics.overdueTasks}</p>
+            </div>
+            <div className="bg-white/20 rounded-full p-3">
+              <FaExclamationTriangle className="text-2xl" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Secondary KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {/* Pending Acknowledgements */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-600 text-sm font-medium mb-1">Pending Acknowledgements</p>
+              <p className="text-2xl font-bold text-primary">{kpiMetrics.pendingAcknowledgements}</p>
+            </div>
+            <div className="bg-primary/10 rounded-full p-3">
+              <FaClock className="text-primary text-xl" />
+            </div>
+          </div>
+        </div>
+
+        {/* Critical Tasks */}
+        <div className="bg-white rounded-xl shadow-sm border border-red-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-600 text-sm font-medium mb-1">Critical Priority</p>
+              <p className="text-2xl font-bold text-red-600">{kpiMetrics.criticalTasks}</p>
+            </div>
+            <div className="bg-red-100 rounded-full p-3">
+              <FaFlag className="text-red-600 text-xl" />
+            </div>
+          </div>
+        </div>
+
+        {/* High Priority Tasks */}
+        <div className="bg-white rounded-xl shadow-sm border border-orange-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-600 text-sm font-medium mb-1">High Priority</p>
+              <p className="text-2xl font-bold text-orange-600">{kpiMetrics.highPriorityTasks}</p>
+            </div>
+            <div className="bg-orange-100 rounded-full p-3">
+              <FaFlag className="text-orange-600 text-xl" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <FaFilter className="text-primary" />
+          <h3 className="text-lg font-semibold text-primary">Filters</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Search */}
+          <div className="lg:col-span-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Search</label>
+            <div className="relative">
+              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by title or description..."
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/40"
+                value={filters.search}
+                onChange={(e) => handleFilterChange('search', e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Status Filter */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Status</label>
+            <select
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
+              value={filters.status}
+              onChange={(e) => handleFilterChange('status', e.target.value)}
+            >
+              <option value="all">All Status</option>
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Priority Filter */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Priority</label>
+            <select
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
+              value={filters.priority}
+              onChange={(e) => handleFilterChange('priority', e.target.value)}
+            >
+              <option value="all">All Priorities</option>
+              {PRIORITY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Reset Button */}
+          <div className="flex items-end">
+      <button
+              type="button"
+              onClick={resetFilters}
+              className="w-full bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
+      >
+              Reset Filters
+      </button>
+          </div>
+        </div>
+
+        {/* Date Range Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">From Date</label>
+            <input
+              type="date"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
+              value={filters.dateFrom}
+              onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">To Date</label>
+            <input
+              type="date"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40"
+              value={filters.dateTo}
+              onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+            />
+          </div>
+        </div>
+      </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
         <button
@@ -315,7 +776,12 @@ const PrincipalTaskManagementSection = () => {
         >
           <FaPlus /> {editingTaskId ? 'Update Task' : 'Create Task'}
         </button>
-        {metaLoading && <div className="text-sm text-gray-500">Loading employees and HODs...</div>}
+        {metaLoading && (
+          <div className="text-sm text-gray-500">Loading assignment metadata...</div>
+        )}
+        <div className="text-sm text-gray-600">
+          Showing <span className="font-semibold">{filteredTasks.length}</span> of <span className="font-semibold">{tasks.length}</span> tasks
+            </div>
       </div>
 
       {loading && <div className="text-center py-6">Loading tasks...</div>}
@@ -325,8 +791,16 @@ const PrincipalTaskManagementSection = () => {
         </div>
       )}
 
-      {!loading && !error && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <h3 className="text-lg font-semibold text-primary mb-4 flex items-center gap-2">
+          <FaRegCalendarCheck /> All Tasks
+        </h3>
+        <div className="space-y-4">
+          {filteredTasks.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">
+              {tasks.length === 0 ? 'No tasks found.' : 'No tasks match the current filters.'}
+                </div>
+          ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -341,13 +815,12 @@ const PrincipalTaskManagementSection = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {tasks.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-gray-500">No tasks created yet.</td>
-                  </tr>
-                ) : (
-                  tasks.map((task) => (
-                    <tr key={task._id} className="hover:bg-primary/5 cursor-pointer" onClick={() => openViewTask(task)}>
+                  {filteredTasks.map((task) => (
+                    <tr
+                      key={task._id}
+                      className="hover:bg-primary/5 cursor-pointer"
+                      onClick={() => openViewTask(task)}
+                    >
                       <td className="px-4 py-3">
                         <p className="font-semibold text-primary">{task.title}</p>
                         <p className="text-xs text-gray-500 line-clamp-2">{task.description}</p>
@@ -372,50 +845,59 @@ const PrincipalTaskManagementSection = () => {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-700 capitalize">{task.status}</td>
                       <td className="px-4 py-3 text-xs text-gray-600 max-w-xs">
-                        {task.assignedTo?.departments?.length
-                          ? task.assignedTo.departments.map((dep) => dep.toUpperCase()).join(', ')
-                          : 'Selected individuals'}
+                        {renderAudienceSummary(task.assignedTo)}
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-600">
                         {renderAcknowledgementSummary(task.acknowledgementSummary)}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 justify-end" onClick={(event) => event.stopPropagation()}>
+                        <div className="flex items-center gap-2 justify-end">
                           <button
-                            className="px-3 py-1 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary-dark flex items-center gap-1"
-                            onClick={() => handleEdit(task)}
-                          >
-                            <FaEdit /> Edit
+                            className="px-3 py-1 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary-dark"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleEdit(task);
+                            }}
+                  >
+                    Edit
                           </button>
                           <button
-                            className="px-3 py-1 bg-red-500 text-white rounded-lg text-xs font-medium hover:bg-red-600 flex items-center gap-1"
-                            onClick={() => handleDelete(task._id)}
+                            className="px-3 py-1 bg-red-500 text-white rounded-lg text-xs font-medium hover:bg-red-600"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleDelete(task._id);
+                            }}
                             disabled={saving}
                           >
-                            <FaTrash /> Delete
+                    Delete
                           </button>
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
+                  ))}
               </tbody>
             </table>
-          </div>
         </div>
       )}
+        </div>
+        </div>
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 px-4">
-          <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+          <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-primary/10 to-primary/5">
               <div>
                 <h3 className="text-xl font-bold text-primary">
                   {editingTaskId ? 'Update Task' : 'Create Task'}
                 </h3>
-                <p className="text-sm text-gray-600">Assign tasks to employees or HODs across your campus.</p>
+                <p className="text-sm text-gray-600">
+                  Configure the task details, audience, acknowledgements, and optional recurrence.
+                </p>
               </div>
-              <button onClick={closeModal} className="text-gray-500 hover:text-gray-700 font-semibold text-lg">
+              <button
+                onClick={closeModal}
+                className="text-gray-500 hover:text-gray-700 font-semibold text-lg"
+              >
                 ✕
               </button>
             </div>
@@ -435,7 +917,7 @@ const PrincipalTaskManagementSection = () => {
                 <div className="md:col-span-2">
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Description</label>
                   <textarea
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 h-24 focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 h-28 focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
                     value={taskForm.description}
                     onChange={(e) => setTaskForm((prev) => ({ ...prev, description: e.target.value }))}
                     required
@@ -482,7 +964,7 @@ const PrincipalTaskManagementSection = () => {
                   <label className="block text-sm font-semibold text-gray-700 mb-1">Acknowledgement</label>
                   <div className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
                     <input
-                      id="principal-require-ack"
+                      id="requireAcknowledgement"
                       type="checkbox"
                       checked={taskForm.requireAcknowledgement}
                       onChange={() =>
@@ -492,82 +974,386 @@ const PrincipalTaskManagementSection = () => {
                         }))
                       }
                     />
-                    <label htmlFor="principal-require-ack" className="cursor-pointer">
-                      Require acknowledgement/completion
+                    <label htmlFor="requireAcknowledgement" className="cursor-pointer">
+                      Require recipients to acknowledge/complete this task
                     </label>
                   </div>
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4 bg-gray-50 border border-gray-200 rounded-xl p-4">
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2 text-sm text-gray-700">
-                    <input
-                      type="checkbox"
-                      checked={taskForm.assignedTo.includeAllEmployees}
-                      onChange={() =>
-                        setTaskForm((prev) => ({
-                          ...prev,
-                          assignedTo: {
-                            ...prev.assignedTo,
-                            includeAllEmployees: !prev.assignedTo.includeAllEmployees
-                          }
-                        }))
-                      }
-                    />
-                    Target all employees in selected departments
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-gray-700">
-                    <input
-                      type="checkbox"
-                      checked={taskForm.assignedTo.includeAllHods}
-                      onChange={() =>
-                        setTaskForm((prev) => ({
-                          ...prev,
-                          assignedTo: {
-                            ...prev.assignedTo,
-                            includeAllHods: !prev.assignedTo.includeAllHods
-                          }
-                        }))
-                      }
-                    />
-                    Target all HODs
-                  </label>
+              <div>
+                <h4 className="text-lg font-semibold text-primary mb-3">Audience</h4>
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-4">
+                  {/* Step 1: Work Type Selection */}
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Departments</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Select Work Type <span className="text-red-500">*</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                        onClick={() => handleWorkTypeChange('individual')}
+                        className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                          taskForm.workType === 'individual'
+                            ? 'border-primary bg-primary/10 text-primary font-semibold'
+                            : 'border-gray-300 bg-white text-gray-700 hover:border-primary/50'
+                        }`}
+                      >
+                        <FaUserTie className="mx-auto mb-1 text-xl" />
+                        Individual Work
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleWorkTypeChange('group')}
+                        className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                          taskForm.workType === 'group'
+                            ? 'border-primary bg-primary/10 text-primary font-semibold'
+                            : 'border-gray-300 bg-white text-gray-700 hover:border-primary/50'
+                        }`}
+                      >
+                        
+                        <FaUsers className="mx-auto mb-1 text-xl" />
+                        Group Work
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Step 2: Individual Work - Assignee Type */}
+                  {taskForm.workType === 'individual' && (
+                    <div className="bg-white rounded-lg p-4 border border-gray-300">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Assign to <span className="text-red-500">*</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleAssigneeTypeChange('employee')}
+                          className={`px-4 py-2 rounded-lg border-2 transition-all ${
+                            taskForm.assigneeType === 'employee'
+                              ? 'border-primary bg-primary/10 text-primary font-semibold'
+                              : 'border-gray-300 bg-white text-gray-700 hover:border-primary/50'
+                          }`}
+                        >
+                          Employee
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAssigneeTypeChange('hod')}
+                          className={`px-4 py-2 rounded-lg border-2 transition-all ${
+                            taskForm.assigneeType === 'hod'
+                              ? 'border-primary bg-primary/10 text-primary font-semibold'
+                              : 'border-gray-300 bg-white text-gray-700 hover:border-primary/50'
+                          }`}
+                        >
+                          HOD
+                        </button>
+                      </div>
+
+                      {/* Individual Employee Selection */}
+                      {taskForm.assigneeType === 'employee' && (
+                        <div className="mt-4">
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Select Employee <span className="text-red-500">*</span>
+                          </label>
+                          <div className="border border-gray-300 rounded-lg h-48 overflow-y-auto bg-white">
+                            {employees.length === 0 ? (
+                              <p className="text-sm text-gray-500 p-3">No employees available.</p>
+                            ) : (
+                              employees.map((employee) => {
+                                const selected = taskForm.assignedTo.employees.includes(employee._id);
+                                return (
+                                  <label
+                                    key={employee._id}
+                                    className={`flex items-center justify-between gap-2 px-3 py-2 text-sm border-b border-gray-100 last:border-0 cursor-pointer ${
+                                      selected ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    <span className="flex-1">
+                                      {employee.name} ({employee.employeeId})
+                                      {(employee.department || employee.branchCode) && (
+                                        <span className="text-xs text-gray-500 ml-2">
+                                          - {(employee.department || employee.branchCode || '').toString().toUpperCase()}
+                                        </span>
+                                      )}
+                                    </span>
+                    <input
+                                      type="radio"
+                                      name="individualEmployee"
+                                      checked={selected}
+                                      onChange={() => {
+                                        handleAssignedSelect('employees', [employee._id]);
+                                      }}
+                                    />
+                  </label>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Individual HOD Selection */}
+                      {taskForm.assigneeType === 'hod' && (
+                        <div className="mt-4">
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Select HOD <span className="text-red-500">*</span>
+                          </label>
+                          <div className="border border-gray-300 rounded-lg h-48 overflow-y-auto bg-white">
+                            {hods.length === 0 ? (
+                              <p className="text-sm text-gray-500 p-3">No HODs available.</p>
+                            ) : (
+                              hods.map((hod) => {
+                                const id = hod._id || hod.id;
+                                const selected = taskForm.assignedTo.hods.includes(id);
+                                return (
+                                  <label
+                                    key={id}
+                                    className={`flex items-center justify-between gap-2 px-3 py-2 text-sm border-b border-gray-100 last:border-0 cursor-pointer ${
+                                      selected ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    <span className="flex-1">
+                                      {hod.name}
+                                      {hod.department?.code && (
+                                        <span className="text-xs text-gray-500 ml-2">
+                                          - {hod.department.code.toUpperCase()}
+                                        </span>
+                                      )}
+                                    </span>
+                    <input
+                                      type="radio"
+                                      name="individualHod"
+                                      checked={selected}
+                                      onChange={() => {
+                                        handleAssignedSelect('hods', [id]);
+                                      }}
+                                    />
+                  </label>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Step 2: Group Work Options */}
+                  {taskForm.workType === 'group' && (
+                    <div className="bg-white rounded-lg p-4 border border-gray-300 space-y-4">
+                      {/* Branch Selection Type */}
+                  <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Branch Selection <span className="text-red-500">*</span>
+                        </label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleBranchSelectionTypeChange('single')}
+                            className={`px-4 py-2 rounded-lg border-2 transition-all ${
+                              taskForm.branchSelectionType === 'single'
+                                ? 'border-primary bg-primary/10 text-primary font-semibold'
+                                : 'border-gray-300 bg-white text-gray-700 hover:border-primary/50'
+                            }`}
+                          >
+                            Single Branch
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleBranchSelectionTypeChange('multiple')}
+                            className={`px-4 py-2 rounded-lg border-2 transition-all ${
+                              taskForm.branchSelectionType === 'multiple'
+                                ? 'border-primary bg-primary/10 text-primary font-semibold'
+                                : 'border-gray-300 bg-white text-gray-700 hover:border-primary/50'
+                            }`}
+                          >
+                            Multiple Branches
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Branch Selection */}
+                      {taskForm.branchSelectionType && (
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Select {taskForm.branchSelectionType === 'single' ? 'Branch' : 'Branches'} <span className="text-red-500">*</span>
+                          </label>
+                          {taskForm.branchSelectionType === 'single' ? (
                     <select
-                      multiple
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 h-32 focus:outline-none focus:ring-2 focus:ring-primary/40"
-                      value={taskForm.assignedTo.departments}
-                      onChange={(event) => {
-                        const selected = Array.from(event.target.selectedOptions).map((option) => option.value.toLowerCase());
-                        setTaskForm((prev) => ({
-                          ...prev,
-                          assignedTo: {
-                            ...prev.assignedTo,
-                            departments: selected
-                          }
-                        }));
-                      }}
-                    >
+                              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40 bg-white"
+                              value={taskForm.assignedTo.departments[0] || ''}
+                              onChange={(e) => {
+                                const selected = e.target.value ? [e.target.value] : [];
+                                handleBranchSelection(selected);
+                              }}
+                            >
+                              <option value="">Select a branch</option>
                       {branches.map((branch) => (
                         <option key={branch.code} value={(branch.code || branch.name || '').toLowerCase()}>
                           {branch.displayName || branch.name || branch.code}
                         </option>
                       ))}
                     </select>
+                          ) : (
+                            <div>
+                              <div className="border border-gray-300 rounded-lg p-3 max-h-64 overflow-y-auto bg-white">
+                                {branches.length === 0 ? (
+                                  <p className="text-sm text-gray-500">No branches available.</p>
+                                ) : (
+                                  branches.map((branch) => {
+                                    const branchCode = (branch.code || branch.name || '').toLowerCase();
+                                    const isSelected = taskForm.assignedTo.departments.includes(branchCode);
+                                    return (
+                                      <label
+                                        key={branch.code}
+                                        className={`flex items-center gap-2 px-3 py-2 text-sm border-b border-gray-100 last:border-0 cursor-pointer ${
+                                          isSelected ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'
+                                        }`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={isSelected}
+                                          onChange={() => {
+                                            const currentDepts = taskForm.assignedTo.departments;
+                                            const updatedDepts = isSelected
+                                              ? currentDepts.filter((d) => d !== branchCode)
+                                              : [...currentDepts, branchCode];
+                                            handleBranchSelection(updatedDepts);
+                                          }}
+                                        />
+                                        <span className="font-medium">{branch.displayName || branch.name || branch.code}</span>
+                                      </label>
+                                    );
+                                  })
+                                )}
                   </div>
+                              <p className="text-xs text-gray-500 mt-2">
+                                Select branches. Employees from selected branches will be auto-selected.
+                              </p>
                 </div>
+                          )}
+                        </div>
+                      )}
 
-                <div className="space-y-4">
+                      {/* HOD Display for Single Branch */}
+                      {taskForm.branchSelectionType === 'single' && taskForm.assignedTo.departments.length > 0 && (
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Select Employees</label>
-                    <div className="border border-gray-300 rounded-lg h-36 overflow-y-auto">
-                      {filteredEmployees.length === 0 ? (
-                        <p className="text-sm text-gray-500 p-3">No employees available for the selected departments.</p>
-                      ) : (
-                        filteredEmployees.map((employee) => {
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            HOD for Selected Branch
+                          </label>
+                          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                            {hods
+                              .filter((hod) => {
+                                const hodDept = (hod.department?.code || hod.department || hod.branchCode || '').toString().toLowerCase();
+                                if (!hodDept) return false;
+                                return taskForm.assignedTo.departments.some(dept => dept.toLowerCase() === hodDept);
+                              })
+                              .length === 0 ? (
+                              <p className="text-sm text-gray-500">No HOD found for this branch.</p>
+                            ) : (
+                              hods
+                                .filter((hod) => {
+                                  const hodDept = (hod.department?.code || hod.department || hod.branchCode || '').toString().toLowerCase();
+                                  if (!hodDept) return false;
+                                  return taskForm.assignedTo.departments.some(dept => dept.toLowerCase() === hodDept);
+                                })
+                                .map((hod) => (
+                                  <div key={hod._id || hod.id} className="flex items-center gap-2 text-sm text-gray-700">
+                                    <FaUserTie className="text-primary" />
+                                    <span className="font-medium">{hod.name}</span>
+                                    {hod.department?.code && (
+                                      <span className="text-xs text-gray-500">
+                                        ({hod.department.code.toUpperCase()})
+                                      </span>
+                                    )}
+                                  </div>
+                                ))
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Employee Selection - Auto-checked from selected branches */}
+                      {taskForm.assignedTo.departments.length > 0 && (
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Employees from Selected Branches
+                            <span className="text-xs text-gray-500 font-normal ml-2">
+                              (Auto-selected, you can uncheck if needed)
+                            </span>
+                          </label>
+                          <div className="border border-gray-300 rounded-lg h-48 overflow-y-auto bg-white">
+                            {employees.length === 0 ? (
+                              <p className="text-sm text-gray-500 p-3">No employees available.</p>
+                            ) : (
+                              employees
+                                .filter((employee) => {
+                                  const employeeDept = (employee.department || employee.branchCode || '').toString().toLowerCase();
+                                  if (!employeeDept) return false;
+                                  return taskForm.assignedTo.departments.some(dept => dept.toLowerCase() === employeeDept);
+                                })
+                                .map((employee) => {
                           const selected = taskForm.assignedTo.employees.includes(employee._id);
+                                  const employeeDept = (employee.department || employee.branchCode || '');
+                                  return (
+                                    <label
+                                      key={employee._id}
+                                      className={`flex items-center justify-between gap-2 px-3 py-2 text-sm border-b border-gray-100 last:border-0 cursor-pointer ${
+                                        selected ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      <span className="flex-1">
+                                        {employee.name} ({employee.employeeId})
+                                        {employeeDept && (
+                                          <span className="text-xs text-gray-500 ml-2">
+                                            - {employeeDept.toString().toUpperCase()}
+                                          </span>
+                                        )}
+                                      </span>
+                                      <input
+                                        type="checkbox"
+                                        checked={selected}
+                                        onChange={(event) => {
+                                          event.stopPropagation();
+                                          const next = selected
+                                            ? taskForm.assignedTo.employees.filter((id) => id !== employee._id)
+                                            : [...taskForm.assignedTo.employees, employee._id];
+                                          handleAssignedSelect('employees', next);
+                                        }}
+                                      />
+                                    </label>
+                                  );
+                                })
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Additional Employee Selection (from other branches) */}
+                      {taskForm.assignedTo.departments.length > 0 && !taskForm.assignedTo.includeAllEmployees && (
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Add Employees from Other Branches (Optional)
+                          </label>
+                          <div className="border border-gray-300 rounded-lg h-40 overflow-y-auto bg-white">
+                            {employees
+                              .filter((employee) => {
+                                const employeeDept = (employee.department || employee.branchCode || '').toString().toLowerCase();
+                                if (!employeeDept) return false;
+                                return !taskForm.assignedTo.departments.some(dept => dept.toLowerCase() === employeeDept);
+                              })
+                              .length === 0 ? (
+                              <p className="text-sm text-gray-500 p-3">No employees from other branches.</p>
+                            ) : (
+                              employees
+                                .filter((employee) => {
+                                  const employeeDept = (employee.department || employee.branchCode || '').toString().toLowerCase();
+                                  if (!employeeDept) return false;
+                                  return !taskForm.assignedTo.departments.some(dept => dept.toLowerCase() === employeeDept);
+                                })
+                                .map((employee) => {
+                                  const selected = taskForm.assignedTo.employees.includes(employee._id);
+                                  const employeeDept = (employee.department || employee.branchCode || '');
                           return (
                             <label
                               key={employee._id}
@@ -577,21 +1363,21 @@ const PrincipalTaskManagementSection = () => {
                             >
                               <span className="flex-1 truncate">
                                 {employee.name} ({employee.employeeId})
+                                        {employeeDept && (
+                                          <span className="text-xs text-gray-500 ml-2">
+                                            - {employeeDept.toString().toUpperCase()}
+                                          </span>
+                                        )}
                               </span>
                               <input
                                 type="checkbox"
                                 checked={selected}
                                 onChange={(event) => {
                                   event.stopPropagation();
-                                  setTaskForm((prev) => ({
-                                    ...prev,
-                                    assignedTo: {
-                                      ...prev.assignedTo,
-                                      employees: selected
-                                        ? prev.assignedTo.employees.filter((id) => id !== employee._id)
-                                        : [...prev.assignedTo.employees, employee._id]
-                                    }
-                                  }));
+                                          const next = selected
+                                            ? taskForm.assignedTo.employees.filter((id) => id !== employee._id)
+                                            : [...taskForm.assignedTo.employees, employee._id];
+                                          handleAssignedSelect('employees', next);
                                 }}
                               />
                             </label>
@@ -600,14 +1386,28 @@ const PrincipalTaskManagementSection = () => {
                       )}
                     </div>
                   </div>
+                      )}
 
+                      {/* Group HOD Selection - Show for multiple branches */}
+                      {taskForm.branchSelectionType === 'multiple' && taskForm.assignedTo.departments.length > 0 && (
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Select HODs</label>
-                    <div className="border border-gray-300 rounded-lg h-32 overflow-y-auto">
-                      {filteredHods.length === 0 ? (
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            HODs from Selected Branches
+                            <span className="text-xs text-gray-500 font-normal ml-2">
+                              (Auto-selected, you can uncheck if needed)
+                            </span>
+                          </label>
+                          <div className="border border-gray-300 rounded-lg h-48 overflow-y-auto bg-white">
+                            {hods.length === 0 ? (
                         <p className="text-sm text-gray-500 p-3">No HODs available.</p>
                       ) : (
-                        filteredHods.map((hod) => {
+                              hods
+                                .filter((hod) => {
+                                  const hodDept = (hod.department?.code || hod.department || hod.branchCode || '').toString().toLowerCase();
+                                  if (!hodDept) return false;
+                                  return taskForm.assignedTo.departments.some(dept => dept.toLowerCase() === hodDept);
+                                })
+                                .map((hod) => {
                           const id = hod._id || hod.id;
                           const selected = taskForm.assignedTo.hods.includes(id);
                           return (
@@ -617,44 +1417,89 @@ const PrincipalTaskManagementSection = () => {
                                 selected ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'
                               }`}
                             >
-                              <span className="flex-1 truncate">
-                                {hod.name} {(hod.department?.code || hod.branchCode) ? `(${hod.department?.code || hod.branchCode})` : ''}
+                                      <span className="flex-1">
+                                        {hod.name}
+                                        {hod.department?.code && (
+                                          <span className="text-xs text-gray-500 ml-2">
+                                            - {hod.department.code.toUpperCase()}
+                                          </span>
+                                        )}
                               </span>
                               <input
                                 type="checkbox"
                                 checked={selected}
                                 onChange={(event) => {
                                   event.stopPropagation();
+                                          const next = selected
+                                            ? taskForm.assignedTo.hods.filter((hodId) => hodId !== id)
+                                            : [...taskForm.assignedTo.hods, id];
+                                          handleAssignedSelect('hods', next);
+                                        }}
+                                      />
+                                    </label>
+                                  );
+                                })
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Target All Options */}
+                      {taskForm.assignedTo.departments.length > 0 && (
+                        <div className="space-y-2">
+                          <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input
+                              type="checkbox"
+                              checked={taskForm.assignedTo.includeAllEmployees}
+                              onChange={() =>
                                   setTaskForm((prev) => ({
                                     ...prev,
                                     assignedTo: {
                                       ...prev.assignedTo,
-                                      hods: selected
-                                        ? prev.assignedTo.hods.filter((hodId) => hodId !== id)
-                                        : [...prev.assignedTo.hods, id]
+                                    includeAllEmployees: !prev.assignedTo.includeAllEmployees
                                     }
-                                  }));
-                                }}
+                                }))
+                              }
                               />
+                            Target all employees in selected departments
                             </label>
-                          );
-                        })
+                          <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input
+                              type="checkbox"
+                              checked={taskForm.assignedTo.includeAllHods}
+                              onChange={() =>
+                                setTaskForm((prev) => ({
+                                  ...prev,
+                                  assignedTo: {
+                                    ...prev.assignedTo,
+                                    includeAllHods: !prev.assignedTo.includeAllHods
+                                  }
+                                }))
+                              }
+                            />
+                            Target all HODs in selected departments
+                          </label>
+                        </div>
                       )}
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-lg font-semibold text-primary">Reference Links</h4>
-                  <button type="button" className="text-sm text-primary hover:underline" onClick={addAttachmentField}>
+                  <h4 className="text-lg font-semibold text-primary">Reference Links / Attachments</h4>
+                  <button
+                    type="button"
+                    className="text-sm text-primary hover:underline"
+                    onClick={addAttachmentField}
+                  >
                     + Add link
                   </button>
                 </div>
                 {(taskForm.attachments || []).length === 0 ? (
                   <p className="text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-200 rounded-lg p-3">
-                    Attach helpful links or documents that employees/HODs can reference while completing the task.
+                    Attach resource links (Google Drive, documents, etc.) that employees/HODs can reference while completing the task.
                   </p>
                 ) : (
                   <div className="space-y-3">
@@ -667,7 +1512,11 @@ const PrincipalTaskManagementSection = () => {
                           value={attachment}
                           onChange={(e) => updateAttachmentField(index, e.target.value)}
                         />
-                        <button type="button" className="text-sm text-red-500 hover:underline" onClick={() => removeAttachmentField(index)}>
+                        <button
+                          type="button"
+                          className="text-sm text-red-500 hover:underline"
+                          onClick={() => removeAttachmentField(index)}
+                        >
                           Remove
                         </button>
                       </div>
@@ -738,17 +1587,7 @@ const PrincipalTaskManagementSection = () => {
 
               <section>
                 <h4 className="text-sm font-semibold text-gray-700 mb-1">Audience</h4>
-                <p className="text-sm text-gray-600">
-                  {viewTask.assignedTo?.departments?.length
-                    ? viewTask.assignedTo.departments.map((dep) => dep.toUpperCase()).join(', ')
-                    : 'Selected individuals'}
-                </p>
-                {viewTask.assignedTo?.includeAllEmployees && (
-                  <p className="text-xs text-gray-500 mt-1">Includes all employees in selected departments.</p>
-                )}
-                {viewTask.assignedTo?.includeAllHods && (
-                  <p className="text-xs text-gray-500">Includes all HODs in the campus.</p>
-                )}
+                <p className="text-sm text-gray-600">{renderAudienceSummary(viewTask.assignedTo)}</p>
               </section>
 
               {viewTask.requireAcknowledgement && (

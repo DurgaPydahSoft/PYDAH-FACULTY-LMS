@@ -146,7 +146,7 @@ const HodTaskManagementSection = () => {
     // The backend endpoint /hod/department/employees already filters by:
     // - For teaching HOD: department = branchCode
     // - For non-teaching HOD: assignedHodId = hod._id
-    return employees;
+      return employees;
   }, [employees]);
 
   const handleWorkTypeChange = (workType) => {
@@ -197,26 +197,26 @@ const HodTaskManagementSection = () => {
     }
 
     return {
-      title: form.title,
-      description: form.description,
-      dueDate: form.dueDate || null,
-      priority: form.priority,
-      status: form.status,
-      requireAcknowledgement: form.requireAcknowledgement,
-      assignedTo: {
-        includeAllEmployees: form.assignedTo.includeAllEmployees,
-        includeAllHods: false,
-        employees: form.assignedTo.employees,
-        hods: [],
-        departments: form.assignedTo.departments
-      },
-      recurrence: {
-        frequency: form.recurrence.frequency,
-        interval: Number(form.recurrence.interval) > 0 ? Number(form.recurrence.interval) : 1,
-        daysOfWeek: form.recurrence.daysOfWeek,
-        endDate: form.recurrence.endDate || null
-      },
-      attachments: (form.attachments || []).filter((item) => item && item.trim())
+    title: form.title,
+    description: form.description,
+    dueDate: form.dueDate || null,
+    priority: form.priority,
+    status: form.status,
+    requireAcknowledgement: form.requireAcknowledgement,
+    assignedTo: {
+      includeAllEmployees: form.assignedTo.includeAllEmployees,
+      includeAllHods: false,
+      employees: form.assignedTo.employees,
+      hods: [],
+      departments: form.assignedTo.departments
+    },
+    recurrence: {
+      frequency: form.recurrence.frequency,
+      interval: Number(form.recurrence.interval) > 0 ? Number(form.recurrence.interval) : 1,
+      daysOfWeek: form.recurrence.daysOfWeek,
+      endDate: form.recurrence.endDate || null
+    },
+    attachments: (form.attachments || []).filter((item) => item && item.trim())
     };
   };
 
@@ -717,7 +717,7 @@ const HodTaskManagementSection = () => {
 
               <div>
                 <h4 className="text-lg font-semibold text-primary mb-3">Audience</h4>
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-4">
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-4">
                   {/* Step 1: Work Type Selection */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -808,29 +808,29 @@ const HodTaskManagementSection = () => {
                   {/* Step 2: Group Work Options */}
                   {taskForm.workType === 'group' && (
                     <div className="bg-white rounded-lg p-4 border border-gray-300 space-y-4">
-                      <div>
-                        <label className="flex items-center gap-2 text-sm text-gray-700">
-                          <input
-                            type="checkbox"
-                            checked={taskForm.assignedTo.includeAllEmployees}
-                            onChange={() =>
-                              setTaskForm((prev) => ({
-                                ...prev,
-                                assignedTo: {
-                                  ...prev.assignedTo,
+                <div>
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={taskForm.assignedTo.includeAllEmployees}
+                      onChange={() =>
+                        setTaskForm((prev) => ({
+                          ...prev,
+                          assignedTo: {
+                            ...prev.assignedTo,
                                   includeAllEmployees: !prev.assignedTo.includeAllEmployees,
                                   employees: !prev.assignedTo.includeAllEmployees ? [] : prev.assignedTo.employees
-                                }
-                              }))
-                            }
-                          />
+                          }
+                        }))
+                      }
+                    />
                           Target all employees in your department
-                        </label>
-                      </div>
+                  </label>
+              </div>
 
                       {/* Employee Selection - Only show if not targeting all */}
                       {!taskForm.assignedTo.includeAllEmployees && (
-                        <div>
+              <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
                             Select Employees <span className="text-red-500">*</span>
                             <span className="text-xs text-gray-500 font-normal ml-2">
@@ -843,45 +843,45 @@ const HodTaskManagementSection = () => {
                             </div>
                           ) : (
                             <div className="border border-gray-300 rounded-lg h-48 overflow-y-auto bg-white">
-                              {filteredEmployees.length === 0 ? (
+                  {filteredEmployees.length === 0 ? (
                                 <div className="p-3">
                                   <p className="text-sm text-gray-500 mb-2">No employees available in your department.</p>
                                   {employees.length === 0 && (
                                     <p className="text-xs text-gray-400">Please ensure employees are assigned to your department.</p>
                                   )}
                                 </div>
-                              ) : (
-                                filteredEmployees.map((employee) => {
-                                  const selected = taskForm.assignedTo.employees.includes(employee._id);
-                                  return (
-                                    <label
-                                      key={employee._id}
-                                      className={`flex items-center justify-between gap-2 px-3 py-2 text-sm border-b border-gray-100 last:border-0 cursor-pointer ${
-                                        selected ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'
-                                      }`}
-                                    >
+                  ) : (
+                    filteredEmployees.map((employee) => {
+                      const selected = taskForm.assignedTo.employees.includes(employee._id);
+                      return (
+                        <label
+                          key={employee._id}
+                          className={`flex items-center justify-between gap-2 px-3 py-2 text-sm border-b border-gray-100 last:border-0 cursor-pointer ${
+                            selected ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50'
+                          }`}
+                        >
                                       <span className="flex-1">
-                                        {employee.name} ({employee.employeeId})
+                            {employee.name} ({employee.employeeId})
                                         {(employee.department || employee.branchCode) && (
                                           <span className="text-xs text-gray-500 ml-2">
                                             - {(employee.department || employee.branchCode || '').toString().toUpperCase()}
                                           </span>
                                         )}
-                                      </span>
-                                      <input
-                                        type="checkbox"
-                                        checked={selected}
-                                        onChange={(event) => {
-                                          event.stopPropagation();
+                          </span>
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={(event) => {
+                              event.stopPropagation();
                                           const next = selected
                                             ? taskForm.assignedTo.employees.filter((id) => id !== employee._id)
                                             : [...taskForm.assignedTo.employees, employee._id];
                                           handleAssignedSelect('employees', next);
-                                        }}
-                                      />
-                                    </label>
-                                  );
-                                })
+                            }}
+                          />
+                        </label>
+                      );
+                    })
                               )}
                             </div>
                           )}

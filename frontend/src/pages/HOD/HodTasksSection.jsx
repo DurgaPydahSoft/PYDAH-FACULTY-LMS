@@ -233,6 +233,17 @@ const HodTasksSection = () => {
                 </div>
 
                 <div className="flex flex-col gap-2 w-full md:w-auto">
+                  {task.givenBy && task.givenBy.name && (
+                    <div className="text-xs text-gray-600">
+                      <span className="font-semibold text-gray-700">Given by: </span>
+                      <span>{task.givenBy.name}</span>
+                      {task.givenBy.role && (
+                        <span className="text-gray-500 ml-1">
+                          ({task.givenBy.role.toUpperCase()})
+                        </span>
+                      )}
+                    </div>
+                  )}
                   <span className="text-xs text-gray-500">
                     Created: {new Date(task.createdAt).toLocaleString()}
                   </span>

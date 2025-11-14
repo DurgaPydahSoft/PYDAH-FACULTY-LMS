@@ -138,6 +138,21 @@ const taskSchema = new mongoose.Schema({
     type: String,
     enum: ['hr', 'hod', 'principal'],
     default: 'hr'
+  },
+  givenBy: {
+    name: {
+      type: String,
+      trim: true
+    },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true
+    },
+    role: {
+      type: String,
+      enum: ['hr', 'hod', 'principal']
+    }
   }
 }, {
   timestamps: true

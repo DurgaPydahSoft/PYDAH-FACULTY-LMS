@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const asyncHandler = require('express-async-handler');
-const { Task, Employee, HOD } = require('../models');
+const { Task, Employee, HOD, HR, Principal } = require('../models');
 
 const PRIORITY_LEVELS = ['low', 'medium', 'high', 'critical'];
 const TASK_STATUSES = ['draft', 'active', 'completed', 'archived'];
@@ -397,11 +397,39 @@ exports.createTask = asyncHandler(async (req, res) => {
     return res.status(403).json({ msg: 'You are not authorized to create tasks.' });
   }
 
+  // Fetch user details for givenBy field
+  let userDoc;
+  try {
+    if (requesterRole === 'hr') {
+      userDoc = await HR.findById(req.user.id).select('name email').lean();
+    } else if (requesterRole === 'hod') {
+      userDoc = await HOD.findById(req.user.id).select('name email').lean();
+    } else if (requesterRole === 'principal') {
+      // Try Principal model first, then User model
+      userDoc = await Principal.findById(req.user.id).select('name email').lean();
+      if (!userDoc) {
+        const { User } = require('../models');
+        userDoc = await User.findById(req.user.id).select('name email').lean();
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching user details for givenBy:', err);
+  }
+
   const task = new Task({
     title: title.trim(),
     description: description.trim(),
     createdBy: req.user.id,
-    createdByRole: requesterRole
+    createdByRole: requesterRole,
+    givenBy: userDoc ? {
+      name: userDoc.name || '',
+      email: userDoc.email || '',
+      role: requesterRole
+    } : {
+      name: '',
+      email: '',
+      role: requesterRole
+    }
   });
 
   if (dueDate) {
