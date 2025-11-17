@@ -9,7 +9,8 @@ const { getHodForwardOrPrincipalReceiveTemplate } = require('./templates/hodForw
 const { getEmployeeLeaveRejectedAtHodTemplate } = require('./templates/employeeLeaveRejectedAtHod');
 const { getEmployeeLeaveRejectedAtPrincipalTemplate } = require('./templates/employeeLeaveRejectedAtPrincipal');
 const { getEmployeeLeaveApprovedAtPrincipalTemplate } = require('./templates/employeeLeaveApprovedAtPrincipal');
-const Employee = require('../models/schemas/employeeSchema');
+const { getTaskAssignmentTemplate } = require('./templates/taskAssignment');
+const { Employee } = require('../models');
 const Hod = require('../models/schemas/hodSchema');
 const Principal = require('../models/schemas/principalSchema');
 
@@ -515,6 +516,146 @@ const testEmailConfiguration = async () => {
   }
 };
 
+// Send email to employees when task is assigned
+const sendTaskAssignmentEmails = async (task, employeeIds = [], isUpdate = false) => {
+  try {
+    // Don't send emails if task is in draft status or archived
+    if (task.status === 'draft' || task.status === 'archived') {
+      console.log('Skipping email for task in draft/archived status');
+      return;
+    }
+
+    const frontendUrl = getFrontendUrl();
+    const viewTaskUrl = `${frontendUrl}/employee-login`;
+
+    // Get priority styling
+    const getPriorityStyle = (priority) => {
+      switch (priority?.toLowerCase()) {
+        case 'critical':
+          return 'background-color: #ef4444; color: white;';
+        case 'high':
+          return 'background-color: #f97316; color: white;';
+        case 'medium':
+          return 'background-color: #3b82f6; color: white;';
+        case 'low':
+          return 'background-color: #10b981; color: white;';
+        default:
+          return 'background-color: #6b7280; color: white;';
+      }
+    };
+
+    // Format due date
+    const formatDueDate = (dueDate) => {
+      if (!dueDate) return null;
+      return new Date(dueDate).toLocaleDateString('en-IN', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric' 
+      });
+    };
+
+    // Get assigned by name
+    const assignedBy = task.givenBy?.name 
+      ? `${task.givenBy.name} (${task.givenBy.role?.toUpperCase() || ''})`
+      : 'System';
+
+    // Fetch employees if IDs are provided
+    let employees = [];
+    if (employeeIds && employeeIds.length > 0) {
+      employees = await Employee.find({
+        _id: { $in: employeeIds },
+        status: 'active'
+      }).select('name email employeeId');
+    } else if (task.assignedTo) {
+      // If no specific IDs, get all assigned employees
+      if (task.assignedTo.employees && task.assignedTo.employees.length > 0) {
+        // Handle both populated objects and IDs
+        const employeeIdsToFetch = task.assignedTo.employees.map(emp => {
+          return emp._id ? emp._id : emp;
+        });
+        
+        employees = await Employee.find({
+          _id: { $in: employeeIdsToFetch },
+          status: 'active'
+        }).select('name email employeeId');
+      } else if (task.assignedTo.includeAllEmployees) {
+        // If includeAllEmployees is true, get employees from departments/campuses
+        const query = { status: 'active' };
+        
+        if (task.assignedTo.departments && task.assignedTo.departments.length > 0) {
+          query.$or = [
+            { department: { $in: task.assignedTo.departments } },
+            { branchCode: { $in: task.assignedTo.departments } }
+          ];
+        }
+        
+        if (task.assignedTo.campuses && task.assignedTo.campuses.length > 0) {
+          query.campus = { $in: task.assignedTo.campuses };
+        }
+        
+        employees = await Employee.find(query).select('name email employeeId');
+      }
+    }
+
+    if (employees.length === 0) {
+      console.log('No employees found to send task assignment emails');
+      return;
+    }
+
+    console.log(`Sending task assignment emails to ${employees.length} employee(s)`);
+
+    // Send email to each employee
+    const emailPromises = employees.map(async (employee) => {
+      try {
+        if (!employee.email) {
+          console.warn(`Employee ${employee.name} (${employee._id}) has no email address`);
+          return;
+        }
+
+        const templateParams = {
+          employeeName: employee.name,
+          taskTitle: task.title,
+          taskDescription: task.description || 'No description provided',
+          priority: task.priority || 'medium',
+          priorityStyle: getPriorityStyle(task.priority),
+          dueDate: formatDueDate(task.dueDate),
+          status: task.status ? task.status.charAt(0).toUpperCase() + task.status.slice(1) : 'Active',
+          assignedBy: assignedBy,
+          requireAcknowledgement: task.requireAcknowledgement || false,
+          attachments: task.attachments || [],
+          viewTaskUrl: viewTaskUrl,
+          year: new Date().getFullYear()
+        };
+
+        const htmlContent = getTaskAssignmentTemplate(templateParams);
+        
+        await sendEmail({
+          to: employee.email,
+          subject: isUpdate 
+            ? `Task Updated: ${task.title}` 
+            : `New Task Assigned: ${task.title}`,
+          htmlContent
+        });
+
+        console.log(`Task assignment email sent to: ${employee.email}`);
+      } catch (error) {
+        console.error(`Error sending email to employee ${employee.name} (${employee.email}):`, error);
+        // Don't throw, continue with other employees
+      }
+    });
+
+    await Promise.allSettled(emailPromises);
+    console.log('Task assignment email process completed');
+  } catch (error) {
+    console.error('Error in sendTaskAssignmentEmails:', {
+      error: error.message,
+      taskId: task?._id,
+      taskTitle: task?.title
+    });
+    // Don't throw error - email failure shouldn't break task creation
+  }
+};
+
 module.exports = {
   sendEmail,
   sendLeaveApplicationEmails,
@@ -524,5 +665,6 @@ module.exports = {
   sendEmployeePrincipalApprovalNotification,
   sendEmployeeCredentials,
   sendLeaveRejectionEmail,
+  sendTaskAssignmentEmails,
   testEmailConfiguration
 }; 

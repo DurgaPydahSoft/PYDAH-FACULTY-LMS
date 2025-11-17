@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const asyncHandler = require('express-async-handler');
 const { Task, Employee, HOD, HR, Principal } = require('../models');
+const { sendTaskAssignmentEmails } = require('../utils/emailService');
 
 const PRIORITY_LEVELS = ['low', 'medium', 'high', 'critical'];
 const TASK_STATUSES = ['draft', 'active', 'completed', 'archived'];
@@ -506,6 +507,16 @@ exports.createTask = asyncHandler(async (req, res) => {
     Task.findById(task._id)
   );
 
+  // Send email notifications to assigned employees (non-blocking)
+  // Only send if task is active (not draft)
+  if (task.status !== 'draft' && task.status !== 'archived') {
+    sendTaskAssignmentEmails(createdTask, [], false)
+      .catch(error => {
+        console.error('Error sending task assignment emails (non-blocking):', error);
+        // Don't fail the request if email fails
+      });
+  }
+
   res.status(201).json({
     msg: 'Task created successfully.',
     task: formatTaskForManagement(createdTask)
@@ -762,6 +773,13 @@ exports.updateTask = asyncHandler(async (req, res) => {
     task.requireAcknowledgement = requireAcknowledgement;
   }
 
+  // Track if assignments changed to determine if we need to send emails
+  let assignmentsChanged = false;
+  let previousEmployeeIds = [];
+  if (task.assignedTo && task.assignedTo.employees) {
+    previousEmployeeIds = task.assignedTo.employees.map(id => id.toString());
+  }
+
   if (assignedTo) {
     try {
       const { assignments, employeeDocs, hodDocs } = await buildAssignmentsFromPayload(assignedTo);
@@ -774,6 +792,22 @@ exports.updateTask = asyncHandler(async (req, res) => {
       ) {
         throw new Error('Select at least one employee or HOD, or enable the "target all" option.');
       }
+      
+      // Check if employee assignments changed
+      const newEmployeeIds = assignments.employees.map(id => id.toString());
+      const employeeIdsChanged = 
+        previousEmployeeIds.length !== newEmployeeIds.length ||
+        !previousEmployeeIds.every(id => newEmployeeIds.includes(id)) ||
+        !newEmployeeIds.every(id => previousEmployeeIds.includes(id));
+      
+      const includeAllChanged = 
+        (task.assignedTo?.includeAllEmployees || false) !== (assignments.includeAllEmployees || false);
+      
+      const departmentsChanged = 
+        JSON.stringify(task.assignedTo?.departments || []) !== JSON.stringify(assignments.departments || []);
+      
+      assignmentsChanged = employeeIdsChanged || includeAllChanged || departmentsChanged;
+      
       task.assignedTo = assignments;
     } catch (error) {
       return res.status(400).json({ msg: error.message });
@@ -793,6 +827,15 @@ exports.updateTask = asyncHandler(async (req, res) => {
   const updatedTask = await populateTaskAudience(
     Task.findById(task._id)
   );
+
+  // Send email notifications if assignments changed and task is active (non-blocking)
+  if (assignmentsChanged && updatedTask.status !== 'draft' && updatedTask.status !== 'archived') {
+    sendTaskAssignmentEmails(updatedTask, [], true)
+      .catch(error => {
+        console.error('Error sending task assignment emails (non-blocking):', error);
+        // Don't fail the request if email fails
+      });
+  }
 
   res.json({
     msg: 'Task updated successfully.',
