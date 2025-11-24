@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authSuperAdmin } = require('../middleware/auth');
 const SuperAdminController = require('../controllers/superAdminController');
+const TaskController = require('../controllers/taskController');
 
 // Auth routes
 router.post('/login', SuperAdminController.login);
@@ -45,8 +46,17 @@ router.put('/employees/:id/status', SuperAdminController.updateEmployeeStatus);
 router.post('/employees/:id/reset-password', SuperAdminController.resetEmployeePassword);
 router.delete('/employees/:id', SuperAdminController.deleteEmployee);
 
+// HOD management routes
+router.get('/hods', SuperAdminController.getAllHODs);
+
 // HR Leave Requests management
 router.get('/hr-leave-requests', SuperAdminController.getHRLeaveRequests);
 router.put('/hr-leave-requests/:hrId/:leaveRequestId', SuperAdminController.updateHRLeaveRequest);
+
+// Task Management
+router.post('/tasks', TaskController.createTask);
+router.get('/tasks', TaskController.listTasks);
+router.put('/tasks/:id', TaskController.updateTask);
+router.delete('/tasks/:id', TaskController.deleteTask);
 
 module.exports = router; 

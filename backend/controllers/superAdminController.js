@@ -1,4 +1,4 @@
-const { User, Campus, SuperAdmin, Principal, HR, Employee } = require('../models');
+const { User, Campus, SuperAdmin, Principal, HR, Employee, HOD } = require('../models');
 const jwt = require('jsonwebtoken');
 const { validateEmail, validatePassword } = require('../utils/validators');
 const bcrypt = require('bcryptjs');
@@ -795,6 +795,7 @@ exports.deleteEmployee = async (req, res) => {
 };
 
 // Get all HR Leave Requests (for SuperAdmin)
+// Get all HR Leave Requests (for SuperAdmin)
 exports.getHRLeaveRequests = async (req, res) => {
   try {
     const { status, campus } = req.query;
@@ -839,6 +840,20 @@ exports.getHRLeaveRequests = async (req, res) => {
     });
   } catch (error) {
     console.error('Get HR Leave Requests Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+
+// Get all HODs
+exports.getAllHODs = async (req, res) => {
+  try {
+    const hods = await HOD.find()
+      .select('name email department campus hodType status')
+      .sort({ createdAt: -1 });
+    res.json(hods);
+  } catch (error) {
+    console.error('Get All HODs Error:', error);
     res.status(500).json({ msg: 'Server error' });
   }
 };

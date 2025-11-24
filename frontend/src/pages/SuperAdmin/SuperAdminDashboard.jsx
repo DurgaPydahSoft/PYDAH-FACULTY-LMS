@@ -11,6 +11,7 @@ import PrincipalManagementSection from './PrincipalManagementSection';
 import EmployeeManagementSection from './EmployeeManagementSection';
 import HRManagementSection from './HRManagementSection';
 import SystemSettingsSection from './SystemSettingsSection';
+import SuperAdminTaskManagementSection from './SuperAdminTaskManagementSection';
 
 const API_BASE_URL = config.API_BASE_URL;
 
@@ -20,7 +21,7 @@ const SuperAdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeSection, setActiveSection] = useState('dashboard');
-  
+
   // Principal management states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -33,7 +34,7 @@ const SuperAdminDashboard = () => {
   const [resetPasswordData, setResetPasswordData] = useState({ principalId: null, newPassword: '' });
   const [showEditPrincipalModal, setShowEditPrincipalModal] = useState(false);
   const [editPrincipalData, setEditPrincipalData] = useState({ _id: '', name: '', email: '' });
-  
+
   // HR management states
   const [showCreateHRModal, setShowCreateHRModal] = useState(false);
   const [hrFormData, setHrFormData] = useState({
@@ -48,7 +49,7 @@ const SuperAdminDashboard = () => {
   const [editHRData, setEditHRData] = useState({ _id: '', name: '', email: '', leaveBalance: 12, leaveBalanceByExperience: 0 });
   const [showResetHRPasswordModal, setShowResetHRPasswordModal] = useState(false);
   const [resetHRPasswordData, setResetHRPasswordData] = useState({ hrId: null, newPassword: '' });
-  
+
   // Campus management states
   const [showCreateCampusModal, setShowCreateCampusModal] = useState(false);
   const [campusFormData, setCampusFormData] = useState({
@@ -56,7 +57,7 @@ const SuperAdminDashboard = () => {
     displayName: '',
     type: ''
   });
-  
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -113,10 +114,10 @@ const SuperAdminDashboard = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
+
     try {
       const token = localStorage.getItem('token');
-      
+
       // Check if campus exists
       const selectedCampus = campuses.find(c => c.name === formData.campusName);
       if (!selectedCampus) {
@@ -144,7 +145,7 @@ const SuperAdminDashboard = () => {
       setShowCreateModal(false);
       setFormData({ name: '', email: '', password: '', campusName: '' });
       await fetchCampuses(); // Refresh the campus list
-      
+
     } catch (error) {
       console.error('Error creating principal:', error);
       setError(error.response?.data?.msg || error.message || 'Failed to create principal');
@@ -157,10 +158,10 @@ const SuperAdminDashboard = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
+
     try {
       const token = localStorage.getItem('token');
-      
+
       // Check if campus exists
       const selectedCampus = campuses.find(c => c.name === hrFormData.campusName);
       if (!selectedCampus) {
@@ -186,7 +187,7 @@ const SuperAdminDashboard = () => {
       setShowCreateHRModal(false);
       setHrFormData({ name: '', email: '', password: '', campusName: '', leaveBalance: 12, leaveBalanceByExperience: 0 });
       await fetchHRs();
-      
+
     } catch (error) {
       console.error('Error creating HR:', error);
       setError(error.response?.data?.msg || error.message || 'Failed to create HR');
@@ -293,9 +294,9 @@ const SuperAdminDashboard = () => {
   };
 
   const handleEditHR = (hr) => {
-    setEditHRData({ 
-      _id: hr._id, 
-      name: hr.name, 
+    setEditHRData({
+      _id: hr._id,
+      name: hr.name,
       email: hr.email,
       leaveBalance: hr.leaveBalance || 12,
       leaveBalanceByExperience: hr.leaveBalanceByExperience || 0
@@ -309,8 +310,8 @@ const SuperAdminDashboard = () => {
       const token = localStorage.getItem('token');
       await axios.put(
         `${API_BASE_URL}/super-admin/hrs/${editHRData._id}`,
-        { 
-          name: editHRData.name, 
+        {
+          name: editHRData.name,
           email: editHRData.email,
           leaveBalance: parseInt(editHRData.leaveBalance) || 12,
           leaveBalanceByExperience: parseInt(editHRData.leaveBalanceByExperience) || 0
@@ -330,7 +331,7 @@ const SuperAdminDashboard = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
+
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
@@ -357,7 +358,7 @@ const SuperAdminDashboard = () => {
     switch (activeSection) {
       case 'dashboard':
         return <DashboardSection campuses={campuses} hrs={hrs} />;
-      
+
       case 'campuses':
         return (
           <CampusManagementSection
@@ -370,35 +371,35 @@ const SuperAdminDashboard = () => {
             handleUpdateCampusStatus={handleUpdateCampusStatus}
           />
         );
-      
-          case 'principals':
-            return (
-              <PrincipalManagementSection
-                campuses={campuses}
-                showCreateModal={showCreateModal}
-                setShowCreateModal={setShowCreateModal}
-                formData={formData}
-                setFormData={setFormData}
-                handleCreatePrincipal={handleCreatePrincipal}
-                handleEditPrincipal={handleEditPrincipal}
-                handleEditPrincipalSubmit={handleEditPrincipalSubmit}
-                showEditPrincipalModal={showEditPrincipalModal}
-                setShowEditPrincipalModal={setShowEditPrincipalModal}
-                editPrincipalData={editPrincipalData}
-                setEditPrincipalData={setEditPrincipalData}
-                handleResetPassword={handleResetPassword}
-                handleResetPasswordSubmit={handleResetPasswordSubmit}
-                showResetPasswordModal={showResetPasswordModal}
-                setShowResetPasswordModal={setShowResetPasswordModal}
-                resetPasswordData={resetPasswordData}
-                setResetPasswordData={setResetPasswordData}
-              />
-            );
 
-          case 'employees':
-            return <EmployeeManagementSection />;
+      case 'principals':
+        return (
+          <PrincipalManagementSection
+            campuses={campuses}
+            showCreateModal={showCreateModal}
+            setShowCreateModal={setShowCreateModal}
+            formData={formData}
+            setFormData={setFormData}
+            handleCreatePrincipal={handleCreatePrincipal}
+            handleEditPrincipal={handleEditPrincipal}
+            handleEditPrincipalSubmit={handleEditPrincipalSubmit}
+            showEditPrincipalModal={showEditPrincipalModal}
+            setShowEditPrincipalModal={setShowEditPrincipalModal}
+            editPrincipalData={editPrincipalData}
+            setEditPrincipalData={setEditPrincipalData}
+            handleResetPassword={handleResetPassword}
+            handleResetPasswordSubmit={handleResetPasswordSubmit}
+            showResetPasswordModal={showResetPasswordModal}
+            setShowResetPasswordModal={setShowResetPasswordModal}
+            resetPasswordData={resetPasswordData}
+            setResetPasswordData={setResetPasswordData}
+          />
+        );
 
-          case 'hr-management':
+      case 'employees':
+        return <EmployeeManagementSection />;
+
+      case 'hr-management':
         return (
           <HRManagementSection
             hrs={hrs}
@@ -423,10 +424,14 @@ const SuperAdminDashboard = () => {
             handleUpdateHRStatus={handleUpdateHRStatus}
           />
         );
-      
+
+
+      case 'task-management':
+        return <SuperAdminTaskManagementSection />;
+
       case 'system-settings':
         return <SystemSettingsSection />;
-      
+
       default:
         return <DashboardSection campuses={campuses} hrs={hrs} />;
     }

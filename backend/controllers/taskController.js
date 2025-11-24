@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const asyncHandler = require('express-async-handler');
-const { Task, Employee, HOD, HR, Principal } = require('../models');
+const { Task, Employee, HOD, HR, Principal, SuperAdmin } = require('../models');
 const { sendTaskAssignmentEmails } = require('../utils/emailService');
 
 const PRIORITY_LEVELS = ['low', 'medium', 'high', 'critical'];
@@ -159,7 +159,8 @@ const enforceAssignmentsForRole = (assignments, role, req, employeeDocs = [], ho
 
   switch (normalizedRole) {
     case 'hr':
-      // HR can target any combination.
+    case 'superadmin':
+      // HR and SuperAdmin can target any combination.
       break;
     case 'hod': {
       if (!branchCode) {
@@ -408,7 +409,7 @@ exports.createTask = asyncHandler(async (req, res) => {
   }
 
   const requesterRole = (req.user.role || '').toLowerCase();
-  if (!['hr', 'hod', 'principal'].includes(requesterRole)) {
+  if (!['hr', 'hod', 'principal', 'superadmin'].includes(requesterRole)) {
     return res.status(403).json({ msg: 'You are not authorized to create tasks.' });
   }
 
@@ -426,6 +427,8 @@ exports.createTask = asyncHandler(async (req, res) => {
         const { User } = require('../models');
         userDoc = await User.findById(req.user.id).select('name email').lean();
       }
+    } else if (requesterRole === 'superadmin') {
+      userDoc = await SuperAdmin.findById(req.user.id).select('name email').lean();
     }
   } catch (err) {
     console.error('Error fetching user details for givenBy:', err);
@@ -576,7 +579,7 @@ exports.listTasks = asyncHandler(async (req, res) => {
 exports.listTasksByCreator = asyncHandler(async (req, res) => {
   const role = (req.user.role || '').toLowerCase();
 
-  if (!['hod', 'principal', 'hr'].includes(role)) {
+  if (!['hod', 'principal', 'hr', 'superadmin'].includes(role)) {
     return res.status(403).json({ msg: 'You are not authorized to view managed tasks.' });
   }
 
@@ -719,11 +722,11 @@ exports.updateTask = asyncHandler(async (req, res) => {
   }
 
   const requesterRole = (req.user.role || '').toLowerCase();
-  if (!['hr', 'hod', 'principal'].includes(requesterRole)) {
+  if (!['hr', 'hod', 'principal', 'superadmin'].includes(requesterRole)) {
     return res.status(403).json({ msg: 'You are not authorized to update tasks.' });
   }
 
-  if (requesterRole !== 'hr') {
+  if (requesterRole !== 'hr' && requesterRole !== 'superadmin') {
     if (task.createdByRole !== requesterRole || task.createdBy.toString() !== req.user.id.toString()) {
       return res.status(403).json({ msg: 'You can only update the tasks you created.' });
     }
@@ -852,11 +855,11 @@ exports.deleteTask = asyncHandler(async (req, res) => {
   }
 
   const requesterRole = (req.user.role || '').toLowerCase();
-  if (!['hr', 'hod', 'principal'].includes(requesterRole)) {
+  if (!['hr', 'hod', 'principal', 'superadmin'].includes(requesterRole)) {
     return res.status(403).json({ msg: 'You are not authorized to delete tasks.' });
   }
 
-  if (requesterRole !== 'hr') {
+  if (requesterRole !== 'hr' && requesterRole !== 'superadmin') {
     if (task.createdByRole !== requesterRole || task.createdBy.toString() !== req.user.id.toString()) {
       return res.status(403).json({ msg: 'You can only delete the tasks you created.' });
     }

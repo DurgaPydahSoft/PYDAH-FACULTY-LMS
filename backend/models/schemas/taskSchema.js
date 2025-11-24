@@ -136,7 +136,7 @@ const taskSchema = new mongoose.Schema({
   },
   createdByRole: {
     type: String,
-    enum: ['hr', 'hod', 'principal'],
+    enum: ['hr', 'hod', 'principal', 'superadmin'],
     default: 'hr'
   },
   givenBy: {
