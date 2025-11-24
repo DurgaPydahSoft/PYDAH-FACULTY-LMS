@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaHome, FaUniversity, FaUserTie, FaUsers, FaCog, FaBars, FaTimes, FaUserFriends, FaTasks } from 'react-icons/fa';
+import { FaHome, FaUniversity, FaUserTie, FaUsers, FaCog, FaBars, FaTimes, FaUserFriends, FaTasks, FaSignOutAlt } from 'react-icons/fa';
 
 const SuperAdminSidebar = ({ activeSection, onSectionChange }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -81,16 +81,19 @@ const SuperAdminSidebar = ({ activeSection, onSectionChange }) => {
         </div>
 
         {/* Bottom Section with Heading and Logout */}
-        <div className="p-6 border-t border-gray-300 space-y-4">
-          <h2 className="text-xl font-bold text-white text-center">
-            Super Admin
-          </h2>
-          <button
-            onClick={handleLogout}
-            className="w-full p-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-          >
-            Logout
-          </button>
+        <div className="p-6 border-t border-gray-300">
+          <div className="flex items-center justify-center gap-3">
+            <h2 className="text-xl font-bold text-white">
+              Super Admin
+            </h2>
+            <button
+              onClick={handleLogout}
+              className="p-2 text-white hover:bg-red-500 rounded-lg transition-colors"
+              title="Logout"
+            >
+              <FaSignOutAlt className="text-lg" />
+            </button>
+          </div>
         </div>
       </div>
     </>
