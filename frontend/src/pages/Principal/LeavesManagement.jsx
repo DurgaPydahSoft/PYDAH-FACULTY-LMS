@@ -462,7 +462,15 @@ const LeavesManagement = ({
         const now = new Date();
         const month = now.toLocaleString('en-US', { month: 'long' });
         const year = now.getFullYear();
-        const title = `Leave Requests - ${month} - ${year}`;
+        
+        // Get department code if filter is applied
+        const selectedDepartment = leaveFilters.department || null;
+        
+        // Build title with department code if filtered
+        const title = selectedDepartment 
+            ? `Leave Requests - ${selectedDepartment} - ${month} ${year}`
+            : `Leave Requests - ${month} - ${year}`;
+        
         const logoUrl = window.location.origin + '/PYDAH_LOGO_PHOTO.jpg';
 
         // Helper to draw the PDF (with or without logo)
@@ -492,7 +500,20 @@ const LeavesManagement = ({
             doc.setFontSize(14);
             doc.setTextColor(211, 84, 0); // Orange color
             doc.text(title, pageWidth / 2, currentY, { align: 'center' });
-            currentY += 10;
+            currentY += 6;
+
+            // Filter info subtitle (date range only - department is already in title)
+            if (leaveFilters.startDate || leaveFilters.endDate) {
+                const dateRange = [];
+                if (leaveFilters.startDate) dateRange.push(`From: ${new Date(leaveFilters.startDate).toLocaleDateString()}`);
+                if (leaveFilters.endDate) dateRange.push(`To: ${new Date(leaveFilters.endDate).toLocaleDateString()}`);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
+                doc.setTextColor(80, 80, 80);
+                doc.text(dateRange.join(' | '), pageWidth / 2, currentY, { align: 'center' });
+                currentY += 6;
+            }
+            currentY += 4;
 
             // Horizontal line
             doc.setDrawColor(200, 200, 200);
@@ -697,10 +718,11 @@ const LeavesManagement = ({
             doc.setTextColor(0, 0, 0);
             doc.text('Principal Signature', pageWidth - margin - 40, finalY, { align: 'right' });
 
-            // Save the PDF
+            // Save the PDF with department in filename if filtered
+            const deptSuffix = selectedDepartment ? `_${selectedDepartment.replace(/\s+/g, '_')}` : '';
             const fileName = pdfIncludeCCL ?
-                `Leave_and_CCL_Requests_${month}_${year}.pdf` :
-                `Leave_Requests_${month}_${year}.pdf`;
+                `Leave_and_CCL_Requests${deptSuffix}_${month}_${year}.pdf` :
+                `Leave_Requests${deptSuffix}_${month}_${year}.pdf`;
             doc.save(fileName);
         };
 
