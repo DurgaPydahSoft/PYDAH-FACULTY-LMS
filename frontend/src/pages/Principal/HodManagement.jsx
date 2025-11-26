@@ -3,12 +3,12 @@ import { toast } from 'react-toastify';
 import axiosInstance from '../../utils/axiosConfig';
 import HodPasswordResetModal from '../../components/HodPasswordResetModal';
 
-const HodManagement = ({ 
-  branches = [], 
-  hods = [], 
+const HodManagement = ({
+  branches = [],
+  hods = [],
   onHodUpdate,
   campus,
-  token 
+  token
 }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -39,7 +39,7 @@ const HodManagement = ({
     editForm.department !== (selectedHod.department?.code || selectedHod.branchCode || '') ||
     editForm.status !== (selectedHod.status || (selectedHod.isActive ? 'active' : 'inactive'))
   );
-  
+
   const isEditFormDepartmentValid = branches.some(b => b.code === editForm.department);
 
   const handleCreateHOD = async (e) => {
@@ -212,7 +212,7 @@ const HodManagement = ({
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold
                       ${(hod.status === 'active' || hod.isActive)
-                        ? 'bg-green-100 text-green-800' 
+                        ? 'bg-green-100 text-green-800'
                         : 'bg-red-100 text-red-800'}`}
                     >
                       {hod.status || (hod.isActive ? 'Active' : 'Inactive')}
@@ -261,7 +261,7 @@ const HodManagement = ({
                   </div>
                 </div>
               </div>
-              
+
               <div className="space-y-2 mb-4">
                 <div className="flex items-center text-sm text-gray-600">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
@@ -324,7 +324,7 @@ const HodManagement = ({
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                     required
                   />
@@ -334,7 +334,7 @@ const HodManagement = ({
                   <input
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                     required
                   />
@@ -344,7 +344,7 @@ const HodManagement = ({
                   <input
                     type="text"
                     value={formData.HODId}
-                    onChange={(e) => setFormData({...formData, HODId: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, HODId: e.target.value })}
                     className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                     placeholder="Leave empty to use email as ID"
                   />
@@ -354,7 +354,7 @@ const HodManagement = ({
                   <input
                     type="password"
                     value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                     required
                   />
@@ -363,7 +363,7 @@ const HodManagement = ({
                   <label className="block text-gray-700 text-sm font-semibold mb-1">Branch</label>
                   <select
                     value={formData.branchCode}
-                    onChange={(e) => setFormData({...formData, branchCode: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, branchCode: e.target.value })}
                     className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                     required
                   >
@@ -413,7 +413,7 @@ const HodManagement = ({
                   <input
                     type="text"
                     value={editForm.name}
-                    onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                     className="mt-1 block w-full p-2 lg:p-3 rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
@@ -422,7 +422,7 @@ const HodManagement = ({
                   <input
                     type="email"
                     value={editForm.email}
-                    onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                     className="mt-1 block w-full p-2 lg:p-3 rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
@@ -431,7 +431,7 @@ const HodManagement = ({
                   <input
                     type="text"
                     value={editForm.phoneNumber}
-                    onChange={(e) => setEditForm({...editForm, phoneNumber: e.target.value})}
+                    onChange={(e) => setEditForm({ ...editForm, phoneNumber: e.target.value })}
                     className="mt-1 block w-full p-2 lg:p-3 rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
@@ -439,7 +439,7 @@ const HodManagement = ({
                   <label className="block text-sm font-medium text-gray-700">Department</label>
                   <select
                     value={editForm.department}
-                    onChange={(e) => setEditForm({...editForm, department: e.target.value})}
+                    onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
                     className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                     required
                   >
@@ -455,7 +455,7 @@ const HodManagement = ({
                   <label className="block text-sm font-medium text-gray-700">Status</label>
                   <select
                     value={editForm.status}
-                    onChange={(e) => setEditForm({...editForm, status: e.target.value})}
+                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
                     className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                     required
                   >
@@ -496,6 +496,7 @@ const HodManagement = ({
         token={token}
         loading={resetPasswordLoading}
         setLoading={setResetPasswordLoading}
+        role="principal"
       />
     </div>
   );

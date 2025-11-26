@@ -37,7 +37,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
       sample: branches?.slice(0, 2),
       allBranches: branches
     });
-    
+
     // Log the branch select element's options when branches update
     if (document.getElementById('branchCode')) {
       const select = document.getElementById('branchCode');
@@ -56,10 +56,10 @@ const HodManagement = ({ onHodUpdate, campus }) => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
+
         console.log('Starting to fetch branches...');
         console.log('Current user:', JSON.parse(localStorage.getItem('user')));
-        
+
         // Fetch HODs and branches in parallel
         const [hodsRes, branchesRes] = await Promise.all([
           axiosInstance.get('/hr/hods').catch((err) => {
@@ -78,20 +78,20 @@ const HodManagement = ({ onHodUpdate, campus }) => {
               return { data: { success: false, data: [] } };
             })
         ]);
-        
+
         console.log('HODs response data structure:', {
           isArray: Array.isArray(hodsRes?.data),
           data: hodsRes?.data
         });
-        
+
         console.log('Branches response data structure:', {
           isSuccess: branchesRes?.data?.success,
           isDataArray: Array.isArray(branchesRes?.data?.data),
           data: branchesRes?.data
         });
-        
+
         const hodsData = Array.isArray(hodsRes?.data) ? hodsRes.data : [];
-        
+
         // Extract branches from the response data
         let branchesData = [];
         if (branchesRes?.data?.success && Array.isArray(branchesRes.data.data)) {
@@ -105,13 +105,13 @@ const HodManagement = ({ onHodUpdate, campus }) => {
         } else {
           console.error('Branches data is not in expected format:', branchesRes?.data);
         }
-        
+
         console.log('Setting state with:', {
           hodsCount: hodsData.length,
           branchesCount: branchesData.length,
           branchesSample: branchesData.slice(0, 2) // Show first 2 branches as sample
         });
-        
+
         setHods(hodsData);
         setBranches(branchesData);
       } catch (error) {
@@ -136,29 +136,29 @@ const HodManagement = ({ onHodUpdate, campus }) => {
       setError('Please fill in all required fields');
       return false;
     }
-    
+
     // Password is required
     if (!formData.password || formData.password.length < 6) {
       setError('Password is required and must be at least 6 characters');
       return false;
     }
-    
+
     // For teaching HODs, branchCode is required
     if (formData.hodType === 'teaching' && !formData.branchCode) {
       setError('Branch is required for teaching HODs');
       return false;
     }
-    
+
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       setError('Please enter a valid email address');
       return false;
     }
-    
+
     return true;
   };
-  
+
 
   // Handle create HOD
   const handleCreateHOD = async (e) => {
@@ -192,10 +192,10 @@ const HodManagement = ({ onHodUpdate, campus }) => {
       // Only process branch and department for teaching HODs
       if (formData.hodType === 'teaching') {
         // Get campus type with proper capitalization
-        const campusType = typeof campus === 'string' 
+        const campusType = typeof campus === 'string'
           ? campus.charAt(0).toUpperCase() + campus.slice(1)
           : campus?.type?.charAt(0).toUpperCase() + (campus?.type || '').slice(1);
-        
+
         if (!campusType) {
           throw new Error('Campus information is missing');
         }
@@ -208,14 +208,14 @@ const HodManagement = ({ onHodUpdate, campus }) => {
 
         // Define valid campus types (must match the backend enum exactly)
         const validCampusTypes = ['Engineering', 'Diploma', 'Pharmacy', 'Degree'];
-        
+
         // Try to extract campus type in order of priority
         let actualCampusType = null;
-        
+
         // 1. Try to get from campus.type (direct property)
         if (currentUser.campus?.type) {
           actualCampusType = currentUser.campus.type;
-        } 
+        }
         // 2. Try to get from campus.name (capitalized)
         else if (currentUser.campus?.name) {
           actualCampusType = currentUser.campus.name;
@@ -224,22 +224,22 @@ const HodManagement = ({ onHodUpdate, campus }) => {
         else if (campusType) {
           actualCampusType = campusType;
         }
-        
+
         // If we still don't have a campus type, try to infer it from the branch code
         if (!actualCampusType && formData.branchCode) {
-          const campusFromBranch = validCampusTypes.find(type => 
+          const campusFromBranch = validCampusTypes.find(type =>
             formData.branchCode.toUpperCase().startsWith(type.substring(0, 3).toUpperCase())
           );
           if (campusFromBranch) {
             actualCampusType = campusFromBranch;
           }
         }
-        
+
         // Normalize the campus type (case-insensitive match)
         const normalizedCampusType = actualCampusType && validCampusTypes.find(
           type => type.toLowerCase() === actualCampusType.toLowerCase()
         );
-        
+
         if (!normalizedCampusType) {
           throw new Error(`Invalid campus type '${actualCampusType}'. Must be one of: ${validCampusTypes.join(', ')}`);
         }
@@ -293,7 +293,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
     });
     setShowEditModal(true);
   };
-  
+
   // Helper to check if edit form is dirty and valid
   const isEditFormDirty = selectedHod && (
     editForm.name !== selectedHod.name ||
@@ -302,13 +302,13 @@ const HodManagement = ({ onHodUpdate, campus }) => {
     editForm.department !== (selectedHod.department?.code || selectedHod.branchCode || '') ||
     editForm.status !== (selectedHod.status || (selectedHod.isActive ? 'active' : 'inactive'))
   );
-  
+
   const isEditFormDepartmentValid = selectedHod?.hodType === 'non-teaching' || safeBranches.some(b => b.code === editForm.department);
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     if (!selectedHod || !isEditFormDirty || !isEditFormDepartmentValid) return;
-    
+
     try {
       // Build update payload
       const updatePayload = {
@@ -317,22 +317,22 @@ const HodManagement = ({ onHodUpdate, campus }) => {
         phoneNumber: editForm.phoneNumber,
         status: editForm.status
       };
-      
+
       // Only include department if it's a teaching HOD and department has changed
       if (selectedHod.hodType !== 'non-teaching') {
         const currentUser = (() => {
           try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
         })();
-        
+
         let derivedCampus = null;
         if (typeof campus === 'string') derivedCampus = campus;
         else if (campus && typeof campus === 'object') derivedCampus = campus.type || campus.name;
         else if (currentUser && currentUser.campus) derivedCampus = currentUser.campus.type || currentUser.campus.name;
-        
+
         const campusType = derivedCampus ? String(derivedCampus).charAt(0).toUpperCase() + String(derivedCampus).slice(1) : 'Engineering';
-        
-        if (editForm.department !== (selectedHod.department?.code || selectedHod.branchCode || '') && 
-            safeBranches.some(b => b.code === editForm.department)) {
+
+        if (editForm.department !== (selectedHod.department?.code || selectedHod.branchCode || '') &&
+          safeBranches.some(b => b.code === editForm.department)) {
           const branch = safeBranches.find(b => b.code === editForm.department);
           updatePayload.department = {
             name: branch.name,
@@ -341,7 +341,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
           };
         }
       }
-      
+
       const response = await axiosInstance.put(`/hr/hods/${selectedHod._id}`, updatePayload);
 
       setShowEditModal(false);
@@ -373,7 +373,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
     setSelectedHod(hod);
     setShowPasswordResetModal(true);
   };
-  
+
   const token = localStorage.getItem('token');
 
   if (loading) {
@@ -454,7 +454,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold
                       ${(hod.status === 'active' || hod.isActive)
-                        ? 'bg-green-100 text-green-800' 
+                        ? 'bg-green-100 text-green-800'
                         : 'bg-red-100 text-red-800'}`}
                     >
                       {hod.status || (hod.isActive ? 'Active' : 'Inactive')}
@@ -512,7 +512,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="space-y-2 mb-4">
                 <div className="flex items-center text-sm text-gray-600">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
@@ -531,7 +531,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
                   <span className="text-sm text-gray-500">Status:</span>
                   <span className={`px-2 py-1 rounded-full text-xs font-semibold
                     ${(hod.status === 'active' || hod.isActive)
-                      ? 'bg-green-100 text-green-800' 
+                      ? 'bg-green-100 text-green-800'
                       : 'bg-red-100 text-red-800'}`}
                   >
                     {hod.status || (hod.isActive ? 'Active' : 'Inactive')}
@@ -612,7 +612,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                     required
                   />
@@ -622,7 +622,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
                   <input
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                     required
                   />
@@ -632,7 +632,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
                   <input
                     type="text"
                     value={formData.HODId}
-                    onChange={(e) => setFormData({...formData, HODId: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, HODId: e.target.value })}
                     className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                     placeholder="Leave empty to use email as ID"
                   />
@@ -642,7 +642,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
                   <input
                     type="password"
                     value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                     required
                     minLength={6}
@@ -654,7 +654,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
                     <label className="block text-gray-700 text-sm font-semibold mb-1">Branch</label>
                     <select
                       value={formData.branchCode}
-                      onChange={(e) => setFormData({...formData, branchCode: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, branchCode: e.target.value })}
                       className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                       required
                     >
@@ -714,7 +714,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
                   <input
                     type="text"
                     value={editForm.name}
-                    onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                     className="mt-1 block w-full p-2 lg:p-3 rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
@@ -723,7 +723,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
                   <input
                     type="email"
                     value={editForm.email}
-                    onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                     className="mt-1 block w-full p-2 lg:p-3 rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
@@ -732,7 +732,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
                   <input
                     type="text"
                     value={editForm.phoneNumber}
-                    onChange={(e) => setEditForm({...editForm, phoneNumber: e.target.value})}
+                    onChange={(e) => setEditForm({ ...editForm, phoneNumber: e.target.value })}
                     className="mt-1 block w-full p-2 lg:p-3 rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
                   />
                 </div>
@@ -741,7 +741,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
                     <label className="block text-sm font-medium text-gray-700">Department</label>
                     <select
                       value={editForm.department}
-                      onChange={(e) => setEditForm({...editForm, department: e.target.value})}
+                      onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
                       className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                       required
                     >
@@ -758,7 +758,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
                   <label className="block text-sm font-medium text-gray-700">Status</label>
                   <select
                     value={editForm.status}
-                    onChange={(e) => setEditForm({...editForm, status: e.target.value})}
+                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
                     className="w-full p-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary transition"
                     required
                   >
@@ -799,6 +799,7 @@ const HodManagement = ({ onHodUpdate, campus }) => {
         token={token}
         loading={resetPasswordLoading}
         setLoading={setResetPasswordLoading}
+        role="hr"
       />
     </div>
   );

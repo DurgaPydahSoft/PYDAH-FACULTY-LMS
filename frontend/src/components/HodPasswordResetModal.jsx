@@ -5,13 +5,14 @@ import config from '../config';
 
 const API_BASE_URL = config.API_BASE_URL;
 
-const HodPasswordResetModal = ({ 
-  show, 
-  onClose, 
+const HodPasswordResetModal = ({
+  show,
+  onClose,
   hod,
   token,
   loading,
-  setLoading 
+  setLoading,
+  role = 'hr' // Default to 'hr' for backward compatibility
 }) => {
   const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState('');
@@ -29,13 +30,17 @@ const HodPasswordResetModal = ({
       setLoading(true);
       console.log('Attempting to reset password for HOD:', hod._id);
 
-      // Determine the endpoint based on the role (principal or hr)
-      const endpoint = hod.model === 'User' || hod.model === 'Principal' 
-        ? `/principal/hods/${hod._id}/reset-password?model=${hod.model || 'HOD'}`
-        : `/hr/hods/${hod._id}/reset-password`;
-      
+      // Determine the endpoint based on the role prop
+      const endpointPrefix = role === 'principal' ? '/principal' : '/hr';
+      const endpoint = `${endpointPrefix}/hods/${hod._id}/reset-password`;
+
+      // Add model query param if needed (mainly for Principal role dealing with mixed models)
+      const finalEndpoint = role === 'principal' && (hod.model === 'User' || hod.model === 'Principal')
+        ? `${endpoint}?model=${hod.model || 'HOD'}`
+        : endpoint;
+
       const response = await axios.post(
-        `${API_BASE_URL}${endpoint}`,
+        `${API_BASE_URL}${finalEndpoint}`,
         { newPassword },
         {
           headers: {
@@ -47,7 +52,7 @@ const HodPasswordResetModal = ({
 
       console.log('Password reset response:', response.data);
       toast.success(response.data.msg || 'Password reset successful');
-      
+
       // Clear form and close modal
       setNewPassword('');
       onClose();
@@ -81,7 +86,7 @@ const HodPasswordResetModal = ({
             ✕
           </button>
         </div>
-        
+
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
             {error}
@@ -115,9 +120,8 @@ const HodPasswordResetModal = ({
             </button>
             <button
               type="submit"
-              className={`px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark flex items-center ${
-                loading ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
+              className={`px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark flex items-center ${loading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               disabled={loading}
             >
               {loading ? (
@@ -136,4 +140,4 @@ const HodPasswordResetModal = ({
   );
 };
 
-export default HodPasswordResetModal; 
+export default HodPasswordResetModal;
