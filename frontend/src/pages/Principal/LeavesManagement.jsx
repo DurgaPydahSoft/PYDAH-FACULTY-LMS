@@ -505,8 +505,8 @@ const LeavesManagement = ({
             // Filter info subtitle (date range only - department is already in title)
             if (leaveFilters.startDate || leaveFilters.endDate) {
                 const dateRange = [];
-                if (leaveFilters.startDate) dateRange.push(`From: ${new Date(leaveFilters.startDate).toLocaleDateString()}`);
-                if (leaveFilters.endDate) dateRange.push(`To: ${new Date(leaveFilters.endDate).toLocaleDateString()}`);
+                if (leaveFilters.startDate) dateRange.push(`From: ${new Date(leaveFilters.startDate).toLocaleDateString('en-GB')}`);
+                if (leaveFilters.endDate) dateRange.push(`To: ${new Date(leaveFilters.endDate).toLocaleDateString('en-GB')}`);
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(10);
                 doc.setTextColor(80, 80, 80);
