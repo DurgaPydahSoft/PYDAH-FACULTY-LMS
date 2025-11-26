@@ -1464,6 +1464,63 @@ const LeavesManagement = ({
                 </div>
             )}
 
+            {/* Export to PDF Modal */}
+            {showExportModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold text-primary">Export to PDF</h3>
+                            <button
+                                onClick={() => setShowExportModal(false)}
+                                className="text-gray-500 hover:text-gray-700 text-xl font-bold"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <p className="text-gray-600 mb-4">
+                            Configure your PDF export options. Only <strong>Approved</strong> requests will be included.
+                        </p>
+                        <div className="space-y-3 mb-6">
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={exportIncludeCCL}
+                                    onChange={(e) => setExportIncludeCCL(e.target.checked)}
+                                    className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary"
+                                />
+                                <span className="text-gray-700">Include CCL Work Requests</span>
+                            </label>
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={exportIncludeSummary}
+                                    onChange={(e) => setExportIncludeSummary(e.target.checked)}
+                                    className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary"
+                                />
+                                <span className="text-gray-700">Include Summary Table</span>
+                            </label>
+                        </div>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowExportModal(false)}
+                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    exportToPDF(exportIncludeCCL, exportIncludeSummary);
+                                    setShowExportModal(false);
+                                }}
+                                className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition flex items-center gap-2"
+                            >
+                                <FaFilePdf />
+                                Export PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
