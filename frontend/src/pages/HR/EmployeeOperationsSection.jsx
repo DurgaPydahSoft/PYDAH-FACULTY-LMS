@@ -62,7 +62,8 @@ const EmployeeOperationsSection = ({
   handleRegisterEmployee,
   loading,
   branches,
-  getCampusRoles,
+  roles = [], // API-fetched roles from Designation model
+  getCampusRoles, // Fallback function
   user,
   
   // Bulk Operations Props
@@ -323,14 +324,23 @@ const EmployeeOperationsSection = ({
                     setNewEmployee(prev => ({
                       ...prev,
                       role: selectedRole,
-                      customRole: selectedRole === 'other' ? prev.customRole : ''
+                      customRole: selectedRole === 'other' || selectedRole === 'OTHER' ? prev.customRole : ''
                     }));
                   }}
                 >
                   <option value="">Select Role (Optional)</option>
-                  {getCampusRoles(user?.campus?.name).map(role => (
-                    <option key={role.value} value={role.value}>{role.label}</option>
-                  ))}
+                  {roles && roles.length > 0 ? (
+                    roles.map(role => (
+                      <option key={role.value || role.code} value={role.value || role.code}>
+                        {role.label || role.displayName}
+                      </option>
+                    ))
+                  ) : (
+                    // Fallback to hardcoded roles if API roles not available
+                    getCampusRoles(user?.campus?.name).map(role => (
+                      <option key={role.value} value={role.value}>{role.label}</option>
+                    ))
+                  )}
                 </select>
                 {newEmployee.role === 'other' && (
                   <input

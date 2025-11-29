@@ -24,6 +24,7 @@ import HRTaskManagementSection from "./HRTaskManagementSection";
 import HRMyLeaveRequestsSection from "./HRMyLeaveRequestsSection";
 import HodManagement from "./HodManagement";
 import AttendanceManagementSection from "./AttendanceManagementSection";
+import DesignationManagementSection from "./DesignationManagementSection";
 
 const API_BASE_URL = config.API_BASE_URL;
 
@@ -164,9 +165,12 @@ const HRDashboard = () => {
   useEffect(() => {
     fetchEmployeeStats();
     fetchEmployees();
-    fetchRoles();
     fetchHRBranches();
   }, [search, department, status, employeeType]);
+
+  useEffect(() => {
+    fetchRoles();
+  }, [newEmployee.employeeType]); // Refetch roles when employee type changes
 
   const fetchHRBranches = async () => {
     if (!user?.campus?.name) return;
@@ -268,7 +272,13 @@ const HRDashboard = () => {
 
   const fetchRoles = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/hr/roles`, {
+      // Fetch roles filtered by employee type if specified
+      const params = new URLSearchParams();
+      if (newEmployee.employeeType) {
+        params.append('employeeType', newEmployee.employeeType);
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/hr/roles?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -276,19 +286,33 @@ const HRDashboard = () => {
       const data = await response.json();
       if (response.ok) {
         setRoles(data);
-        // Set default role if available
+        // Set default role if available and no role is selected
         if (data.length > 0 && !newEmployee.role) {
           setNewEmployee((prev) => ({ ...prev, role: data[0].value }));
         }
+      } else {
+        console.error("Failed to fetch roles:", data);
+        // Fallback to hardcoded roles
+        const fallbackRoles = getCampusRoles(user?.campus?.name);
+        setRoles(fallbackRoles);
       }
     } catch (error) {
       console.error("Error fetching roles:", error);
-      toast.error("Failed to fetch roles");
+      // Fallback to hardcoded roles on error
+      const fallbackRoles = getCampusRoles(user?.campus?.name);
+      setRoles(fallbackRoles);
     }
   };
 
+  // Get campus roles - now uses API (Designation model) with fallback to hardcoded
   const getCampusRoles = (campusType) => {
-    const roles = {
+    // If roles are already fetched from API, use them
+    if (roles && roles.length > 0) {
+      return roles;
+    }
+    
+    // Fallback to hardcoded roles (for backward compatibility)
+    const fallbackRoles = {
       engineering: [
         { value: "associate_professor", label: "Associate Professor" },
         { value: "assistant_professor", label: "Assistant Professor" },
@@ -324,7 +348,7 @@ const HRDashboard = () => {
         { value: "other", label: "Other" },
       ],
     };
-    return roles[campusType] || [];
+    return fallbackRoles[campusType] || [];
   };
 
   const handleRoleChange = (e) => {
@@ -1196,6 +1220,7 @@ const HRDashboard = () => {
             handleRegisterEmployee={handleRegisterEmployee}
             loading={loading}
             branches={branches}
+            roles={roles}
             getCampusRoles={getCampusRoles}
             user={user}
             showBulkModal={showBulkModal}
@@ -1232,6 +1257,8 @@ const HRDashboard = () => {
         );
       case "hod-management":
         return <HodManagement />;
+      case "designations":
+        return <DesignationManagementSection />;
       case "attendance":
         return <AttendanceManagementSection />;
       case "leaves":

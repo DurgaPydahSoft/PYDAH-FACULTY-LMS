@@ -12,6 +12,7 @@ const cclWorkRequestSchema = require('./CCLWorkRequest').schema;
 const hrSchema = require('./schemas/hrSchema');
 const taskSchema = require('./schemas/taskSchema');
 const attendanceSchema = require('./schemas/attendanceSchema');
+const designationSchema = require('./schemas/designationSchema');
 
 // Register models only if they haven't been registered
 const User = mongoose.models.User || mongoose.model('User', userSchema);
@@ -26,6 +27,7 @@ const CCLWorkRequest = mongoose.models.CCLWorkRequest || mongoose.model('CCLWork
 const HR = mongoose.models.HR || mongoose.model('HR', hrSchema);
 const Task = mongoose.models.Task || mongoose.model('Task', taskSchema);
 const Attendance = mongoose.models.Attendance || mongoose.model('Attendance', attendanceSchema);
+const Designation = mongoose.models.Designation || mongoose.model('Designation', designationSchema);
 
 module.exports = {
   User,
@@ -38,5 +40,6 @@ module.exports = {
   CCLWorkRequest,
   HR,
   Task,
-  Attendance
+  Attendance,
+  Designation
 };

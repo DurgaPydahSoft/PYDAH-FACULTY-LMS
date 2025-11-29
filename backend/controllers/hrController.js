@@ -1,4 +1,4 @@
-const { HR, Employee, User, HOD, Department, Campus } = require('../models');
+const { HR, Employee, User, HOD, Department, Campus, Designation } = require('../models');
 const jwt = require('jsonwebtoken');
 const { validateEmail } = require('../utils/validators');
 const bcrypt = require('bcryptjs');
@@ -79,37 +79,81 @@ exports.login = async (req, res) => {
   }
 };
 
-// Get campus-specific roles
-const getCampusRoles = (campus) => {
-  const roles = {
-    engineering: [
-      { value: 'associate_professor', label: 'Associate Professor' },
-      { value: 'assistant_professor', label: 'Assistant Professor' },
-      { value: 'lab_incharge', label: 'Lab Incharge' },
-      
-  { value: 'librarian', label: 'Librarian' },
-  { value: 'pet', label: 'PET' },
-      { value: 'technician', label: 'Technician' }
-    ],
-    diploma: [
-      { value: 'senior_lecturer', label: 'Senior Lecturer' },
-      { value: 'lecturer', label: 'Lecturer' },
-      { value: 'lab_incharge', label: 'Lab Incharge' }
-    ],
-    pharmacy: [
-      { value: 'associate_professor', label: 'Associate Professor' },
-      { value: 'assistant_professor', label: 'Assistant Professor' },
-      { value: 'lab_incharge', label: 'Lab Incharge' },
-      { value: 'librarian', label: 'Librarian' }
-    ],
-    degree: [
-      { value: 'associate_professor', label: 'Associate Professor' },
-      { value: 'assistant_professor', label: 'Assistant Professor' },
-      { value: 'lab_incharge', label: 'Lab Incharge' },
-      { value: 'librarian', label: 'Librarian' }
-    ]
-  };
-  return roles[campus.toLowerCase()] || [{ value: 'faculty', label: 'Faculty' }];
+// Get campus-specific roles (now from Designation model)
+const getCampusRoles = async (campus, employeeType = null) => {
+  try {
+    const campusType = typeof campus === 'string' ? campus.toLowerCase() : (campus?.name || campus?.type || '').toLowerCase();
+    
+    if (!campusType) {
+      return [{ value: 'faculty', label: 'Faculty' }];
+    }
+
+    // Build query
+    const query = {
+      campusTypes: { $in: [campusType] },
+      isActive: true
+    };
+
+    // Filter by employee type if provided
+    if (employeeType) {
+      query.$or = [
+        { employeeType: employeeType },
+        { employeeType: 'both' }
+      ];
+    }
+
+    // Fetch designations from database
+    const designations = await Designation.find(query)
+      .sort({ displayName: 1 })
+      .lean();
+
+    // Convert to format expected by frontend
+    const roles = designations.map(des => ({
+      value: des.code,
+      label: des.displayName,
+      _id: des._id,
+      name: des.name
+    }));
+
+    // Fallback to default if no designations found
+    if (roles.length === 0) {
+      return [{ value: 'faculty', label: 'Faculty' }];
+    }
+
+    return roles;
+  } catch (error) {
+    console.error('Error fetching campus roles from Designation model:', error);
+    // Fallback to hardcoded roles if database query fails
+    const fallbackRoles = {
+      engineering: [
+        { value: 'associate_professor', label: 'Associate Professor' },
+        { value: 'assistant_professor', label: 'Assistant Professor' },
+        { value: 'lab_incharge', label: 'Lab Incharge' },
+        { value: 'librarian', label: 'Librarian' },
+        { value: 'pet', label: 'PET' },
+        { value: 'technician', label: 'Technician' }
+      ],
+      diploma: [
+        { value: 'senior_lecturer', label: 'Senior Lecturer' },
+        { value: 'lecturer', label: 'Lecturer' },
+        { value: 'lab_incharge', label: 'Lab Incharge' }
+      ],
+      pharmacy: [
+        { value: 'associate_professor', label: 'Associate Professor' },
+        { value: 'assistant_professor', label: 'Assistant Professor' },
+        { value: 'lab_incharge', label: 'Lab Incharge' },
+        { value: 'librarian', label: 'Librarian' }
+      ],
+      degree: [
+        { value: 'associate_professor', label: 'Associate Professor' },
+        { value: 'assistant_professor', label: 'Assistant Professor' },
+        { value: 'lab_incharge', label: 'Lab Incharge' },
+        { value: 'librarian', label: 'Librarian' }
+      ]
+    };
+    const campusType = typeof campus === 'string' ? campus.toLowerCase() : (campus?.name || campus?.type || '').toLowerCase();
+    return fallbackRoles[campusType] || [{ value: 'faculty', label: 'Faculty' }];
+  }
 };
 
 // Register new employee
@@ -192,28 +236,36 @@ exports.registerEmployee = async (req, res) => {
       }
     }
 
-    // Validate role for campus only if role is provided (for teaching employees)
-    if (employeeType === 'teaching' && role && role.trim() !== '') {
-    try {
-      Employee.validateRoleForCampus(hr.campus.name.toLowerCase(), role);
-    } catch (error) {
-      return res.status(400).json({ msg: error.message });
-      }
-    }
-
-    // Determine roleDisplayName
+    // Validate role/designation for campus only if role is provided (for teaching employees)
     let roleDisplayName = '';
     if (role && role.trim() !== '') {
-    if (role === 'other') {
-      if (!customRole || !customRole.trim()) {
-        return res.status(400).json({ msg: 'Please provide a custom role name.' });
-      }
-      roleDisplayName = customRole.trim();
-    } else {
-      // Find the label for the selected role
-      const campusRoles = getCampusRoles(hr.campus.name.toLowerCase());
-      const found = campusRoles.find(r => r.value === role);
-      roleDisplayName = found ? found.label : role;
+      // Try to find designation by code
+      const designation = await Designation.findOne({ 
+        code: role.toUpperCase(),
+        isActive: true,
+        campusTypes: { $in: [hr.campus.name.toLowerCase()] }
+      });
+
+      if (designation) {
+        // Use designation from database
+        roleDisplayName = designation.displayName;
+      } else if (role === 'other') {
+        // Custom role fallback
+        if (!customRole || !customRole.trim()) {
+          return res.status(400).json({ msg: 'Please provide a custom role name.' });
+        }
+        roleDisplayName = customRole.trim();
+      } else {
+        // Fallback: try to validate using old method for backward compatibility
+        try {
+          Employee.validateRoleForCampus(hr.campus.name.toLowerCase(), role);
+          // Get display name from old hardcoded list
+          const campusRoles = await getCampusRoles(hr.campus.name.toLowerCase(), employeeType);
+          const found = campusRoles.find(r => r.value === role);
+          roleDisplayName = found ? found.label : role;
+        } catch (error) {
+          return res.status(400).json({ msg: error.message });
+        }
       }
     } else {
       // Default role if none provided
@@ -280,10 +332,12 @@ exports.registerEmployee = async (req, res) => {
   }
 };
 
-// Add a new endpoint to get campus-specific roles
+// Add a new endpoint to get campus-specific roles (now from Designation model)
 exports.getCampusRoles = async (req, res) => {
   try {
-    const roles = getCampusRoles(req.user.campus.name);
+    const { employeeType } = req.query;
+    const campus = req.user.campus?.name || req.user.campus?.type || req.user.campus;
+    const roles = await getCampusRoles(campus, employeeType);
     res.json(roles);
   } catch (error) {
     console.error('Get Campus Roles Error:', error);
@@ -371,24 +425,37 @@ exports.updateEmployee = async (req, res) => {
       employee.department = updates.department;
     }
 
-    // Handle role and customRole
+    // Handle role and customRole (now supports Designation model)
     if (updates.role) {
-      try {
-        Employee.validateRoleForCampus(req.user.campus.name.toLowerCase(), updates.role);
-      } catch (error) {
-        return res.status(400).json({ msg: error.message });
-      }
       employee.role = updates.role;
-      if (updates.role === 'other') {
+      
+      // Try to find designation by code
+      const designation = await Designation.findOne({ 
+        code: updates.role.toUpperCase(),
+        isActive: true,
+        campusTypes: { $in: [req.user.campus.name.toLowerCase()] }
+      });
+
+      if (designation) {
+        // Use designation from database
+        employee.roleDisplayName = designation.displayName;
+      } else if (updates.role === 'other') {
+        // Custom role fallback
         if (!updates.customRole || !updates.customRole.trim()) {
           return res.status(400).json({ msg: 'Please provide a custom role name.' });
         }
         employee.roleDisplayName = updates.customRole.trim();
-} else {
-        // Find the label for the selected role
-        const campusRoles = getCampusRoles(req.user.campus.name.toLowerCase());
-        const found = campusRoles.find(r => r.value === updates.role);
-        employee.roleDisplayName = found ? found.label : updates.role;
+      } else {
+        // Fallback: try to validate using old method for backward compatibility
+        try {
+          Employee.validateRoleForCampus(req.user.campus.name.toLowerCase(), updates.role);
+          // Get display name from old hardcoded list
+          const campusRoles = await getCampusRoles(req.user.campus.name.toLowerCase());
+          const found = campusRoles.find(r => r.value === updates.role);
+          employee.roleDisplayName = found ? found.label : updates.role;
+        } catch (error) {
+          return res.status(400).json({ msg: error.message });
+        }
       }
     }
 
@@ -576,34 +643,47 @@ exports.bulkRegisterEmployees = async (req, res) => {
         continue;
       }
 
-      // Validate role for campus only if role is provided
-      if (role && role.trim() !== '') {
-      try {
-        Employee.validateRoleForCampus(campus, role);
-      } catch (error) {
-        result.success = false;
-        result.error = error.message;
-        results.push(result);
-        continue;
-        }
-      }
-
-      // Handle custom role
+      // Validate role/designation for campus only if role is provided
       let roleDisplayName = '';
       let finalRole = role && role.trim() !== '' ? role : 'faculty'; // Default to faculty if no role provided
-      if (finalRole === 'other') {
-        if (!customRole || !customRole.trim()) {
-          result.success = false;
-          result.error = 'Custom role required for role "other"';
-          results.push(result);
-          continue;
+      
+      if (finalRole && finalRole.trim() !== '') {
+        // Try to find designation by code
+        const designation = await Designation.findOne({ 
+          code: finalRole.toUpperCase(),
+          isActive: true,
+          campusTypes: { $in: [campus] }
+        });
+
+        if (designation) {
+          // Use designation from database
+          roleDisplayName = designation.displayName;
+        } else if (finalRole === 'other') {
+          // Custom role fallback
+          if (!customRole || !customRole.trim()) {
+            result.success = false;
+            result.error = 'Custom role required for role "other"';
+            results.push(result);
+            continue;
+          }
+          roleDisplayName = customRole.trim();
+        } else {
+          // Fallback: try to validate using old method for backward compatibility
+          try {
+            Employee.validateRoleForCampus(campus, finalRole);
+            // Get display name from old hardcoded list
+            const campusRoles = await getCampusRoles(campus);
+            const found = campusRoles.find(r => r.value === finalRole);
+            roleDisplayName = found ? found.label : finalRole;
+          } catch (error) {
+            result.success = false;
+            result.error = error.message;
+            results.push(result);
+            continue;
+          }
         }
-        roleDisplayName = customRole.trim();
       } else {
-        // Find the label for the selected role
-        const campusRoles = getCampusRoles(campus);
-        const found = campusRoles.find(r => r.value === finalRole);
-        roleDisplayName = found ? found.label : finalRole;
+        roleDisplayName = 'Faculty'; // Default
       }
 
       // Generate password: employeeId + first 4 digits of phoneNumber

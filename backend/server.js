@@ -9,6 +9,7 @@ const superAdminRoutes = require("./routes/superAdminRoutes"); // Import Super A
 const principalRoutes = require("./routes/principalRoutes"); // Import Principal routes
 const hrRoutes = require("./routes/hrRoutes");
 const cclRoutes = require("./routes/cclRoutes"); // Import CCL routes
+const designationRoutes = require("./routes/designationRoutes"); // Import Designation routes
 const path = require("path");
 
 const cors = require("cors");
@@ -130,6 +131,7 @@ app.use("/api/super-admin", superAdminRoutes);
 app.use("/api/principal", principalRoutes);
 app.use("/api/hr", hrRoutes);
 app.use("/api/ccl", cclRoutes); // CCL routes
+app.use("/api/hr/designations", designationRoutes); // Designation routes
 
 // Debug route to check if server is running
 app.get("/api/health", (req, res) => {
