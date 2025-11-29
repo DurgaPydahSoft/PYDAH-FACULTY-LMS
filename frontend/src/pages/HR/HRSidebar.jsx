@@ -51,19 +51,17 @@ const HRSidebar = ({ activeSection, onSectionChange, hr }) => {
       )}
 
       {/* Sidebar */}
-      <div className={`fixed top-0 left-0 h-full bg-gradient-to-b from-primary to bg-gray-800 text-white w-64 transform transition-transform duration-300 ease-in-out z-50 flex flex-col
+      <div className={`fixed top-0 left-0 h-screen bg-gradient-to-b from-primary to bg-gray-800 text-white w-64 transform transition-transform duration-300 ease-in-out z-50 flex flex-col overflow-hidden
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-        {/* Logo Section */}
-        <div className=" border-b border-gray-300">
-  <div className="flex items-center justify-center w-full h-20 space-x-3">
-    
-   
-    <h1 className="text-4xl font-bold text-white">PYDAH</h1>
-  </div>
-</div>
+        {/* Logo Section - Fixed at top */}
+        <div className="flex-shrink-0 border-b border-gray-300">
+          <div className="flex items-center justify-center w-full h-20 space-x-3">
+            <h1 className="text-4xl font-bold text-white">PYDAH</h1>
+          </div>
+        </div>
 
-        {/* Navigation Section */}
-        <div className="p-6 flex-1">
+        {/* Navigation Section - Scrollable */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 sidebar-scroll">
           <nav>
             <ul className="space-y-4">
               {menuItems.map((item) => (
@@ -79,8 +77,8 @@ const HRSidebar = ({ activeSection, onSectionChange, hr }) => {
                         : 'text-white hover:bg-gray-100 hover:text-primary'
                       }`}
                   >
-                    <span className="text-xl">{item.icon}</span>
-                    <span>{item.label}</span>
+                    <span className="text-xl flex-shrink-0">{item.icon}</span>
+                    <span className="text-left">{item.label}</span>
                   </button>
                 </li>
               ))}
@@ -88,15 +86,15 @@ const HRSidebar = ({ activeSection, onSectionChange, hr }) => {
           </nav>
         </div>
 
-        {/* Bottom Section with Heading and Logout */}
-        <div className="p-6 border-t border-gray-300">
+        {/* Bottom Section with Heading and Logout - Fixed at bottom */}
+        <div className="flex-shrink-0 p-6 border-t border-gray-300 bg-gradient-to-b from-primary to bg-gray-800">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-white">
+            <h2 className="text-xl font-bold text-white truncate">
               HR - {hr?.campus?.name || 'HR'}
             </h2>
             <button
               onClick={handleLogout}
-              className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors flex items-center justify-center"
+              className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors flex items-center justify-center flex-shrink-0"
               title="Logout"
             >
               <FaSignOutAlt size={20} />
