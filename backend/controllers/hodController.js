@@ -1054,8 +1054,16 @@ const updateEmployeeDetails = async (req, res) => {
       return res.status(400).json({ msg: 'Please provide a valid email address' });
     }
 
-    // Find the employee using employeeId field
-    const employee = await Employee.findOne({ employeeId });
+    // Find the employee - try by employeeId field first, then by MongoDB _id
+    let employee = await Employee.findOne({ employeeId });
+    
+    if (!employee) {
+      // Try finding by MongoDB _id if employeeId field lookup failed
+      const mongoose = require('mongoose');
+      if (mongoose.Types.ObjectId.isValid(employeeId)) {
+        employee = await Employee.findById(employeeId);
+      }
+    }
     
     if (!employee) {
       return res.status(404).json({ msg: 'Employee not found' });
@@ -1077,19 +1085,24 @@ const updateEmployeeDetails = async (req, res) => {
 
     // Check if email already exists
     if (sanitizedUpdates.email) {
-      const existingEmployee = await Employee.findOne({
+      const emailCheckQuery = {
         email: sanitizedUpdates.email.toLowerCase(),
-        employeeId: { $ne: employeeId }
-      });
+        _id: { $ne: employee._id }
+      };
+      const existingEmployee = await Employee.findOne(emailCheckQuery);
       if (existingEmployee) {
         return res.status(400).json({ msg: 'Email already exists' });
       }
       sanitizedUpdates.email = sanitizedUpdates.email.toLowerCase();
     }
 
-    // Update employee
+    // Update employee using the correct identifier
+    const updateQuery = employee.employeeId === employeeId 
+      ? { employeeId } 
+      : { _id: employee._id };
+    
     const updatedEmployee = await Employee.findOneAndUpdate(
-      { employeeId },
+      updateQuery,
       { $set: sanitizedUpdates },
       { new: true, runValidators: true }
     ).select('-password');
@@ -1129,8 +1142,16 @@ const resetEmployeePassword = async (req, res) => {
       return res.status(400).json({ msg: 'Please provide a new password' });
     }
 
-    // Find the employee
-    const employee = await Employee.findOne({ employeeId });
+    // Find the employee - try by employeeId field first, then by MongoDB _id
+    let employee = await Employee.findOne({ employeeId });
+    
+    if (!employee) {
+      // Try finding by MongoDB _id if employeeId field lookup failed
+      const mongoose = require('mongoose');
+      if (mongoose.Types.ObjectId.isValid(employeeId)) {
+        employee = await Employee.findById(employeeId);
+      }
+    }
     
     if (!employee) {
       console.log('Employee not found:', employeeId);
@@ -1166,8 +1187,12 @@ const resetEmployeePassword = async (req, res) => {
       const hashedPassword = await bcrypt.hash(newPassword, salt);
 
       // Update the password using findOneAndUpdate to avoid middleware issues
+      const updateQuery = employee.employeeId === employeeId 
+        ? { employeeId } 
+        : { _id: employee._id };
+      
       const updatedEmployee = await Employee.findOneAndUpdate(
-        { employeeId },
+        updateQuery,
         { 
           $set: { 
             password: hashedPassword,

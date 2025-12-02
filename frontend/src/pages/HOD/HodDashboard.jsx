@@ -51,6 +51,7 @@ const HodDashboard = () => {
   const [resetPasswordData, setResetPasswordData] = useState({
     newPassword: ''
   });
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
@@ -139,7 +140,7 @@ const HodDashboard = () => {
     e.preventDefault();
     try {
       const response = await axios.put(
-        `${API_BASE_URL}/hod/employees/${selectedEmployee._id}`,
+        `${API_BASE_URL}/hod/employees/${selectedEmployee.employeeId || selectedEmployee._id}`,
         editForm,
         {
           headers: {
@@ -163,9 +164,16 @@ const HodDashboard = () => {
 
   const handlePasswordResetSubmit = async (e) => {
     e.preventDefault();
+    
+    // Prevent duplicate submissions
+    if (isResettingPassword) {
+      return;
+    }
+    
+    setIsResettingPassword(true);
     try {
-      await axios.post(
-        `${API_BASE_URL}/hod/employees/${selectedEmployeeForReset._id}/reset-password`,
+      await axios.put(
+        `${API_BASE_URL}/hod/employees/${selectedEmployeeForReset.employeeId || selectedEmployeeForReset._id}/reset-password`,
         resetPasswordData,
         {
           headers: { 
@@ -180,6 +188,8 @@ const HodDashboard = () => {
     } catch (error) {
       console.error('Error resetting password:', error);
       toast.error(error.response?.data?.msg || 'Failed to reset password');
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -354,6 +364,8 @@ const HodDashboard = () => {
             handlePasswordReset={handlePasswordReset}
             handlePasswordResetSubmit={handlePasswordResetSubmit}
             handleUpdateEmployeeStatus={handleUpdateEmployeeStatus}
+            resetPasswordData={resetPasswordData}
+            isResettingPassword={isResettingPassword}
           />
         );
 

@@ -22,7 +22,9 @@ const EmployeeManagementSection = ({
   handleEditSubmit,
   handlePasswordReset,
   handlePasswordResetSubmit,
-  handleUpdateEmployeeStatus
+  handleUpdateEmployeeStatus,
+  resetPasswordData,
+  isResettingPassword
 }) => {
   // Ensure employees is an array
   const safeEmployees = Array.isArray(employees) ? employees : [];
@@ -248,8 +250,8 @@ const EmployeeManagementSection = ({
                 <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
                 <input
                   type="password"
-                  value={handlePasswordReset.newPassword || ''}
-                  onChange={(e) => handlePasswordReset({newPassword: e.target.value})}
+                  value={resetPasswordData?.newPassword || ''}
+                  onChange={(e) => handlePasswordReset(e.target.value)}
                   className="w-full p-2 rounded-md border border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary"
                   required
                   minLength={6}
@@ -265,9 +267,10 @@ const EmployeeManagementSection = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark"
+                  disabled={isResettingPassword}
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Reset Password
+                  {isResettingPassword ? 'Resetting...' : 'Reset Password'}
                 </button>
               </div>
             </form>
