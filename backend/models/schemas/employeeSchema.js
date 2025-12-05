@@ -33,6 +33,11 @@ const employeeSchema = new mongoose.Schema({
   designation: {
     type: String
   },
+  designationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Designation',
+    default: null
+  },
   specialPermission: {
     type: Boolean,
     default: false

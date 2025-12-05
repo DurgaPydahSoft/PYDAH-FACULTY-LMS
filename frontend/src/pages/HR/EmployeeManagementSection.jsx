@@ -17,6 +17,7 @@ const EmployeeManagementSection = ({
   branches,
   onEditEmployee,
   onResetPassword,
+  onDeleteEmployee,
   onUploadProfilePicture,
   onDeleteProfilePicture,
   uploadingProfile,
@@ -155,12 +156,20 @@ const EmployeeManagementSection = ({
                       Edit
                     </button>
                     <button
-                      className="text-red-600 hover:text-red-800 transition-colors flex items-center gap-1"
+                      className="text-blue-600 hover:text-blue-800 transition-colors flex items-center gap-1"
                       onClick={() => onResetPassword(employee)}
                       title="Reset Password"
                     >
                       <FaKey className="text-sm" />
                       Reset
+                    </button>
+                    <button
+                      className="text-red-600 hover:text-red-800 transition-colors flex items-center gap-1"
+                      onClick={() => onDeleteEmployee(employee)}
+                      title="Delete Employee"
+                    >
+                      <FaTrash className="text-sm" />
+                      Delete
                     </button>
                   </div>
                 </td>
@@ -229,11 +238,18 @@ const EmployeeManagementSection = ({
                 Edit Details
               </button>
               <button
-                className="w-full bg-red-600 text-white py-2 rounded-md hover:bg-red-700 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium flex items-center justify-center gap-2"
                 onClick={() => onResetPassword(employee)}
               >
                 <FaKey className="text-sm" />
                 Reset Password
+              </button>
+              <button
+                className="w-full bg-red-600 text-white py-2 rounded-md hover:bg-red-700 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                onClick={() => onDeleteEmployee(employee)}
+              >
+                <FaTrash className="text-sm" />
+                Delete Employee
               </button>
             </div>
           </div>

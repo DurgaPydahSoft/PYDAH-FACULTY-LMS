@@ -22,6 +22,7 @@ router.put('/profile', hrController.updateProfile);
 router.post('/employees', hrController.registerEmployee);
 router.get('/employees', hrController.getCampusEmployees);
 router.put('/employees/:id', hrController.updateEmployee);
+router.delete('/employees/:id', hrController.deleteEmployee);
 router.post('/employees/:id/reset-password', hrController.resetEmployeePassword);
 router.get('/roles', hrController.getCampusRoles);
 router.post('/employees/bulk', hrController.bulkRegisterEmployees);

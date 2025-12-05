@@ -135,6 +135,9 @@ const HRDashboard = () => {
   const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
   const [selectedEmployeeForReset, setSelectedEmployeeForReset] =
     useState(null);
+  const [showDeleteEmployeeModal, setShowDeleteEmployeeModal] = useState(false);
+  const [selectedEmployeeForDelete, setSelectedEmployeeForDelete] =
+    useState(null);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkFile, setBulkFile] = useState(null);
   const [bulkData, setBulkData] = useState([]);
@@ -1167,6 +1170,37 @@ const HRDashboard = () => {
     }
   };
 
+  const handleDeleteEmployee = async () => {
+    if (!selectedEmployeeForDelete) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${API_BASE_URL}/hr/employees/${selectedEmployeeForDelete._id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+      if (response.ok) {
+        toast.success(data.msg || "Employee deleted successfully");
+        setShowDeleteEmployeeModal(false);
+        setSelectedEmployeeForDelete(null);
+        fetchEmployees();
+        fetchEmployeeStats();
+      } else {
+        throw new Error(data.msg || "Failed to delete employee");
+      }
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+      toast.error(error.message || "Failed to delete employee");
+    }
+  };
+
   const renderContent = () => {
     switch (activeSection) {
       case "dashboard":
@@ -1196,6 +1230,10 @@ const HRDashboard = () => {
             onResetPassword={(employee) => {
               setSelectedEmployeeForReset(employee);
               setShowPasswordResetModal(true);
+            }}
+            onDeleteEmployee={(employee) => {
+              setSelectedEmployeeForDelete(employee);
+              setShowDeleteEmployeeModal(true);
             }}
             onUploadProfilePicture={handleProfilePictureUpload}
             onDeleteProfilePicture={handleDeleteProfilePicture}
@@ -1320,6 +1358,38 @@ const HRDashboard = () => {
         setLoading={setLoading}
         resetApiPath={`/hr/employees/:id/reset-password`}
       />
+
+      {/* Delete Employee Confirmation Modal */}
+      {showDeleteEmployeeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 text-center">
+            <div className="bg-red-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <FaTrash className="text-red-500 text-2xl" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Employee?</h3>
+            <p className="text-gray-600 mb-6 text-sm">
+              Are you sure you want to delete <span className="font-medium">{selectedEmployeeForDelete?.name}</span> ({selectedEmployeeForDelete?.employeeId})? This action cannot be undone.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <button
+                onClick={() => {
+                  setShowDeleteEmployeeModal(false);
+                  setSelectedEmployeeForDelete(null);
+                }}
+                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteEmployee}
+                className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Employee Modal */}
       {showEditModal && (

@@ -166,12 +166,14 @@ exports.registerEmployee = async (req, res) => {
       phoneNumber,
       employeeId,
       department,
-      role,
       customRole,
       leaveBalanceByExperience,
       employeeType,
       assignedHodId
     } = req.body;
+    
+    // Extract role separately as let so it can be reassigned
+    let role = req.body.role;
 
     // Validate required fields
     if (!name || !password || !employeeId) {
@@ -238,16 +240,27 @@ exports.registerEmployee = async (req, res) => {
 
     // Validate role/designation for campus only if role is provided (for teaching employees)
     let roleDisplayName = '';
+    let designationCode = null; // To store designation code if found
+    let designationDoc = null; // To store full designation document if found
     if (role && role.trim() !== '') {
-      // Try to find designation by code
+      // Try to find designation by code - normalize campus type
+      const normalizedCampus = hr.campus.name.toLowerCase();
       const designation = await Designation.findOne({ 
         code: role.toUpperCase(),
         isActive: true,
-        campusTypes: { $in: [hr.campus.name.toLowerCase()] }
+        campusTypes: { $in: [normalizedCampus] },
+        $or: [
+          { employeeType: employeeType },
+          { employeeType: 'both' }
+        ]
       });
 
       if (designation) {
         // Use designation from database
+        // Store 'other' in role field (to satisfy enum), designation code in designation field
+        designationDoc = designation; // Store full document
+        designationCode = designation.code;
+        role = 'other';
         roleDisplayName = designation.displayName;
       } else if (role === 'other') {
         // Custom role fallback
@@ -268,7 +281,10 @@ exports.registerEmployee = async (req, res) => {
         }
       }
     } else {
-      // Default role if none provided
+      // Default role and display name if none provided
+      if (!role || role.trim() === '') {
+        role = employeeType === 'teaching' ? 'faculty' : 'other';
+      }
       roleDisplayName = employeeType === 'teaching' ? 'Faculty' : 'Non-Teaching Staff';
     }
 
@@ -281,7 +297,7 @@ exports.registerEmployee = async (req, res) => {
       phoneNumber,
       employeeId,
       employeeType,
-      role,
+      role: role || (employeeType === 'teaching' ? 'faculty' : 'other'),
       roleDisplayName,
       campus: hr.campus.name.toLowerCase(),
       status: 'active',
@@ -289,6 +305,12 @@ exports.registerEmployee = async (req, res) => {
       cclBalance: 0, // Default CCL balance
       leaveBalanceByExperience: leaveBalanceExpNum
     };
+    
+    // Store designation code and ID if found
+    if (designationDoc) {
+      employeeData.designation = designationDoc.code; // Store code for backward compatibility
+      employeeData.designationId = designationDoc._id; // Store reference for proper linking
+    }
 
     // Add department and branchCode for teaching employees
     if (employeeType === 'teaching') {
@@ -643,20 +665,48 @@ exports.bulkRegisterEmployees = async (req, res) => {
         continue;
       }
 
+      // Determine employee type - default to teaching if not provided
+      const empType = emp.employeeType || 'teaching';
+      
+      // Validate employee type
+      if (!['teaching', 'non-teaching'].includes(empType)) {
+        result.success = false;
+        result.error = 'Invalid employee type. Must be "teaching" or "non-teaching"';
+        results.push(result);
+        continue;
+      }
+
+      // Validate required fields based on employee type
+      if (empType === 'teaching' && (!branchCode || String(branchCode).trim() === '')) {
+        result.success = false;
+        result.error = 'Branch/Department is required for teaching employees';
+        results.push(result);
+        continue;
+      }
+
       // Validate role/designation for campus only if role is provided
       let roleDisplayName = '';
       let finalRole = role && role.trim() !== '' ? role : 'faculty'; // Default to faculty if no role provided
+      let designationDoc = null; // To store full designation document if found
       
       if (finalRole && finalRole.trim() !== '') {
-        // Try to find designation by code
+        // Try to find designation by code - normalize campus type
+        const normalizedCampus = campus.toLowerCase();
         const designation = await Designation.findOne({ 
           code: finalRole.toUpperCase(),
           isActive: true,
-          campusTypes: { $in: [campus] }
+          campusTypes: { $in: [normalizedCampus] },
+          $or: [
+            { employeeType: empType },
+            { employeeType: 'both' }
+          ]
         });
 
         if (designation) {
           // Use designation from database
+          // Store 'other' in role field (to satisfy enum), designation code in designation field
+          designationDoc = designation; // Store full document
+          finalRole = 'other';
           roleDisplayName = designation.displayName;
         } else if (finalRole === 'other') {
           // Custom role fallback
@@ -672,7 +722,7 @@ exports.bulkRegisterEmployees = async (req, res) => {
           try {
             Employee.validateRoleForCampus(campus, finalRole);
             // Get display name from old hardcoded list
-            const campusRoles = await getCampusRoles(campus);
+            const campusRoles = await getCampusRoles(campus, empType);
             const found = campusRoles.find(r => r.value === finalRole);
             roleDisplayName = found ? found.label : finalRole;
           } catch (error) {
@@ -683,31 +733,62 @@ exports.bulkRegisterEmployees = async (req, res) => {
           }
         }
       } else {
-        roleDisplayName = 'Faculty'; // Default
+        // Default role and display name based on employee type
+        finalRole = empType === 'teaching' ? 'faculty' : 'other';
+        roleDisplayName = empType === 'teaching' ? 'Faculty' : 'Non-Teaching Staff';
       }
 
       // Generate password: employeeId + first 4 digits of phoneNumber
       const password = employeeId + (phoneNumber ? String(phoneNumber).slice(0, 4) : '0000');
 
+      // For non-teaching employees, we need assignedHodId (but it's optional in bulk for now)
+      // If not provided, we'll skip validation but the schema will require it
+      
       // Create new employee with proper field mapping
       const leaveBalanceExpNum = typeof leaveBalanceByExperience === 'number' ? leaveBalanceByExperience : (leaveBalanceByExperience ? Number(leaveBalanceByExperience) : 12);
-      const employee = new Employee({
+      const employeeData = {
         name: name ? String(name).trim() : '',
         email: email && email.trim() !== '' ? email.toLowerCase().trim() : null, // Make email optional
         password,
         phoneNumber: phoneNumber ? String(phoneNumber).trim() : '',
         employeeId: employeeId ? String(employeeId).trim() : '',
-        department: branchCode ? String(branchCode).trim() : '', // Use branchCode as department
-        branchCode: branchCode ? String(branchCode).trim().toUpperCase() : '',
         role: finalRole,
         roleDisplayName,
         campus,
         status,
-        designation: designation ? String(designation).trim() : '',
         leaveBalance: leaveBalanceExpNum > 0 ? leaveBalanceExpNum : 12,
         cclBalance: 0,
-        leaveBalanceByExperience: leaveBalanceExpNum
-      });
+        leaveBalanceByExperience: leaveBalanceExpNum,
+        employeeType: empType
+      };
+      
+      // Store designation code and ID if found, otherwise use the designation field from input if provided
+      if (designationDoc) {
+        employeeData.designation = designationDoc.code; // Store code for backward compatibility
+        employeeData.designationId = designationDoc._id; // Store reference for proper linking
+      } else if (emp.designation && String(emp.designation).trim() !== '') {
+        employeeData.designation = String(emp.designation).trim();
+        // Try to find designation by code to get ID
+        const foundDesignation = await Designation.findOne({ code: String(emp.designation).trim().toUpperCase() });
+        if (foundDesignation) {
+          employeeData.designationId = foundDesignation._id;
+        }
+      }
+
+      // Add department and branchCode for teaching employees
+      if (empType === 'teaching') {
+        employeeData.department = branchCode ? String(branchCode).trim() : '';
+        employeeData.branchCode = branchCode ? String(branchCode).trim().toUpperCase() : '';
+      } else {
+        // For non-teaching, add assignedHodId if provided
+        if (emp.assignedHodId) {
+          employeeData.assignedHodId = emp.assignedHodId;
+        }
+        // Note: assignedHodId is required by schema, so if not provided, save will fail
+        // This is intentional to ensure non-teaching employees have HOD assignment
+      }
+
+      const employee = new Employee(employeeData);
 
       try {
         await employee.save();
@@ -1600,6 +1681,53 @@ exports.updateOwnLeaveRequest = async (req, res) => {
     });
   } catch (error) {
     console.error('Update Own Leave Request Error:', error);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+// Delete Employee
+exports.deleteEmployee = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { Employee } = require('../models');
+
+    // Get HR's campus
+    const hr = await HR.findById(req.user.id);
+    if (!hr) {
+      return res.status(404).json({ msg: 'HR not found' });
+    }
+
+    // Find employee by ID
+    const employee = await Employee.findById(id);
+    if (!employee) {
+      return res.status(404).json({ msg: 'Employee not found' });
+    }
+
+    // Verify employee belongs to HR's campus
+    const employeeCampus = typeof employee.campus === 'string' 
+      ? employee.campus.toLowerCase() 
+      : (employee.campus?.name || employee.campus?.type || '').toLowerCase();
+    const hrCampus = typeof hr.campus === 'string' 
+      ? hr.campus.toLowerCase() 
+      : (hr.campus?.name || hr.campus?.type || '').toLowerCase();
+
+    if (employeeCampus !== hrCampus) {
+      return res.status(403).json({ msg: 'You can only delete employees from your own campus' });
+    }
+
+    // Delete the employee
+    await Employee.findByIdAndDelete(id);
+
+    res.json({
+      msg: 'Employee deleted successfully',
+      employee: {
+        id: employee._id,
+        name: employee.name,
+        employeeId: employee.employeeId
+      }
+    });
+  } catch (error) {
+    console.error('Delete Employee Error:', error);
     res.status(500).json({ msg: 'Server error' });
   }
 };
