@@ -566,8 +566,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, isHR = false }) => 
   };
 
   const filteredFacultyList = facultyList.filter(faculty =>
-    faculty.name.toLowerCase().includes(facultySearchQuery.toLowerCase()) ||
-    faculty.department.toLowerCase().includes(facultySearchQuery.toLowerCase())
+    (faculty.name && faculty.name.toLowerCase().includes(facultySearchQuery.toLowerCase())) ||
+    (faculty.department && faculty.department.toLowerCase().includes(facultySearchQuery.toLowerCase()))
   );
 
   const LeaveBalanceCard = ({ type, balance }) => {
