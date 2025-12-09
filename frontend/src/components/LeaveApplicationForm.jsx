@@ -348,8 +348,10 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, isHR = false }) => 
   const validateBasicDetails = () => {
     if (!formData.leaveType) return 'Please select leave type';
     if (!formData.startDate) return 'Please select start date';
-    if (!formData.isHalfDay && !formData.endDate) return 'Please select end date';
-    if (formData.isHalfDay && !formData.session) return 'Please select session for half-day leave';
+    // For non-teaching employees, end date is not required even for full day leave
+    if (!isNonTeaching && !formData.isHalfDay && !formData.endDate) return 'Please select end date';
+    // For teaching employees only, session is required for half-day leave
+    if (!isNonTeaching && formData.isHalfDay && !formData.session) return 'Please select session for half-day leave';
     if (!formData.reason) return 'Please provide a reason';
     return null;
   };
@@ -443,9 +445,16 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, isHR = false }) => 
       return;
     }
 
-    if (!formData.startDate || !formData.endDate) {
-      console.log('Date fields missing');
-      toast.error('Please select start and end dates');
+    if (!formData.startDate) {
+      console.log('Start date missing');
+      toast.error('Please select start date');
+      return;
+    }
+
+    // For non-teaching employees, end date is not required even for full day leave
+    if (!isNonTeaching && !formData.isHalfDay && !formData.endDate) {
+      console.log('End date missing for teaching employee full day leave');
+      toast.error('Please select end date');
       return;
     }
 
@@ -477,9 +486,26 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, isHR = false }) => 
 
       const token = localStorage.getItem('token');
 
-      const start = new Date(formData.startDate);
-      const end = new Date(formData.endDate);
-      const numberOfDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+      // Determine number of days based on leave type and employee type
+      let numberOfDays;
+      let endDate = formData.endDate;
+
+      if (formData.isHalfDay) {
+        // Half-day leave is always 0.5 days regardless of employee type
+        numberOfDays = 0.5;
+        // For half-day, end date should be same as start date
+        endDate = formData.startDate;
+      } else if (isNonTeaching) {
+        // Non-teaching employees: full-day = 1
+        numberOfDays = 1;
+        // Set end date same as start date for consistency in backend
+        endDate = formData.startDate;
+      } else {
+        // Teaching employees: calculate based on date range for multi-day leave
+        const start = new Date(formData.startDate);
+        const end = new Date(formData.endDate);
+        numberOfDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+      }
 
       // For non-teaching employees, no alternate schedule needed
       // For teaching employees, include alternate schedule
@@ -490,8 +516,8 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, isHR = false }) => 
         department: employee.department || 'Non-Teaching',
         campus: employee.campus,
         startDate: formData.startDate,
-        endDate: formData.endDate,
-        numberOfDays: formData.isHalfDay ? 0.5 : numberOfDays,
+        endDate: endDate,
+        numberOfDays: numberOfDays,
         alternateSchedule: isNonTeaching ? [] : formData.alternateSchedule.map(day => ({
           date: day.date,
           periods: day.periods.map(period => ({
@@ -501,6 +527,12 @@ const LeaveApplicationForm = ({ onSubmit, onClose, employee, isHR = false }) => 
           }))
         }))
       };
+
+      // Ensure isHalfDay is properly set for all employee types
+      // (it gets removed for OD leave type in some cases, so we need to handle this)
+      if (formData.isHalfDay && formData.leaveType !== 'OD') {
+        formattedData.isHalfDay = true;
+      }
 
       // include selected CCL days when leave type is CCL
       if (formData.leaveType === 'CCL') {
