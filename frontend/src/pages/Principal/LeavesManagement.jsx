@@ -21,7 +21,7 @@ const LeavesManagement = ({
         endDate: '',
         department: '',
         status: 'Forwarded by HOD',
-        name: ''
+        employeeType: '' // Add employeeType filter
     });
     const [cclFilters, setCclFilters] = useState({
         startDate: '',
@@ -45,7 +45,8 @@ const LeavesManagement = ({
     const [exportIncludeSummary, setExportIncludeSummary] = useState(true);
     const [showLeaveDetailsModal, setShowLeaveDetailsModal] = useState(false);
     const [isSubmittingRemarks, setIsSubmittingRemarks] = useState(false);
-    const [leavesPerPage, setLeavesPerPage] = useState(10);
+
+    const LEAVES_PER_PAGE = 15;
 
     // Apply complete client-side filtering for leaves
     const filteredLeaves = forwardedLeaves.filter(leave => {
@@ -89,10 +90,10 @@ const LeavesManagement = ({
             }
         }
 
-        // Filter by name
-        if (leaveFilters.name) {
-            const employeeName = (leave.employeeName || leave.employee?.name || '').toLowerCase();
-            if (!employeeName.includes(leaveFilters.name.toLowerCase())) {
+        // Filter by employeeType
+        if (leaveFilters.employeeType && leaveFilters.employeeType !== 'All') {
+            const empType = leave.employeeType || leave.employee?.employeeType;
+            if (empType !== leaveFilters.employeeType) {
                 return false;
             }
         }
@@ -142,24 +143,17 @@ const LeavesManagement = ({
             }
         }
 
-        // Filter by name (using leaveFilters.name as shared filter)
-        if (leaveFilters.name) {
-            const employeeName = (ccl.employeeName || ccl.employee?.name || '').toLowerCase();
-            if (!employeeName.includes(leaveFilters.name.toLowerCase())) {
-                return false;
-            }
-        }
-
         return true;
     });
 
+    // Calculate paginated leaves and CCLs
     // Calculate paginated leaves and CCLs
     const allLeaveRows = [
         ...filteredLeaves.map(leave => ({ ...leave, _isLeave: true })),
         ...filteredCCL.map(ccl => ({ ...ccl, _isLeave: false })) // Use filteredCCL instead of cclWorkRequests
     ];
-    const totalLeavePages = Math.ceil(allLeaveRows.length / leavesPerPage) || 1;
-    const paginatedLeaveRows = allLeaveRows.slice((leavePage - 1) * leavesPerPage, leavePage * leavesPerPage);
+    const totalLeavePages = Math.ceil(allLeaveRows.length / LEAVES_PER_PAGE) || 1;
+    const paginatedLeaveRows = allLeaveRows.slice((leavePage - 1) * LEAVES_PER_PAGE, leavePage * LEAVES_PER_PAGE);
 
     const handleLeaveAction = async (action) => {
         if (!selectedLeave) return;
@@ -462,15 +456,7 @@ const LeavesManagement = ({
         const now = new Date();
         const month = now.toLocaleString('en-US', { month: 'long' });
         const year = now.getFullYear();
-        
-        // Get department code if filter is applied
-        const selectedDepartment = leaveFilters.department || null;
-        
-        // Build title with department code if filtered
-        const title = selectedDepartment 
-            ? `Leave Requests - ${selectedDepartment} - ${month} ${year}`
-            : `Leave Requests - ${month} - ${year}`;
-        
+        const title = `Leave Requests - ${month} - ${year}`;
         const logoUrl = window.location.origin + '/PYDAH_LOGO_PHOTO.jpg';
 
         // Helper to draw the PDF (with or without logo)
@@ -500,20 +486,7 @@ const LeavesManagement = ({
             doc.setFontSize(14);
             doc.setTextColor(211, 84, 0); // Orange color
             doc.text(title, pageWidth / 2, currentY, { align: 'center' });
-            currentY += 6;
-
-            // Filter info subtitle (date range only - department is already in title)
-            if (leaveFilters.startDate || leaveFilters.endDate) {
-                const dateRange = [];
-                if (leaveFilters.startDate) dateRange.push(`From: ${new Date(leaveFilters.startDate).toLocaleDateString('en-GB')}`);
-                if (leaveFilters.endDate) dateRange.push(`To: ${new Date(leaveFilters.endDate).toLocaleDateString('en-GB')}`);
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(10);
-                doc.setTextColor(80, 80, 80);
-                doc.text(dateRange.join(' | '), pageWidth / 2, currentY, { align: 'center' });
-                currentY += 6;
-            }
-            currentY += 4;
+            currentY += 10;
 
             // Horizontal line
             doc.setDrawColor(200, 200, 200);
@@ -718,11 +691,10 @@ const LeavesManagement = ({
             doc.setTextColor(0, 0, 0);
             doc.text('Principal Signature', pageWidth - margin - 40, finalY, { align: 'right' });
 
-            // Save the PDF with department in filename if filtered
-            const deptSuffix = selectedDepartment ? `_${selectedDepartment.replace(/\s+/g, '_')}` : '';
+            // Save the PDF
             const fileName = pdfIncludeCCL ?
-                `Leave_and_CCL_Requests${deptSuffix}_${month}_${year}.pdf` :
-                `Leave_Requests${deptSuffix}_${month}_${year}.pdf`;
+                `Leave_and_CCL_Requests_${month}_${year}.pdf` :
+                `Leave_Requests_${month}_${year}.pdf`;
             doc.save(fileName);
         };
 
@@ -812,7 +784,7 @@ const LeavesManagement = ({
             endDate: '',
             department: '',
             status: 'Forwarded by HOD',
-            name: ''
+            employeeType: ''
         });
     };
 
@@ -846,6 +818,7 @@ const LeavesManagement = ({
             </div>
         );
     }
+
     return (
         <div className="p-6 mt-4">
             <h2 className="text-2xl font-bold text-primary mb-6">Leave Requests</h2>
@@ -871,7 +844,7 @@ const LeavesManagement = ({
             <div className="bg-secondary rounded-neumorphic shadow-outerRaised p-6">
                 {/* Filter UI for leaves */}
                 <div className="mb-6">
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
                             <input
@@ -911,20 +884,23 @@ const LeavesManagement = ({
                                 className="w-full p-2 rounded-neumorphic shadow-innerSoft bg-background border border-gray-300"
                             >
                                 <option value="Forwarded by HOD">Forwarded by HOD</option>
+                                <option value="Forwarded to HR">Forwarded to HR</option>
                                 <option value="Approved">Approved</option>
                                 <option value="Rejected">Rejected</option>
                                 <option value="All">All Status</option>
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Search by Name</label>
-                            <input
-                                type="text"
-                                value={leaveFilters.name}
-                                onChange={e => setLeaveFilters({ ...leaveFilters, name: e.target.value })}
-                                placeholder="Search employee..."
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Employee Type</label>
+                            <select
+                                value={leaveFilters.employeeType}
+                                onChange={e => setLeaveFilters({ ...leaveFilters, employeeType: e.target.value })}
                                 className="w-full p-2 rounded-neumorphic shadow-innerSoft bg-background border border-gray-300"
-                            />
+                            >
+                                <option value="">All Types</option>
+                                <option value="teaching">Teaching</option>
+                                <option value="non-teaching">Non-Teaching</option>
+                            </select>
                         </div>
                     </div>
                     <div className="flex justify-end">
@@ -939,45 +915,6 @@ const LeavesManagement = ({
 
                 {/* Responsive Table for md+ screens, Cards for small screens */}
                 <div className="hidden md:block overflow-x-auto">
-                    {/* Pagination Controls */}
-                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4 px-4">
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-600">Rows per page:</span>
-                            <select
-                                value={leavesPerPage}
-                                onChange={(e) => {
-                                    setLeavesPerPage(Number(e.target.value));
-                                    setLeavePage(1); // Reset to first page on change
-                                }}
-                                className="p-1 border rounded text-sm bg-white focus:outline-none focus:ring-1 focus:ring-primary"
-                            >
-                                {[5, 10, 25, 50, 100, 200].map(size => (
-                                    <option key={size} value={size}>{size}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="flex justify-center items-center gap-2">
-                            <button
-                                className="px-3 py-1 rounded bg-gray-200 text-gray-700 font-semibold disabled:opacity-50"
-                                onClick={() => setLeavePage(p => Math.max(1, p - 1))}
-                                disabled={leavePage === 1}
-                            >
-                                Prev
-                            </button>
-                            <span className="text-sm text-gray-600">
-                                Page {leavePage} of {totalLeavePages}
-                            </span>
-                            <button
-                                className="px-3 py-1 rounded bg-gray-200 text-gray-700 font-semibold disabled:opacity-50"
-                                onClick={() => setLeavePage(p => Math.min(totalLeavePages, p + 1))}
-                                disabled={leavePage === totalLeavePages}
-                            >
-                                Next
-                            </button>
-                        </div>
-                    </div>
-
                     <table className="min-w-full bg-white rounded-lg overflow-hidden">
                         <thead className="bg-gray-100">
                             <tr>
@@ -1086,6 +1023,33 @@ const LeavesManagement = ({
                             })}
                         </tbody>
                     </table>
+
+                    {/* Pagination Controls */}
+                    <div className="flex justify-center items-center gap-2 mt-4">
+                        <button
+                            className="px-3 py-1 rounded bg-gray-200 text-gray-700 font-semibold disabled:opacity-50"
+                            onClick={() => setLeavePage(p => Math.max(1, p - 1))}
+                            disabled={leavePage === 1}
+                        >
+                            Prev
+                        </button>
+                        {Array.from({ length: totalLeavePages }, (_, i) => (
+                            <button
+                                key={i + 1}
+                                className={`px-3 py-1 rounded font-semibold ${leavePage === i + 1 ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}
+                                onClick={() => setLeavePage(i + 1)}
+                            >
+                                {i + 1}
+                            </button>
+                        ))}
+                        <button
+                            className="px-3 py-1 rounded bg-gray-200 text-gray-700 font-semibold disabled:opacity-50"
+                            onClick={() => setLeavePage(p => Math.min(totalLeavePages, p + 1))}
+                            disabled={leavePage === totalLeavePages}
+                        >
+                            Next
+                        </button>
+                    </div>
 
                     {/* Summary Table */}
                     <div className="mt-8">
@@ -1207,7 +1171,7 @@ const LeavesManagement = ({
                                     >
                                         View
                                     </button>
-                                    {(leave.status === 'Forwarded by HOD' || leave.status === 'Approved') && (
+                                    {(leave.status === 'Forwarded by HOD' || leave.status === 'Approved' || (leave.status === 'Forwarded to HR' && leave.employeeType?.toLowerCase() === 'non-teaching')) && (
                                         <button
                                             className="bg-red-500 text-white px-3 py-1 rounded-md text-xs hover:bg-red-600 transition-colors"
                                             onClick={() => {
@@ -1289,255 +1253,312 @@ const LeavesManagement = ({
                                                         </svg>
                                                         <h5 className="font-semibold text-yellow-800">Leave Dates Modified by Principal</h5>
                                                     </div>
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                    <div className="space-y-2">
                                                         <div>
-                                                            <p className="text-xs text-gray-500 uppercase tracking-wide">Original Requested Dates</p>
-                                                            <p className="font-medium text-gray-500 line-through">
-                                                                {new Date(selectedLeave.originalStartDate).toLocaleDateString()} - {new Date(selectedLeave.originalEndDate).toLocaleDateString()}
-                                                            </p>
-                                                            <p className="text-xs text-gray-400 mt-1">({selectedLeave.numberOfDays} days)</p>
+                                                            <p className="text-sm text-yellow-800">Original Request:</p>
+                                                            <p className="font-medium text-sm">{new Date(selectedLeave.startDate).toLocaleDateString()} to {new Date(selectedLeave.endDate).toLocaleDateString()}</p>
+                                                            <p className="text-xs text-yellow-700">({selectedLeave.numberOfDays} days)</p>
                                                         </div>
                                                         <div>
-                                                            <p className="text-xs text-green-600 uppercase tracking-wide">Approved Dates</p>
-                                                            <p className="font-bold text-green-700">
-                                                                {new Date(selectedLeave.startDate).toLocaleDateString()} - {new Date(selectedLeave.endDate).toLocaleDateString()}
-                                                            </p>
-                                                            <p className="text-xs text-green-600 mt-1">({selectedLeave.approvedNumberOfDays} days)</p>
+                                                            <p className="text-sm text-yellow-800">Approved Dates:</p>
+                                                            <p className="font-medium text-sm">{new Date(selectedLeave.approvedStartDate).toLocaleDateString()} to {new Date(selectedLeave.approvedEndDate).toLocaleDateString()}</p>
+                                                            <p className="text-xs text-yellow-700">({selectedLeave.approvedNumberOfDays} days)</p>
                                                         </div>
+                                                        {selectedLeave.principalModificationReason && (
+                                                            <div>
+                                                                <p className="text-sm text-yellow-800">Modification Reason:</p>
+                                                                <p className="text-sm">{selectedLeave.principalModificationReason}</p>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div>
-                                                <p className="text-sm text-gray-600">Dates</p>
-                                                <p className="font-medium text-sm sm:text-base">
-                                                    {new Date(selectedLeave.startDate).toLocaleDateString()} - {new Date(selectedLeave.endDate).toLocaleDateString()}
-                                                </p>
+                                            <div className="col-span-1 sm:col-span-2">
+                                                <p className="text-sm text-gray-600">Duration</p>
+                                                <p className="font-medium text-sm sm:text-base">{new Date(selectedLeave.startDate).toLocaleDateString()} to {new Date(selectedLeave.endDate).toLocaleDateString()} ({selectedLeave.numberOfDays} days)</p>
                                             </div>
                                         )}
                                     </div>
                                     <div>
-                                        <p className="text-sm text-gray-600">Number of Days</p>
-                                        <p className="font-medium text-sm sm:text-base">{selectedLeave.isModifiedByPrincipal ? selectedLeave.approvedNumberOfDays : selectedLeave.numberOfDays}</p>
+                                        <p className="text-sm text-gray-600">Applied On</p>
+                                        <p className="font-medium text-sm sm:text-base">
+                                            {selectedLeave.appliedOn ? new Date(selectedLeave.appliedOn).toLocaleDateString() : 'N/A'}
+                                        </p>
                                     </div>
-                                    <div className="col-span-1 sm:col-span-2">
-                                        <p className="text-sm text-gray-600">Reason</p>
-                                        <p className="font-medium text-sm sm:text-base bg-white p-2 rounded border border-gray-200 mt-1">{selectedLeave.reason}</p>
-                                    </div>
-                                    <div className="col-span-1 sm:col-span-2">
+                                    {selectedLeave.leaveType === 'CCL' && Array.isArray(selectedLeave.cclWorkedDates) && selectedLeave.cclWorkedDates.length > 0 && (
+                                        <div className="col-span-1 sm:col-span-2">
+                                            <p className="text-sm text-gray-600">CCL Worked Days</p>
+                                            <p className="font-medium text-sm sm:text-base">{selectedLeave.cclWorkedDates.join(', ')}</p>
+                                        </div>
+                                    )}
+                                    <div>
                                         <p className="text-sm text-gray-600">Status</p>
-                                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold mt-1
+                                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold
                       ${selectedLeave.status === 'Approved' ? 'bg-green-100 text-green-800' :
                                                 selectedLeave.status === 'Rejected' ? 'bg-red-100 text-red-800' :
                                                     selectedLeave.status === 'Forwarded by HOD' ? 'bg-blue-100 text-blue-800' :
                                                         selectedLeave.status === 'Forwarded to HR' ? 'bg-purple-100 text-purple-800' :
                                                             'bg-yellow-100 text-yellow-800'}`}
                                         >
-                                            {selectedLeave.status}
+                                            {selectedLeave.status || 'N/A'}
                                         </span>
                                     </div>
-                                    {selectedLeave.status === 'Rejected' && (
+                                    {selectedLeave.isHalfDay && (
                                         <div className="col-span-1 sm:col-span-2">
-                                            <p className="text-sm text-gray-600">Rejection Reason</p>
-                                            <p className="font-medium text-sm sm:text-base text-red-600 bg-red-50 p-2 rounded border border-red-100 mt-1">
-                                                {selectedLeave.rejectionReason || 'No reason provided'}
-                                            </p>
-                                            <p className="text-xs text-gray-500 mt-1">Rejected by: {selectedLeave.rejectionBy || 'Unknown'}</p>
+                                            <p className="text-sm text-gray-600">Half Day Leave</p>
+                                        </div>
+                                    )}
+                                    {/* Add Modification Details Section */}
+                                    {selectedLeave.originalStartDate && selectedLeave.originalEndDate && (
+                                        <div className="col-span-1 sm:col-span-2">
+                                            <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-100">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-600" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                                    </svg>
+                                                    <h5 className="font-semibold text-yellow-800">Leave Dates Modified by Principal</h5>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <div>
+                                                        <p className="text-sm text-yellow-800">Original Request:</p>
+                                                        <p className="font-medium text-sm">{new Date(selectedLeave.originalStartDate).toLocaleDateString()} to {new Date(selectedLeave.originalEndDate).toLocaleDateString()}</p>
+                                                        <p className="text-xs text-yellow-700">({selectedLeave.originalNumberOfDays} days)</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm text-yellow-800">Approved Dates:</p>
+                                                        <p className="font-medium text-sm">{new Date(selectedLeave.startDate).toLocaleDateString()} to {new Date(selectedLeave.endDate).toLocaleDateString()}</p>
+                                                        <p className="text-xs text-yellow-700">({selectedLeave.numberOfDays} days)</p>
+                                                    </div>
+                                                    {selectedLeave.modificationReason && (
+                                                        <div>
+                                                            <p className="text-sm text-yellow-800">Modification Reason:</p>
+                                                            <p className="text-sm">{selectedLeave.modificationReason}</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="col-span-1 sm:col-span-2">
+                                        <p className="text-sm text-gray-600">Reason</p>
+                                        <p className="font-medium text-sm sm:text-base">{selectedLeave.reason || 'No reason provided'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {/* Remarks */}
+                            <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                                <h4 className="font-semibold text-gray-900 mb-2">Remarks</h4>
+                                <div className="space-y-2">
+                                    {selectedLeave.hodRemarks && (
+                                        <div>
+                                            <p className="text-sm text-gray-600">HOD Remarks</p>
+                                            <p className="font-medium text-sm sm:text-base">{selectedLeave.hodRemarks}</p>
+                                        </div>
+                                    )}
+                                    {selectedLeave.principalRemarks && (
+                                        <div>
+                                            <p className="text-sm text-gray-600">Principal Remarks</p>
+                                            <p className="font-medium text-sm sm:text-base">{selectedLeave.principalRemarks}</p>
                                         </div>
                                     )}
                                 </div>
                             </div>
-                        </div>
-                        <div className="mt-6 flex flex-col sm:flex-row justify-end gap-3 sm:gap-4">
-                            {selectedLeave.status === 'Forwarded by HOD' && (
-                                <>
+                            {/* Alternate Schedule */}
+                            {selectedLeave.alternateSchedule && selectedLeave.alternateSchedule.length > 0 && (
+                                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                                    <h4 className="font-semibold text-gray-900 mb-2">Alternate Schedule</h4>
+                                    <div className="space-y-3 sm:space-y-4">
+                                        {selectedLeave.alternateSchedule.map((schedule, index) => (
+                                            <div key={index} className="bg-white p-2 sm:p-3 rounded-md">
+                                                <p className="font-medium text-sm sm:text-base mb-2">
+                                                    Date: {schedule.date ? new Date(schedule.date).toLocaleDateString() : 'N/A'}
+                                                </p>
+                                                {schedule.periods && schedule.periods.length > 0 ? (
+                                                    <div className="space-y-2">
+                                                        {schedule.periods.map((period, pIndex) => (
+                                                            <div key={pIndex} className="bg-gray-50 p-2 rounded">
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                                    <div>
+                                                                        <span className="text-sm text-gray-600">Period:</span>{' '}
+                                                                        <span className="font-medium text-sm sm:text-base">{period.periodNumber || 'N/A'}</span>
+                                                                    </div>
+                                                                    <div>
+                                                                        <span className="text-sm text-gray-600">Class:</span>{' '}
+                                                                        <span className="font-medium text-sm sm:text-base">{period.assignedClass || 'N/A'}</span>
+                                                                    </div>
+                                                                    <div className="col-span-1 sm:col-span-2">
+                                                                        <span className="text-sm text-gray-600">Substitute Faculty:</span>{' '}
+                                                                        <span className="font-medium text-sm sm:text-base">
+                                                                            {typeof period.substituteFaculty === 'object' && period.substituteFaculty?.name
+                                                                                ? period.substituteFaculty.name
+                                                                                : period.substituteFacultyName
+                                                                                    ? period.substituteFacultyName
+                                                                                    : (typeof period.substituteFaculty === 'string' && period.substituteFaculty)
+                                                                                        ? period.substituteFaculty
+                                                                                        : 'N/A'}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-gray-500 italic text-sm sm:text-base">No periods assigned for this day</p>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Action Buttons */}
+                            {(selectedLeave.status === 'Forwarded by HOD' || selectedLeave.status === 'Approved' || (selectedLeave.status === 'Forwarded to HR' && selectedLeave.employeeType?.toLowerCase() === 'non-teaching')) && (
+                                <div className="flex justify-end space-x-4 mt-6">
+                                    {(selectedLeave.status === 'Forwarded by HOD' || (selectedLeave.status === 'Forwarded to HR' && selectedLeave.employeeType?.toLowerCase() === 'non-teaching')) && (
+                                        <button
+                                            onClick={() => {
+                                                setShowLeaveDetailsModal(false);
+                                                setSelectedLeaveForEdit(selectedLeave);
+                                                setSelectedAction('approve');
+                                                setShowDateEditModal(true);
+                                            }}
+                                            className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors"
+                                        >
+                                            Review & Approve
+                                        </button>
+                                    )}
                                     <button
-                                        className="bg-green-500 text-white px-4 py-2 rounded shadow hover:bg-green-600 transition w-full sm:w-auto"
                                         onClick={() => {
+                                            setShowLeaveDetailsModal(false);
                                             setSelectedLeaveForEdit(selectedLeave);
+                                            setSelectedAction('reject');
                                             setShowDateEditModal(true);
                                         }}
+                                        className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition-colors"
                                     >
-                                        Approve
+                                        {selectedLeave.status === 'Approved' ? 'Reject Approved Request' : 'Review & Reject'}
                                     </button>
-                                    <button
-                                        className="bg-red-500 text-white px-4 py-2 rounded shadow hover:bg-red-600 transition w-full sm:w-auto"
-                                        onClick={() => {
-                                            setSelectedRequestId(selectedLeave._id);
-                                            setSelectedAction('reject');
-                                            setShowRemarksModal(true);
-                                        }}
-                                    >
-                                        Reject
-                                    </button>
-                                </>
+                                </div>
                             )}
-                            {selectedLeave.status === 'Approved' && (
-                                <button
-                                    className="bg-red-500 text-white px-4 py-2 rounded shadow hover:bg-red-600 transition w-full sm:w-auto"
-                                    onClick={() => {
-                                        setSelectedRequestId(selectedLeave._id);
-                                        setSelectedAction('reject');
-                                        setShowRemarksModal(true);
-                                    }}
-                                >
-                                    Reject Approved Request
-                                </button>
-                            )}
-                            <button
-                                className="bg-gray-500 text-white px-4 py-2 rounded shadow hover:bg-gray-600 transition w-full sm:w-auto"
-                                onClick={() => setSelectedLeave(null)}
-                            >
-                                Close
-                            </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Date Edit Modal */}
+            {/* Leave Date Edit Modal */}
             <LeaveDateEditModal
                 isOpen={showDateEditModal}
                 onClose={() => {
                     setShowDateEditModal(false);
                     setSelectedLeaveForEdit(null);
+                    setSelectedAction(null);
                 }}
                 leaveRequest={selectedLeaveForEdit}
+                action={selectedAction} // Pass the action to determine which button to show
                 onApprove={handleApproveWithDates}
                 onReject={handleRejectWithDates}
             />
 
             {/* Remarks Modal */}
             <RemarksModal
-                isOpen={showRemarksModal}
+                show={showRemarksModal}
                 onClose={() => {
                     setShowRemarksModal(false);
-                    setRemarks('');
-                    setSelectedRequestId(null);
                     setSelectedAction(null);
+                    setSelectedRequestId(null);
                 }}
                 onSubmit={handleRemarksSubmit}
-                title={selectedAction === 'approve' ? 'Approve Leave Request' : 'Reject Leave Request'}
-                label="Remarks"
-                isSubmitting={isSubmittingRemarks}
+                action={selectedAction}
             />
 
-            {/* CCL Remarks Modal */}
-            <RemarksModal
-                isOpen={showCCLRemarksModal}
-                onClose={() => {
-                    setShowCCLRemarksModal(false);
-                    setCclRemarks('');
-                    setSelectedCCLWork(null);
-                }}
-                onSubmit={(remarks) => {
-                    setCclRemarks(remarks);
-                }}
-            />
+            {/* CCL Work Request Remarks Modal */}
             {showCCLRemarksModal && selectedCCLWork && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
-                        <h3 className="text-xl font-bold text-primary mb-4">CCL Work Request Details</h3>
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <p className="text-sm text-gray-600">Employee</p>
-                                    <p className="font-medium">{selectedCCLWork.employeeName}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-600">Date</p>
-                                    <p className="font-medium">{new Date(selectedCCLWork.date).toLocaleDateString()}</p>
-                                </div>
-                                <div className="col-span-2">
-                                    <p className="text-sm text-gray-600">Reason</p>
-                                    <p className="font-medium bg-gray-50 p-2 rounded">{selectedCCLWork.reason}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-600">Status</p>
-                                    <p className="font-medium">{selectedCCLWork.status}</p>
-                                </div>
-                            </div>
-                            <div className="flex justify-end gap-2 mt-4">
-                                {selectedCCLWork.status === 'Forwarded to Principal' && (
-                                    <>
-                                        <button
-                                            className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-                                            onClick={() => handleCCLWorkAction('Approved')}
-                                        >
-                                            Approve
-                                        </button>
-                                        <button
-                                            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-                                            onClick={() => handleCCLWorkAction('Rejected')}
-                                        >
-                                            Reject
-                                        </button>
-                                    </>
-                                )}
-                                <button
-                                    className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-                                    onClick={() => setShowCCLRemarksModal(false)}
-                                >
-                                    Close
-                                </button>
-                            </div>
+                    <div className="bg-white rounded-lg shadow-xl p-4 lg:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                            Review CCL Work Request
+                        </h3>
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Remarks
+                            </label>
+                            <textarea
+                                value={cclRemarks}
+                                onChange={(e) => setCclRemarks(e.target.value)}
+                                rows="3"
+                                className="w-full p-2 lg:p-3 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                placeholder="Enter your remarks..."
+                            />
+                        </div>
+                        <div className="flex justify-end space-x-4">
+                            <button
+                                onClick={() => {
+                                    setSelectedCCLWork(null);
+                                    setCclRemarks('');
+                                    setShowCCLRemarksModal(false);
+                                }}
+                                className="px-3 lg:px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleCCLWorkAction('Approved')}
+                                className="px-3 lg:px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700"
+                            >
+                                Approve
+                            </button>
+                            <button
+                                onClick={() => handleCCLWorkAction('Rejected')}
+                                className="px-3 lg:px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700"
+                            >
+                                Reject
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Export to PDF Modal */}
+            {/* Export Options Modal */}
             {showExportModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-xl font-bold text-primary">Export to PDF</h3>
-                            <button
-                                onClick={() => setShowExportModal(false)}
-                                className="text-gray-500 hover:text-gray-700 text-xl font-bold"
-                            >
-                                ✕
-                            </button>
-                        </div>
-                        <p className="text-gray-600 mb-4">
-                            Configure your PDF export options. Only <strong>Approved</strong> requests will be included.
-                        </p>
-                        <div className="space-y-3 mb-6">
-                            <label className="flex items-center gap-3 cursor-pointer">
+                    <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+                        <h3 className="text-lg font-bold mb-4 text-primary">Export to PDF Options</h3>
+                        <div className="mb-4 space-y-3">
+                            <label className="flex items-center gap-2">
                                 <input
                                     type="checkbox"
                                     checked={exportIncludeCCL}
-                                    onChange={(e) => setExportIncludeCCL(e.target.checked)}
-                                    className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary"
+                                    onChange={e => setExportIncludeCCL(e.target.checked)}
+                                    className="form-checkbox h-4 w-4 text-primary"
                                 />
-                                <span className="text-gray-700">Include CCL Work Requests</span>
+                                Include CCL Work Requests
                             </label>
-                            <label className="flex items-center gap-3 cursor-pointer">
+                            <label className="flex items-center gap-2">
                                 <input
                                     type="checkbox"
                                     checked={exportIncludeSummary}
-                                    onChange={(e) => setExportIncludeSummary(e.target.checked)}
-                                    className="w-5 h-5 text-primary rounded border-gray-300 focus:ring-primary"
+                                    onChange={e => setExportIncludeSummary(e.target.checked)}
+                                    className="form-checkbox h-4 w-4 text-primary"
                                 />
-                                <span className="text-gray-700">Include Summary Table</span>
+                                Include Summary Table
                             </label>
                         </div>
-                        <div className="flex justify-end gap-3">
+                        <div className="flex justify-end gap-3 mt-6">
                             <button
+                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
                                 onClick={() => setShowExportModal(false)}
-                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition"
                             >
                                 Cancel
                             </button>
                             <button
+                                className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
                                 onClick={() => {
-                                    exportToPDF(exportIncludeCCL, exportIncludeSummary);
                                     setShowExportModal(false);
+                                    exportToPDF(exportIncludeCCL, exportIncludeSummary);
                                 }}
-                                className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition flex items-center gap-2"
                             >
-                                <FaFilePdf />
-                                Export PDF
+                                Export
                             </button>
                         </div>
                     </div>

@@ -399,7 +399,7 @@ exports.getCampusLeaves = async (req, res) => {
     const employees = await Employee.find({
       campus: normalizedCampus
     })
-    .select('name email department employeeId leaveRequests')
+    .select('name email department employeeId leaveRequests employeeType')
     .populate({
       path: 'leaveRequests.alternateSchedule.periods.substituteFaculty',
       select: 'name'
@@ -413,7 +413,7 @@ exports.getCampusLeaves = async (req, res) => {
     // Collect all forwarded and approved leave requests with populated faculty details
     let leaveRequests = employees.reduce((acc, employee) => {
       const employeeLeaves = employee.leaveRequests
-        .filter(request => request.status === 'Forwarded by HOD' || request.status === 'Approved')
+        .filter(request => request.status === 'Forwarded by HOD' || request.status === 'Forwarded to HR' || request.status === 'Approved')
         .map(request => {
           const leaveData = {
             ...request.toObject(),
@@ -422,6 +422,7 @@ exports.getCampusLeaves = async (req, res) => {
             employeeEmail: employee.email,
             employeeEmployeeId: employee.employeeId,
             employeeDepartment: employee.branchCode || employee.department,
+            employeeType: employee.employeeType,
             alternateSchedule: request.alternateSchedule.map(schedule => ({
               date: schedule.date,
               periods: schedule.periods.map(period => ({
@@ -1529,7 +1530,7 @@ exports.getCampusLeaves = async (req, res) => {
     const employees = await Employee.find({
       campus: normalizedCampus
     })
-    .select('name email department employeeId leaveRequests')
+    .select('name email department employeeId leaveRequests employeeType')
     .populate({
       path: 'leaveRequests.alternateSchedule.periods.substituteFaculty',
       select: 'name'
@@ -1543,7 +1544,7 @@ exports.getCampusLeaves = async (req, res) => {
     // Collect all forwarded and approved leave requests with populated faculty details
     let leaveRequests = employees.reduce((acc, employee) => {
       const employeeLeaves = employee.leaveRequests
-        .filter(request => request.status === 'Forwarded by HOD' || request.status === 'Approved')
+        .filter(request => request.status === 'Forwarded by HOD' || request.status === 'Forwarded to HR' || request.status === 'Approved')
         .map(request => {
           const leaveData = {
             ...request.toObject(),
@@ -1552,6 +1553,7 @@ exports.getCampusLeaves = async (req, res) => {
             employeeEmail: employee.email,
             employeeEmployeeId: employee.employeeId,
             employeeDepartment: employee.branchCode || employee.department,
+            employeeType: employee.employeeType,
             alternateSchedule: request.alternateSchedule.map(schedule => ({
               date: schedule.date,
               periods: schedule.periods.map(period => ({
