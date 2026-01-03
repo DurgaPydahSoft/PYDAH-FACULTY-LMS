@@ -527,7 +527,7 @@ employeeSchema.statics.validateRoleForCampus = function(campus, role) {
 };
 
 // Method to reset leave balance based on experience
-employeeSchema.methods.resetLeaveBalance = async function() {
+employeeSchema.methods.resetLeaveBalance = function() {
   const currentYear = new Date().getFullYear();
   const lastResetYear = new Date(this.lastLeaveBalanceReset).getFullYear();
   
@@ -547,9 +547,8 @@ employeeSchema.methods.resetLeaveBalance = async function() {
     // Reset to the experience-based balance
     this.leaveBalance = this.leaveBalanceByExperience;
     this.lastLeaveBalanceReset = new Date();
-    await this.save();
     
-    console.log('Leave balance reset:', {
+    console.log('Leave balance reset (in-memory):', {
       employeeId: this._id,
       employeeName: this.name,
       oldBalance: this.leaveBalance,
@@ -578,7 +577,7 @@ employeeSchema.pre('save', async function(next) {
       this.lastLeaveBalanceReset = new Date();
     } else {
       // Check if it's time for annual reset
-      await this.resetLeaveBalance();
+      this.resetLeaveBalance();
     }
     next();
   } catch (error) {
