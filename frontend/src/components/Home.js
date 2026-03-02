@@ -51,8 +51,8 @@ const LandingPage = () => {
         return true;
       }
       // Check if launched from home screen
-      if (window.matchMedia('(display-mode: fullscreen)').matches || 
-          window.matchMedia('(display-mode: minimal-ui)').matches) {
+      if (window.matchMedia('(display-mode: fullscreen)').matches ||
+        window.matchMedia('(display-mode: minimal-ui)').matches) {
         console.log('✅ App is already installed (fullscreen/minimal-ui)');
         return true;
       }
@@ -94,7 +94,7 @@ const LandingPage = () => {
     const checkPWASupport = () => {
       const hasServiceWorker = 'serviceWorker' in navigator;
       const hasManifest = document.querySelector('link[rel="manifest"]');
-      
+
       console.log('PWA Support Check:', {
         serviceWorker: hasServiceWorker,
         manifest: !!hasManifest,
@@ -219,12 +219,25 @@ const LandingPage = () => {
   return (
     <div className="  bg-white ">
       <PullToRefresh onRefresh={handleRefresh} />
+      {/* Redirection Banner */}
+      <div className="bg-yellow-100 border-b border-yellow-200 py-2 px-4 text-center sticky top-0 z-[60] shadow-sm">
+        <p className="text-yellow-800 font-bold text-sm sm:text-base">
+          ⚠️ This site is no longer active. Please visit our new site:{" "}
+          <a
+            href="https://li-hrms.vercel.app/"
+            className="text-blue-600 underline hover:text-blue-800 transition-colors"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            https://li-hrms.vercel.app/
+          </a>
+        </p>
+      </div>
       {/* Header with mobile menu */}
-      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled 
-          ? 'bg-white/95 backdrop-blur-md shadow-lg border-b border-primary/20' 
+      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
+          ? 'bg-white/95 backdrop-blur-md shadow-lg border-b border-primary/20'
           : 'bg-white'
-      }`}>
+        }`}>
         <div className="container mx-auto px-2 sm:px-4 py-2 md:py-4 flex items-center justify-between">
           {/* Logo and Info Bar Section for mobile */}
           <div className="flex flex-col xs:flex-row xs:items-center space-y-1 xs:space-y-0 xs:space-x-2 sm:space-x-3 animate__animated animate__fadeInLeft w-full">
@@ -261,14 +274,14 @@ const LandingPage = () => {
           </div>
 
           {/* Mobile Menu Button */}
-          <button 
+          <button
             onClick={toggleMobileMenu}
             className="md:hidden p-2 rounded-lg hover:bg-gray-100 focus:outline-none"
           >
-            <svg 
-              className="w-6 h-6 text-primary" 
-              fill="none" 
-              stroke="currentColor" 
+            <svg
+              className="w-6 h-6 text-primary"
+              fill="none"
+              stroke="currentColor"
               viewBox="0 0 24 24"
             >
               {isMobileMenuOpen ? (
@@ -289,29 +302,28 @@ const LandingPage = () => {
         </div>
 
         {/* Mobile Navigation Menu */}
-        <div className={`md:hidden transition-all duration-300 ease-in-out ${
-          isMobileMenuOpen ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0'
-        } overflow-hidden bg-white border-t border-gray-100`}>
+        <div className={`md:hidden transition-all duration-300 ease-in-out ${isMobileMenuOpen ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0'
+          } overflow-hidden bg-white border-t border-gray-100`}>
           <nav className="container mx-auto px-4 py-3 flex flex-col space-y-3">
-            <button 
+            <button
               className="text-primary hover:text-accent transition-colors font-medium py-2 text-left bg-transparent border-none outline-none cursor-pointer"
               onClick={() => handleNavClick('about')}
             >
               About
             </button>
-            <button 
+            <button
               className="text-primary hover:text-accent transition-colors font-medium py-2 text-left bg-transparent border-none outline-none cursor-pointer"
               onClick={() => handleNavClick('features')}
             >
               Features
             </button>
-            <button 
+            <button
               className="text-primary hover:text-accent transition-colors font-medium py-2 text-left bg-transparent border-none outline-none cursor-pointer"
               onClick={() => handleNavClick('team')}
             >
               Team
             </button>
-            <button 
+            <button
               className="text-primary hover:text-accent transition-colors font-medium py-2 text-left bg-transparent border-none outline-none cursor-pointer"
               onClick={() => handleNavClick('contact')}
             >
@@ -326,103 +338,111 @@ const LandingPage = () => {
         <CircleBackground className="absolute inset-0 z-10">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-8 sm:py-12 lg:py-16">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 xl:gap-20 items-center relative z-20 max-w-7xl mx-auto">
-            {/* Hero Content */}
-            <div className="text-center lg:text-left animate__animated animate__fadeInUp w-full">
-            <div className="inline-flex items-center px-4 py-2 rounded-full bg-accent/20 text-accent font-medium text-sm mb-6">
-              <span className="w-2 h-2 bg-accent rounded-full mr-2 animate-pulse"></span>
-              Now Live - Leave Management System
-            </div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-4 sm:mb-6">
-              <span className="bg-gradient-to-t from-black/80 to-primary/90 bg-clip-text text-transparent">
-                <ReactTyped
-                  strings={[
-                    "Smart Leave Flow",
-                    "Seamless Staff Portal",
-                    "Digital Leave Tracking",
-                    "A Pydah Soft Product"
-                  ]}
-                  typeSpeed={60}
-                  backSpeed={40}
-                  loop
-                />
-              </span>
-            </h1>
-            <p className="text-sm sm:text-base md:text-lg text-gray-700 mb-6 sm:mb-8 max-w-2xl mx-auto lg:mx-0">
-              Transform your leave management experience with our intuitive, 
-              modern platform designed for Pydah College faculty and staff.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <button
-                onClick={() => navigate("/home")}
-                className="group relative px-4 sm:px-6 py-3 bg-primary text-white font-semibold rounded-xl
-                         shadow-lg hover:shadow-xl hover:bg-green-600 transform hover:-translate-y-1 transition-all duration-300 overflow-hidden"
-              >
-                <span className="relative z-10 flex items-center justify-center">
-                  Get Started
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </svg>
-                </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-green-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              </button>
-              {isInstallable && (
-                <button
-                  onClick={handleInstallClick}
-                  className="group relative px-4 sm:px-6 py-3 bg-green-600 text-white font-semibold rounded-xl
-                           shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 overflow-hidden"
-                >
-                  <span className="relative z-10 flex items-center justify-center">
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Download App
+              {/* Hero Content */}
+              <div className="text-center lg:text-left animate__animated animate__fadeInUp w-full">
+                <div className="inline-flex items-center px-4 py-2 rounded-full bg-accent/20 text-accent font-medium text-sm mb-6">
+                  <span className="w-2 h-2 bg-accent rounded-full mr-2 animate-pulse"></span>
+                  Now Live - Leave Management System
+                </div>
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-4 sm:mb-6">
+                  <span className="bg-gradient-to-t from-black/80 to-primary/90 bg-clip-text text-transparent">
+                    <ReactTyped
+                      strings={[
+                        "Smart Leave Flow",
+                        "Seamless Staff Portal",
+                        "Digital Leave Tracking",
+                        "A Pydah Soft Product"
+                      ]}
+                      typeSpeed={60}
+                      backSpeed={40}
+                      loop
+                    />
                   </span>
-                  {/* <div className="absolute inset-0 bg-gradient-to-r from-green-700 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div> */}
-                </button>
-              )}
-            </div>
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-6 sm:mt-8 pt-4 sm:pt-6">
-              <div className="text-center">
-                <div className="text-lg sm:text-xl md:text-2xl font-bold text-primary">500+</div>
-                <div className="text-xs sm:text-sm text-gray-600">Active Users</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg sm:text-xl md:text-2xl font-bold text-primary">99%</div>
-                <div className="text-xs sm:text-sm text-gray-600">Uptime</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg sm:text-xl md:text-2xl font-bold text-primary">24/7</div>
-                <div className="text-xs sm:text-sm text-gray-600">Support</div>
-              </div>
-            </div>
-            </div>
-            {/* Hero Visual */}
-            <div className="relative animate__animated animate__fadeInRight mt-8 lg:mt-0 w-full">
-            <div className="relative bg-white rounded-2xl sm:rounded-3xl shadow-xl overflow-hidden border border-gray-100 w-full">
-              <Slider {...sliderSettings}>
-                <div className="relative h-48 sm:h-48 md:h-80 lg:h-80">
-                  <img
-                    src="https://img.freepik.com/premium-photo/group-happy-smiling-business-people-standing-vector-illustration-cartoon-style_941097-22130.jpg"
-                    alt="College Campus"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                </h1>
+                <p className="text-sm sm:text-base md:text-lg text-gray-700 mb-6 sm:mb-8 max-w-2xl mx-auto lg:mx-0">
+                  Transform your leave management experience with our intuitive,
+                  modern platform designed for Pydah College faculty and staff.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                  {/* Redirection Message instead of Get Started */}
+                  <div className="flex flex-col items-center lg:items-start gap-4">
+                    <p className="text-red-600 font-bold animate-pulse">
+                      This site is no longer working.
+                    </p>
+                    <a
+                      href="https://li-hrms.vercel.app/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group relative px-6 py-3 bg-primary text-white font-semibold rounded-xl
+                           shadow-lg hover:shadow-xl hover:bg-green-600 transform hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                    >
+                      <span className="relative z-10 flex items-center justify-center">
+                        Go to New Site
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </span>
+                      <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-green-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    </a>
+                  </div>
+                  {isInstallable && (
+                    <button
+                      onClick={handleInstallClick}
+                      className="group relative px-4 sm:px-6 py-3 bg-green-600 text-white font-semibold rounded-xl
+                           shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                    >
+                      <span className="relative z-10 flex items-center justify-center">
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Download App
+                      </span>
+                      {/* <div className="absolute inset-0 bg-gradient-to-r from-green-700 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div> */}
+                    </button>
+                  )}
                 </div>
-                <div className="relative h-48 sm:h-48 md:h-80 lg:h-80">
-                  <img
-                    src="https://media.istockphoto.com/id/1471444483/photo/customer-satisfaction-survey-concept-users-rate-service-experiences-on-online-application.jpg?s=612x612&w=0&k=20&c=HFh1o4JU68KWv7PXgbLdIZT0_qepmgePEkvbsLJr5p0="
-                    alt="College Campus"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                {/* Stats */}
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-6 sm:mt-8 pt-4 sm:pt-6">
+                  <div className="text-center">
+                    <div className="text-lg sm:text-xl md:text-2xl font-bold text-primary">500+</div>
+                    <div className="text-xs sm:text-sm text-gray-600">Active Users</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg sm:text-xl md:text-2xl font-bold text-primary">99%</div>
+                    <div className="text-xs sm:text-sm text-gray-600">Uptime</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg sm:text-xl md:text-2xl font-bold text-primary">24/7</div>
+                    <div className="text-xs sm:text-sm text-gray-600">Support</div>
+                  </div>
                 </div>
-              </Slider>
-            </div>
-            {/* Floating Elements */}
-            <div className="absolute -top-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-accent/20 rounded-full animate-bounce"></div>
-            <div className="absolute -bottom-4 -left-4 w-10 h-10 sm:w-12 sm:h-12 bg-primary/20 rounded-full animate-pulse"></div>
-            </div>
+              </div>
+              {/* Hero Visual */}
+              <div className="relative animate__animated animate__fadeInRight mt-8 lg:mt-0 w-full">
+                <div className="relative bg-white rounded-2xl sm:rounded-3xl shadow-xl overflow-hidden border border-gray-100 w-full">
+                  <Slider {...sliderSettings}>
+                    <div className="relative h-48 sm:h-48 md:h-80 lg:h-80">
+                      <img
+                        src="https://img.freepik.com/premium-photo/group-happy-smiling-business-people-standing-vector-illustration-cartoon-style_941097-22130.jpg"
+                        alt="College Campus"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                    </div>
+                    <div className="relative h-48 sm:h-48 md:h-80 lg:h-80">
+                      <img
+                        src="https://media.istockphoto.com/id/1471444483/photo/customer-satisfaction-survey-concept-users-rate-service-experiences-on-online-application.jpg?s=612x612&w=0&k=20&c=HFh1o4JU68KWv7PXgbLdIZT0_qepmgePEkvbsLJr5p0="
+                        alt="College Campus"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                    </div>
+                  </Slider>
+                </div>
+                {/* Floating Elements */}
+                <div className="absolute -top-4 -right-4 w-12 h-12 sm:w-16 sm:h-16 bg-accent/20 rounded-full animate-bounce"></div>
+                <div className="absolute -bottom-4 -left-4 w-10 h-10 sm:w-12 sm:h-12 bg-primary/20 rounded-full animate-pulse"></div>
+              </div>
             </div>
           </div>
         </CircleBackground>
@@ -567,13 +587,13 @@ const LandingPage = () => {
                     </svg>
                   </div>
                 </div>
-                
+
                 <h3 className="text-lg sm:text-xl font-bold text-primary mb-1">Ravi Buraga</h3>
                 <p className="text-accent font-semibold mb-2 sm:mb-3">Full Stack Developer</p>
-                
+
                 <div className="bg-white/50 rounded-lg sm:rounded-xl p-2 sm:p-3 mb-3 sm:mb-4">
                   <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
-                    Expert in <span className="font-semibold text-primary">MERN Stack & REST APIs</span>. 
+                    Expert in <span className="font-semibold text-primary">MERN Stack & REST APIs</span>.
                     Specializes in seamless frontend-backend integration and database optimization.
                   </p>
                 </div>
@@ -593,7 +613,7 @@ const LandingPage = () => {
                            hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 text-sm"
                 >
                   <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
                   </svg>
                   LinkedIn Profile
                 </a>
@@ -615,13 +635,13 @@ const LandingPage = () => {
                     </svg>
                   </div>
                 </div>
-                
+
                 <h3 className="text-lg sm:text-xl font-bold text-primary mb-1">Durga Prasad</h3>
                 <p className="text-accent font-semibold mb-2 sm:mb-3">Full Stack Developer</p>
-                
+
                 <div className="bg-white/50 rounded-lg sm:rounded-xl p-2 sm:p-3 mb-3 sm:mb-4">
                   <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
-                    Skilled in <span className="font-semibold text-primary">React, Node.js & MongoDB</span>. 
+                    Skilled in <span className="font-semibold text-primary">React, Node.js & MongoDB</span>.
                     Passionate about responsive web applications and clean UI/UX design.
                   </p>
                 </div>
@@ -641,7 +661,7 @@ const LandingPage = () => {
                            hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 text-sm"
                 >
                   <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
                   </svg>
                   LinkedIn Profile
                 </a>
